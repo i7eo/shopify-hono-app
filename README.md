@@ -68,15 +68,17 @@ src/
 npm install
 ```
 
-### 2. Create a Shopify app
+### 2. Create and link a Shopify app
 
-If you haven't already, create an app in your Shopify Partner Dashboard or via the Shopify CLI:
+Run the following command from the project root:
 
 ```bash
-shopify app create
+shopify app config link
 ```
 
-Note your **Client ID** and **Client Secret** from the app settings.
+This will prompt you to either **create a new app** or **connect to an existing app** in your Partner Dashboard. It updates `shopify.app.toml` with the correct `client_id` and app settings.
+
+After linking, find your **Client Secret** in the [Shopify Dev Dashboard](https://dev.shopify.com/) under your app's **Client credentials** section — you'll need it for the next steps.
 
 ### 3. Create a KV namespace
 
