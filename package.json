@@ -3,17 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "pnpm shopify app dev",
     "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "pnpm wrangler types"
   },
   "dependencies": {
-    "hono": "^4.7.0"
+    "hono": "^4.12.19"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250214.0",
-    "typescript": "^5.7.0",
-    "wrangler": "^4.0.0"
+    "@cloudflare/workers-types": "^4.20260518.1",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.92.0",
+    "@shopify/cli": "latest"
+  },
+  "engines": {
+    "node": ">=25",
+    "pnpm": ">=10"
   }
 }

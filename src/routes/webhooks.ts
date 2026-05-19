@@ -14,7 +14,7 @@ webhookRoutes.use("/*", verifyWebhook);
 
 webhookRoutes.post("/app/uninstalled", async (c) => {
   const shop = c.var.webhookShop;
-  const store = new SessionStore(c.env.SESSION_KV);
+  const store = new SessionStore(c.env.sofary);
   await store.deleteOfflineSession(shop);
   console.log(`App uninstalled: ${shop}`);
   return c.json({ ok: true });

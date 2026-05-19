@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 export interface Bindings {
-  SESSION_KV: KVNamespace;
+  sofary: KVNamespace;
   SHOPIFY_API_KEY: string;
   SHOPIFY_API_SECRET: string;
   SHOPIFY_APP_URL: string;

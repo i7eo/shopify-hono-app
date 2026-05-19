@@ -1,29 +1,21 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-# Learn more: https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
-
-name = "bish-hono-test-1"
-client_id = "4ece76e71eaa08087bf6b9c589a1234f"
+client_id = "a3b14c2a2ee39635dba11528ac9e7163"
+name = "unmanual"
 application_url = "https://your-worker.your-subdomain.workers.dev"
 embedded = true
 
 [access_scopes]
-scopes = "read_products,write_products,read_orders"
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://your-worker.your-subdomain.workers.dev/auth/callback",
+  "https://your-worker.your-subdomain.workers.dev/auth/callback"
 ]
 
 [webhooks]
-api_version = "2025-10"
-
-[[webhooks.subscriptions]]
-topics = ["app/uninstalled"]
-compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-uri = "/webhooks"
-
-[pos]
-embedded = false
+api_version = "2026-07"
 
 [build]
 automatically_update_urls_on_dev = true

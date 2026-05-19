@@ -83,14 +83,14 @@ After linking, find your **Client Secret** in the [Shopify Dev Dashboard](https:
 ### 3. Create a KV namespace
 
 ```bash
-npx wrangler kv namespace create SESSION_KV
+npx wrangler kv namespace create sofary
 ```
 
 Copy the output `id` and update [wrangler.toml](wrangler.toml):
 
 ```toml
 [[kv_namespaces]]
-binding = "SESSION_KV"
+binding = "sofary"
 id = "your-actual-kv-namespace-id"
 ```
 
@@ -228,7 +228,7 @@ npm run cf-typegen
 ### 1. Create the KV namespace (if not done)
 
 ```bash
-npx wrangler kv namespace create SESSION_KV
+npx wrangler kv namespace create sofary
 ```
 
 Update the `id` in [wrangler.toml](wrangler.toml) with the production namespace ID.
@@ -287,4 +287,4 @@ To use a custom domain instead of `*.workers.dev`, add a Custom Domain in the Cl
 
 | Binding | Purpose |
 |---------|---------|
-| `SESSION_KV` | Stores offline tokens, online tokens, and OAuth state nonces |
+| `sofary` | Stores offline tokens, online tokens, and OAuth state nonces |

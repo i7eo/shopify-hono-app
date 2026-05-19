@@ -18,7 +18,7 @@ import { SessionStore } from "../lib/session-store";
 export const tokenExchange = createMiddleware<AppEnv>(async (c, next) => {
   const shop = c.var.shopDomain;
   const userId = c.var.shopifyUserId;
-  const store = new SessionStore(c.env.SESSION_KV);
+  const store = new SessionStore(c.env.sofary);
 
   // Check for a cached online token
   const cached = await store.getOnlineSession(shop, userId);

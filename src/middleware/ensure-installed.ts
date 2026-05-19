@@ -30,7 +30,7 @@ export const ensureInstalled = createMiddleware<AppEnv>(async (c, next) => {
     return;
   }
 
-  const store = new SessionStore(c.env.SESSION_KV);
+  const store = new SessionStore(c.env.sofary);
   const session = await store.getOfflineSession(shop);
 
   if (session) {

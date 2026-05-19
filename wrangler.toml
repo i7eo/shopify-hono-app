@@ -1,13 +1,13 @@
-name = "bish-hono-test-1"
+name = "shopify-hono-app"
 main = "src/index.ts"
-compatibility_date = "2025-12-01"
+compatibility_date = "2026-05-18"
 compatibility_flags = ["nodejs_compat"]
 
 [observability]
 enabled = true
 
 [vars]
-SHOPIFY_API_VERSION = "2025-10"
+SHOPIFY_API_VERSION = "2026-04"
 
 # Secrets (set via `wrangler secret put` or .dev.vars for local dev):
 # SHOPIFY_API_KEY
@@ -16,5 +16,5 @@ SHOPIFY_API_VERSION = "2025-10"
 # SCOPES
 
 [[kv_namespaces]]
-binding = "SESSION_KV"
-id = "YOUR_KV_NAMESPACE_ID"
+binding = "sofary"
+id = "b5a86d0381b54d3787bc0a53c2bb3198"

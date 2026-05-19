@@ -2,5 +2,5 @@ roles = ["frontend", "backend"]
 port = 8787
 
 [commands]
-dev = "npx wrangler dev --port 8787"
-build = "npx wrangler deploy"
+dev = "pnpm wrangler dev --port 8787"
+build = "pnpm wrangler deploy"

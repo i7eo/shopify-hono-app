@@ -26,7 +26,7 @@ authRoutes.get("/", async (c) => {
     .join("");
 
   // Store the nonce in KV with a 10-minute TTL
-  const store = new SessionStore(c.env.SESSION_KV);
+  const store = new SessionStore(c.env.sofary);
   await store.setOAuthState(nonce, shop);
 
   // Build the Shopify authorization URL
@@ -74,7 +74,7 @@ authRoutes.get("/callback", async (c) => {
   }
 
   // 3. Validate state nonce (one-time use CSRF token)
-  const store = new SessionStore(c.env.SESSION_KV);
+  const store = new SessionStore(c.env.sofary);
   const storedShop = await store.getAndDeleteOAuthState(state);
 
   if (!storedShop || storedShop !== shop) {
