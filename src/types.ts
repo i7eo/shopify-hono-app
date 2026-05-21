@@ -4,8 +4,8 @@
 
 export interface Bindings {
   sofary: KVNamespace;
-  SHOPIFY_API_KEY: string;
-  SHOPIFY_API_SECRET: string;
+  SHOPIFY_APP_KEY: string;
+  SHOPIFY_APP_SECRET: string;
   SHOPIFY_APP_URL: string;
   SCOPES: string;
   SHOPIFY_API_VERSION: string;
@@ -40,7 +40,7 @@ export interface ShopifySessionTokenClaims {
   iss: string;
   /** Destination: https://{shop}.myshopify.com */
   dest: string;
-  /** Audience: the app's client ID (SHOPIFY_API_KEY) */
+  /** Audience: the app's client ID (SHOPIFY_APP_KEY) */
   aud: string;
   /** Subject: the ID of the user who initiated the request */
   sub: string;
@@ -82,6 +82,7 @@ export interface ShopifyAccessTokenResponse {
 
 export interface ShopifyTokenExchangeResponse {
   access_token: string;
+  scope?: string;
   expires_in: number;
   associated_user_scope: string;
   associated_user: {

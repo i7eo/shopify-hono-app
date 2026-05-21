@@ -21,10 +21,7 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
   const authHeader = c.req.header("Authorization");
 
   if (!authHeader?.startsWith("Bearer ")) {
-    return c.json(
-      { error: "Missing or malformed Authorization header" },
-      401,
-    );
+    return c.json({ error: "Missing or malformed Authorization header" }, 401);
   }
 
   const token = authHeader.slice(7);
@@ -33,7 +30,7 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
   try {
     claims = await verifyHS256JWT<ShopifySessionTokenClaims>(
       token,
-      c.env.SHOPIFY_API_SECRET,
+      c.env.SHOPIFY_APP_SECRET,
     );
   } catch (err) {
     return c.json(
@@ -55,7 +52,7 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   // Check audience matches our app's client ID
-  if (claims.aud !== c.env.SHOPIFY_API_KEY) {
+  if (claims.aud !== c.env.SHOPIFY_APP_KEY) {
     return c.json({ error: "Session token audience mismatch" }, 401);
   }
 
@@ -76,10 +73,7 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
     const issShop = issHost.split(".")[0];
     const destShop = destHost.split(".")[0];
     if (issShop !== destShop) {
-      return c.json(
-        { error: "Session token iss/dest hostname mismatch" },
-        401,
-      );
+      return c.json({ error: "Session token iss/dest hostname mismatch" }, 401);
     }
   }
 

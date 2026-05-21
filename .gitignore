@@ -1,5 +1,8 @@
 node_modules/
 dist/
-.dev.vars
+.env*
+!.env.example
+.dev.*
+.shopify/
 .wrangler/
 *.log

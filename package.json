@@ -2,19 +2,28 @@
   "name": "shopify-hono-app",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "pnpm shopify app dev",
-    "typecheck": "tsc --noEmit",
-    "cf-typegen": "pnpm wrangler types"
+    "print-env": "node -e \"console.log('🚀 process =', process.env)\"",
+    "dev": "pnpm app:dev",
+    "app:dev": "pnpm shopify app dev",
+    "app:deploy": "pnpm shopify app deploy", 
+    "cf:dev": "pnpm print-env && pnpm wrangler dev --port \"$PORT\" --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\" --var \"SHOPIFY_APP_KEY:$SHOPIFY_APP_KEY\" --var \"SHOPIFY_APP_SECRET:$SHOPIFY_APP_SECRET\" --var \"SCOPES:$SCOPES\"",
+    "cf:deploy": "pnpm wrangler secret bulk .env.production && pnpm wrangler deploy",
+    "cf:type": "pnpm wrangler types",
+    "node:dev": "pnpm tsx src/index.ts --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.12.19"
+    "hono": "^4.12.21"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260518.1",
+    "@types/node": "^25.9.1",
+    "@cloudflare/workers-types": "latest",
     "typescript": "^6.0.3",
-    "wrangler": "^4.92.0",
-    "@shopify/cli": "latest"
+    "wrangler": "latest",
+    "@shopify/cli": "latest",
+    "tsx": "^4.22.3"
   },
   "engines": {
     "node": ">=25",

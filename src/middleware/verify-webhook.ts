@@ -25,7 +25,7 @@ export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
 
   // Compute HMAC-SHA256 base64 digest
   const computedHmac = await hmacSha256Base64(
-    c.env.SHOPIFY_API_SECRET,
+    c.env.SHOPIFY_APP_SECRET,
     rawBody,
   );
 

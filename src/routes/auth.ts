@@ -31,9 +31,12 @@ authRoutes.get("/", async (c) => {
 
   // Build the Shopify authorization URL
   const authUrl = new URL(`https://${shop}/admin/oauth/authorize`);
-  authUrl.searchParams.set("client_id", c.env.SHOPIFY_API_KEY);
+  authUrl.searchParams.set("client_id", c.env.SHOPIFY_APP_KEY);
   authUrl.searchParams.set("scope", c.env.SCOPES);
-  authUrl.searchParams.set("redirect_uri", `${c.env.SHOPIFY_APP_URL}/auth/callback`);
+  authUrl.searchParams.set(
+    "redirect_uri",
+    `${c.env.SHOPIFY_APP_URL}/auth/callback`,
+  );
   authUrl.searchParams.set("state", nonce);
 
   return c.redirect(authUrl.toString());
@@ -66,7 +69,10 @@ authRoutes.get("/callback", async (c) => {
     .map(([k, v]) => `${k}=${v}`)
     .join("&");
 
-  const computedHmac = await hmacSha256Hex(c.env.SHOPIFY_API_SECRET, sortedParams);
+  const computedHmac = await hmacSha256Hex(
+    c.env.SHOPIFY_APP_SECRET,
+    sortedParams,
+  );
   const hmacValid = await timingSafeEqual(computedHmac, hmac);
 
   if (!hmacValid) {
@@ -88,8 +94,8 @@ authRoutes.get("/callback", async (c) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: c.env.SHOPIFY_API_KEY,
-        client_secret: c.env.SHOPIFY_API_SECRET,
+        client_id: c.env.SHOPIFY_APP_KEY,
+        client_secret: c.env.SHOPIFY_APP_SECRET,
         code,
       }),
     },
@@ -120,7 +126,7 @@ authRoutes.get("/callback", async (c) => {
   //    The `host` param is base64-encoded and identifies the Shopify admin host.
   if (host) {
     const decodedHost = atob(host);
-    return c.redirect(`https://${decodedHost}/apps/${c.env.SHOPIFY_API_KEY}`);
+    return c.redirect(`https://${decodedHost}/apps/${c.env.SHOPIFY_APP_KEY}`);
   }
 
   // Fallback: redirect to our own app URL

@@ -1,18 +1,17 @@
 name = "shopify-hono-app"
 main = "src/index.ts"
 compatibility_date = "2026-05-18"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat_v2"]
 
 [observability]
 enabled = true
 
 [vars]
-SHOPIFY_API_VERSION = "2026-04"
-
-# Secrets (set via `wrangler secret put` or .dev.vars for local dev):
-# SHOPIFY_API_KEY
-# SHOPIFY_API_SECRET
+# Secrets (set via `wrangler secret put` for production or .env.development for local dev):
+# SHOPIFY_APP_KEY
+# SHOPIFY_APP_SECRET
 # SHOPIFY_APP_URL
+# SHOPIFY_API_VERSION
 # SCOPES
 
 [[kv_namespaces]]

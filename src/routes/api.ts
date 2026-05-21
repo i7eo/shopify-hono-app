@@ -17,17 +17,24 @@ apiRoutes.use("/*", tokenExchange);
 apiRoutes.get("/shop", async (c) => {
   const client = createClient(c);
 
-  const result = await client.query<{
-    shop: { name: string; email: string; myshopifyDomain: string };
-  }>(`{
-    shop {
-      name
-      email
-      myshopifyDomain
-    }
-  }`);
+  try {
+    const result = await client.query<{
+      shop: { name: string; email: string; myshopifyDomain: string };
+    }>(`{
+      shop {
+        name
+        email
+        myshopifyDomain
+      }
+    }`);
 
-  return c.json(result);
+    return c.json(result);
+  } catch (err) {
+    return c.json(
+      { error: "Failed to fetch shop info", detail: (err as Error).message },
+      502,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -37,23 +44,30 @@ apiRoutes.get("/shop", async (c) => {
 apiRoutes.get("/products", async (c) => {
   const client = createClient(c);
 
-  const result = await client.query<{
-    products: {
-      edges: Array<{
-        node: { id: string; title: string; status: string };
-      }>;
-    };
-  }>(`{
-    products(first: 5) {
-      edges {
-        node {
-          id
-          title
-          status
+  try {
+    const result = await client.query<{
+      products: {
+        edges: Array<{
+          node: { id: string; title: string; status: string };
+        }>;
+      };
+    }>(`{
+      products(first: 5) {
+        edges {
+          node {
+            id
+            title
+            status
+          }
         }
       }
-    }
-  }`);
+    }`);
 
-  return c.json(result);
+    return c.json(result);
+  } catch (err) {
+    return c.json(
+      { error: "Failed to fetch products", detail: (err as Error).message },
+      502,
+    );
+  }
 });

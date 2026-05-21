@@ -11,8 +11,8 @@ appRoutes.use("/*", ensureInstalled);
 // Serve the embedded app HTML shell
 // ---------------------------------------------------------------------------
 
-appRoutes.get("/", (c) => c.html(renderAppShell(c.env.SHOPIFY_API_KEY)));
-appRoutes.get("/*", (c) => c.html(renderAppShell(c.env.SHOPIFY_API_KEY)));
+appRoutes.get("/", (c) => c.html(renderAppShell(c.env.SHOPIFY_APP_KEY)));
+appRoutes.get("/*", (c) => c.html(renderAppShell(c.env.SHOPIFY_APP_KEY)));
 
 // ---------------------------------------------------------------------------
 // HTML template — App Bridge auto-configures from the meta tag
