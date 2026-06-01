@@ -48,13 +48,6 @@ coverage/
 .settings
 *.sublime-workspace
 
-# Visual Studio Code
-# https://github.com/github/gitignore/blob/master/Global/VisualStudioCode.gitignore
-.vscode/*
-!.vscode/launch.json
-!.vscode/mcp.json
-!.vscode/tasks.json
-
 # Frameworks
 .astro/
 .tanstack/
