@@ -1,0 +1,21 @@
+{
+  "extends": ["@unconfig/ts-config-latest/web.json"],
+  "compilerOptions": {
+    "composite": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist"
+  },
+  "include": ["./src/**/*", "./**/typings/**/*", "./**/*.json"],
+  "exclude": [
+    "**/__tests__/**",
+    "**/tests/**",
+    "**/dist/**/*",
+    "**/node_modules/**/*",
+    "**/*.md"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "name": "@shamt/server",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "author": "i7eo",
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "main": "./dist/cjs/index.cjs",
+    "module": "./dist/esm/index.js",
+    "types": "./dist/esm/index.d.mts",
+    "exports": {
+      ".": {
+        "import": "./dist/esm/index.mjs",
+        "require": "./dist/cjs/index.cjs"
+      },
+      "./package.json": "./package.json"
+    }
+  },
+  "scripts": {
+    "print-env": "node -e \"console.log('🚀 process =', process.env)\"",
+    "cf:dev": "pnpm print-env && wrangler dev --port \"$PORT\" --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\" --var \"SHOPIFY_APP_KEY:$SHOPIFY_APP_KEY\" --var \"SHOPIFY_APP_SECRET:$SHOPIFY_APP_SECRET\" --var \"SCOPES:$SCOPES\"",
+    "cf:deploy": "wrangler secret bulk .env.production && wrangler deploy",
+    "cf:type": "wrangler types",
+    "node:dev": "tsx watch src/index.ts --env-file=../../.env.development",
+    "build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
+    "test": "vitest",
+    "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
+    "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",
+    "clean": "run-p \"clean:**\"",
+    "clean:cache": "rimraf dist",
+    "clean:deps": "rimraf node_modules"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "latest",
+    "@logtape/file": "latest",
+    "@logtape/logtape": "latest",
+    "ai": "latest",
+    "hono": "catalog:hono",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@unconfig/ts-config-latest": "catalog:dx",
+    "rolldown": "catalog:dx",
+    "rolldown-plugin-dts": "catalog:dx",
+    "typescript": "catalog:",
+    "wrangler": "catalog:cloudflare"
+  }
+}

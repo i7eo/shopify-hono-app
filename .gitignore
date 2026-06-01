@@ -1,5 +1,60 @@
-node_modules/
+# Output
+out
+*.tgz
 dist/
-.dev.vars
-.wrangler/
+**/*.tsbuildinfo
+
+# package manager
+node_modules/
+
+# Logs
 *.log
+logs
+_.log
+report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+
+# Cache
+.cache/
+cache/
+.eslintcache
+.swc/
+.vercel/
+.wrangler/
+.shopify/
+
+# Testing
+coverage/
+*.lcov
+
+# Temp
+.temp
+.tmp
+
+# Local File
+*.env.*
+*.local.*
+
+# macOS
+# https://github.com/github/gitignore/blob/master/Global/macOS.gitignore
+.DS_Store
+
+
+# IDEs
+.idea
+.project
+.classpath
+.c9
+*.launch
+.settings
+*.sublime-workspace
+
+# Visual Studio Code
+# https://github.com/github/gitignore/blob/master/Global/VisualStudioCode.gitignore
+.vscode/*
+!.vscode/launch.json
+!.vscode/mcp.json
+!.vscode/tasks.json
+
+# Frameworks
+.astro/
+.tanstack/

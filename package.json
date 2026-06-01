@@ -1,19 +1,60 @@
 {
-  "name": "shopify-hono-app",
-  "version": "0.1.0",
+  "name": "@shamt/repository",
+  "type": "module",
   "private": true,
+  "description": "🚀 A modern high-performance monorepo project with hono + shopify app!",
+  "author": "i7eo",
+  "license": "MIT",
+  "keywords": [
+    "hono",
+    "monorepo",
+    "shopify",
+    "shopify app"
+  ],
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types"
-  },
-  "dependencies": {
-    "hono": "^4.7.0"
+    "postinstall": "simple-git-hooks",
+    "app:generate": "shopify app generate",
+    "app:config": "shopify app config",
+    "app:env": "shopify app env",
+    "app:dev": "shopify app dev",
+    "app:deploy": "shopify app deploy",
+    "dev": "pnpm app:dev",
+    "format": "pnpm -F \"*\" format",
+    "lint": "pnpm -F \"*\" lint",
+    "clean": "run-s \"clean:**\"",
+    "clean:workspace": "pnpm -F \"*\" clean",
+    "clean:cache": "rimraf pnpm-lock.yaml && rimraf node_modules",
+    "commit": "czg"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250214.0",
-    "typescript": "^5.7.0",
-    "wrangler": "^4.0.0"
+    "@commitlint/cli": "catalog:dx",
+    "@commitlint/config-conventional": "catalog:dx",
+    "@commitlint/types": "catalog:dx",
+    "@shopify/cli": "catalog:shopify",
+    "@sxzz/eslint-config": "catalog:dx",
+    "@types/node": "catalog:",
+    "@unconfig/stylelint-config": "catalog:dx",
+    "@unconfig/ts-config-latest": "catalog:dx",
+    "czg": "catalog:dx",
+    "eslint": "catalog:dx",
+    "lint-staged": "catalog:dx",
+    "npm-run-all2": "catalog:",
+    "prettier": "catalog:dx",
+    "prettier-plugin-tailwindcss": "catalog:dx",
+    "rimraf": "catalog:",
+    "simple-git-hooks": "catalog:dx",
+    "tsx": "catalog:dx",
+    "typescript": "catalog:"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "lint-staged --concurrent false",
+    "commit-msg": "commitlint --edit $1"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": ">=11.0.0",
+      "onFail": "download"
+    }
   }
 }
