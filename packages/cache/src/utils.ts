@@ -1,16 +1,35 @@
-import { hashString, isObject } from "@shamt/utils";
+import { DEFAULT_CACHE_KEY_PREFIX } from "./constants";
 
 export function buildCacheKey(prefix: string, key: string): string {
-  return `${prefix}${key}`;
+  return prefix ? `${prefix}${key}` : key;
 }
 
-export function buildCacheTag(key: string): string {
-  return hashString(key).toString(36);
+export function serializeCacheValue<T>(value: T): string {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    throw new TypeError("Cache value must be JSON serializable");
+  }
+  return serialized;
 }
 
-export function estimateSize(value: unknown): number {
-  if (typeof value === "string") return value.length;
-  if (value instanceof Uint8Array) return value.byteLength;
-  if (isObject(value)) return JSON.stringify(value).length;
-  return String(value).length;
+export function deserializeCacheValue<T = unknown>(
+  value: string | undefined,
+): T | undefined {
+  if (value === undefined) return undefined;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+export function estimateCacheValueSize(value: string): number {
+  return value.length;
+}
+
+export function normalizeCacheKeyPrefix(
+  keyPrefix = DEFAULT_CACHE_KEY_PREFIX,
+): string {
+  if (!keyPrefix) return "";
+  return keyPrefix.endsWith(":") ? keyPrefix : `${keyPrefix}:`;
 }

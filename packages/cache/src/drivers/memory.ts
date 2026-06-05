@@ -1,63 +1,82 @@
-import { deserializeValue, serializeValue } from "@shamt/utils";
 import { LRUCache } from "lru-cache";
-import { buildCacheKey, estimateSize } from "../utils";
-import type { Cache, CacheSetOptions, MemoryCacheOptions } from "../types";
+import {
+  DEFAULT_MEMORY_CACHE_MAX_SIZE_KB,
+} from "../constants";
+import { Cache } from "../types";
+import {
+  buildCacheKey,
+  deserializeCacheValue,
+  estimateCacheValueSize,
+  serializeCacheValue,
+  normalizeCacheKeyPrefix
+} from "../utils";
+import type { CacheCreateOptions, MemoryCacheOptions } from "../types";
 
-export class MemoryCacheAdapter implements Cache {
-  private readonly client: LRUCache<string, string>;
-  private readonly ttl: number;
-  private readonly keyPrefix: string;
+export class MemoryCache extends Cache {
+  private readonly records: LRUCache<string, string>;
+  private connected = false;
 
-  constructor(options: Required<MemoryCacheOptions>) {
-    this.ttl = options.ttl;
-    this.keyPrefix = options.keyPrefix;
-    this.client = new LRUCache<string, string>({
-      maxSize: options.maxSizeKb * 1024,
-      ttl: options.ttl,
-      sizeCalculation: estimateSize,
+  constructor(options: MemoryCacheOptions = {}) {
+    super({
+      ...options,
+      keyPrefix: normalizeCacheKeyPrefix(options.keyPrefix),
+    });
+    this.records = new LRUCache<string, string>({
+      maxSize: (options.maxSize ?? DEFAULT_MEMORY_CACHE_MAX_SIZE_KB),
+      sizeCalculation: estimateCacheValueSize,
+      ttl: this.ttl,
     });
   }
 
-  connect(): Promise<void> {
-    console.info("[cache] memory cache connected");
+  override connect(): Promise<void> {
+    this.connected = true;
     return Promise.resolve();
   }
 
-  get<T = unknown>(key: string): Promise<T | undefined> {
+  override create<T = unknown>(
+    key: string,
+    value: T,
+    options: CacheCreateOptions = {},
+  ): Promise<void> {
+    const ttl = this.resolveTtl(options.ttl);
+    const cacheKey = this.getKey(key);
+    const cacheValue = serializeCacheValue(value);
+    if (ttl === undefined) {
+      this.records.set(cacheKey, cacheValue);
+      return Promise.resolve();
+    }
+    this.records.set(cacheKey, cacheValue, { ttl });
+    return Promise.resolve();
+  }
+
+  override read<T = unknown>(key: string): Promise<T | undefined> {
     return Promise.resolve(
-      deserializeValue<T>(this.client.get(this.getKey(key)) ?? null),
+      deserializeCacheValue<T>(this.records.get(this.getKey(key))),
     );
   }
 
-  set<T = unknown>(
-    key: string,
-    value: T,
-    options: CacheSetOptions = {},
-  ): Promise<void> {
-    this.client.set(this.getKey(key), serializeValue(value), {
-      ttl: options.ttl ?? this.ttl,
-    });
+  override delete(key: string): Promise<void> {
+    this.records.delete(this.getKey(key));
     return Promise.resolve();
   }
 
-  delete(key: string): Promise<void> {
-    this.client.delete(this.getKey(key));
+  override has(key: string): Promise<boolean> {
+    return Promise.resolve(this.records.has(this.getKey(key)));
+  }
+
+  override clear(): Promise<void> {
+    this.records.clear();
     return Promise.resolve();
   }
 
-  has(key: string): Promise<boolean> {
-    return Promise.resolve(this.client.has(this.getKey(key)));
-  }
-
-  clear(): Promise<void> {
-    this.client.clear();
+  override dispose(): Promise<void> {
+    this.connected = false;
+    this.records.clear();
     return Promise.resolve();
   }
 
-  dispose(): Promise<void> {
-    console.info("[cache] memory cache disconnected");
-    this.client.clear();
-    return Promise.resolve();
+  get isConnected(): boolean {
+    return this.connected;
   }
 
   private getKey(key: string): string {

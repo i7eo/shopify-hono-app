@@ -1,98 +1,96 @@
-import type Redis from "ioredis";
-
-export enum CacheType {
-  Memory = "MEMORY",
-  Redis = "REDIS",
-  Platform = "PLATFORM",
-}
-
-export enum PlatformCacheType {
-  Cloudflare = "CLOUDFLARE",
-}
-
-export interface CacheSetOptions {
+export interface CacheCreateOptions {
+  /** Default unit is 'ms' */
   ttl?: number;
-}
-
-export interface Cache {
-  connect: () => Promise<void>;
-  get: <T = unknown>(key: string) => Promise<T | undefined>;
-  set: <T = unknown>(
-    key: string,
-    value: T,
-    options?: CacheSetOptions,
-  ) => Promise<void>;
-  delete: (key: string) => Promise<void>;
-  has: (key: string) => Promise<boolean>;
-  clear: () => Promise<void>;
-  dispose: () => Promise<void>;
-}
-
-export interface CacheEnv {
-  CACHE_TYPE?: string;
-  CACHE_MAX_SIZE?: string | number;
-  CACHE_TTL?: string | number;
-}
-
-export interface BaseCacheOptions {
-  ttl?: number;
+  /** Default value is 'cache:' */
   keyPrefix?: string;
 }
 
-export interface MemoryCacheOptions extends BaseCacheOptions {
-  maxSizeKb?: number;
+export interface CacheOptions {
+  /** Default unit is 'ms' */
+  ttl?: number;
+  /** Default value is 'cache:' */
+  keyPrefix?: string;
 }
 
-export interface RedisClient {
-  get: (key: string) => Promise<string | null>;
-  set: (
-    key: string,
-    value: string,
-    mode?: "PX",
-    ttl?: number,
-  ) => Promise<unknown>;
-  del: (...keys: string[]) => Promise<unknown>;
-  exists: (key: string) => Promise<number>;
-  keys: (pattern: string) => Promise<string[]>;
-  disconnect?: () => void;
-  quit?: () => Promise<unknown>;
+export interface MemoryCacheOptions extends CacheOptions {
+  /** Default unit is 'b' */
+  maxSize?: number
 }
 
-export interface RedisCacheOptions extends BaseCacheOptions {
-  client?: RedisClient;
-  url?: string;
-  redisOptions?: Redis["options"];
+export type CacheMethod =
+  | "connect"
+  | "create"
+  | "read"
+  | "delete"
+  | "has"
+  | "clear"
+  | "dispose";
+
+export interface CreateCacheOptions extends MemoryCacheOptions {}
+
+export class CacheMethodNotImplementedError extends Error {
+  constructor(storeName: string, method: CacheMethod) {
+    super(`${storeName} must implement Cache.${method}()`);
+    this.name = "CacheMethodNotImplementedError";
+  }
 }
 
-export interface CloudflareKvClient {
-  get: (key: string) => Promise<string | null>;
-  put: (
-    key: string,
-    value: string,
-    options?: { expirationTtl?: number },
-  ) => Promise<void>;
-  delete: (key: string) => Promise<void>;
-  list: (options?: { prefix?: string; cursor?: string }) => Promise<{
-    keys: Array<{ name: string }>;
-    list_complete: boolean;
-    cursor?: string;
-  }>;
+export abstract class Cache {
+  protected readonly ttl: number | undefined;
+  protected readonly keyPrefix: string;
+
+  constructor(options: CacheOptions = {}) {
+    this.ttl = normalizeCacheTtl(options.ttl);
+    this.keyPrefix = options.keyPrefix ?? "";
+  }
+
+  connect(): Promise<void> {
+    throw this.createNotImplementedError("connect");
+  }
+
+  create<T = unknown>(
+    _key: string,
+    _value: T,
+    _options?: CacheCreateOptions,
+  ): Promise<void> {
+    throw this.createNotImplementedError("create");
+  }
+
+  read<T = unknown>(_key: string): Promise<T | undefined> {
+    throw this.createNotImplementedError("read");
+  }
+
+  delete(_key: string): Promise<void> {
+    throw this.createNotImplementedError("delete");
+  }
+
+  has(_key: string): Promise<boolean> {
+    throw this.createNotImplementedError("has");
+  }
+
+  clear(): Promise<void> {
+    throw this.createNotImplementedError("clear");
+  }
+
+  dispose(): Promise<void> {
+    throw this.createNotImplementedError("dispose");
+  }
+
+  protected resolveTtl(ttl?: number): number | undefined {
+    return normalizeCacheTtl(ttl ?? this.ttl);
+  }
+
+  private createNotImplementedError(
+    method: CacheMethod,
+  ): CacheMethodNotImplementedError {
+    return new CacheMethodNotImplementedError(this.constructor.name, method);
+  }
 }
 
-export interface CloudflareKvCacheOptions extends BaseCacheOptions {
-  namespace: CloudflareKvClient;
-}
-
-export interface PlatformCacheOptions extends BaseCacheOptions {
-  type?: PlatformCacheType;
-  cloudflare?: CloudflareKvCacheOptions;
-}
-
-export interface CreateCacheOptions extends BaseCacheOptions {
-  env?: CacheEnv;
-  type?: CacheType;
-  maxSizeKb?: number;
-  platformType?: PlatformCacheType;
-  redis?: RedisCacheOptions;
-  platform?: PlatformCacheOptions;
+export function normalizeCacheTtl(ttl?: number): number | undefined {
+  if (ttl === undefined) return undefined;
+  if (!Number.isFinite(ttl) || ttl <= 0) {
+    throw new RangeError("Cache ttl must be a positive finite number in ms");
+  }
+  return ttl;
 }

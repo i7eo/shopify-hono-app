@@ -40,6 +40,9 @@
     "@ai-sdk/openai": "latest",
     "@logtape/file": "latest",
     "@logtape/logtape": "latest",
+    "@shamt/cache": "workspace:*",
+    "@shamt/envs": "workspace:*",
+    "@shamt/utils": "workspace:*",
     "ai": "latest",
     "hono": "catalog:hono",
     "zod": "catalog:"

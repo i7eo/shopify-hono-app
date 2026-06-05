@@ -1,26 +1,7 @@
 {
-  "extends": ["@unconfig/ts-config-latest/node.json"],
-  "compilerOptions": {
-    "composite": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "declaration": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": true,
-    "outDir": "./dist"
-  },
-  "include": [
-    "./src/**/*",
-    "./**/typings/**/*",
-    "./**/*.json",
-    "**/*.config.ts"
+  "references": [
+    { "path": "./tsconfig.web.json" },
+    { "path": "./tsconfig.node.json" }
   ],
-  "exclude": [
-    "**/__tests__/**",
-    "**/tests/**",
-    "**/dist/**/*",
-    "**/node_modules/**/*",
-    "**/*.md"
-  ]
+  "files": []
 }

@@ -7,6 +7,7 @@ compatibility_flags = ["nodejs_compat_v2"]
 enabled = true
 
 [vars]
+APP_RUNTIME = "cloudflare"
 # Secrets (set via `wrangler secret put` for production or .env.development for local dev):
 # SHOPIFY_APP_KEY
 # SHOPIFY_APP_SECRET

@@ -1,3 +1,5 @@
+import { throwError } from "./error";
+
 type RandomOptions = {
   count?: number; // 生成数量（默认1）
   min?: number; // 最小值（默认0）
@@ -16,11 +18,14 @@ export function generateRandom(options: RandomOptions = {}) {
   } = options;
 
   if (min > max) {
-    throw new Error("min 不能大于 max");
+    throwError("generateRandom", "'min' cannot be greater than 'max'");
   }
 
   if (unique && integer && max - min + 1 < count) {
-    throw new Error("范围内的整数数量不足以生成唯一值");
+    throwError(
+      "generateRandom",
+      "The number of integers within the range is insufficient to generate a unique value.",
+    );
   }
 
   const result = new Set<number>();

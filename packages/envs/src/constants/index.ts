@@ -4,5 +4,6 @@ export * from "./env";
 export * from "./error";
 export * from "./http-status-codes";
 export * from "./log";
+export * from "./redis";
 export * from "./request";
 export * from "./response";

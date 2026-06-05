@@ -1,10 +1,10 @@
-class UnimoleculeError extends Error {
+class ShamtError extends Error {
   constructor(m: string) {
     super(m);
-    this.name = "UnimoleculeError";
+    this.name = "ShamtError";
   }
 }
 
 export function throwError(scope: string, m: string): never {
-  throw new UnimoleculeError(`[${scope}] ${m}`);
+  throw new ShamtError(`[${scope}] ${m}`);
 }

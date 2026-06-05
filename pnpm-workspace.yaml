@@ -41,7 +41,7 @@ catalogs:
     "@commitlint/config-conventional": "^21.0.2"
     "@commitlint/types": "^21.0.1"
     "czg": "^1.13.1"
-    "lint-staged": "^17.0.6"
+    "lint-staged": "^17.0.7"
     "prettier": "^3.8.3"
     "prettier-plugin-tailwindcss": "^0.8.0"
     "simple-git-hooks": "^2.13.1"
@@ -49,7 +49,7 @@ catalogs:
     "@unconfig/ts-config-latest": "^0.0.1"
     "rolldown": "^1.0.2"
     "rolldown-plugin-dts": "^0.25.1"
-    "tsx": "^4.22.3"
+    "tsx": "^4.22.4"
     "turbo": "^2.9.14"
   "react":
     "react": "^19.2.6"

@@ -42,7 +42,7 @@ export function rafSetTimeout(callback: RafCallback, delay: number) {
       try {
         await callback();
       } catch (error: any) {
-        throwError("Raf.SetTimeout", `Callback error is: ${error}`);
+        throwError("rafSetTimeout", `Callback error is: ${error}`);
       } finally {
         isExecuted = false;
         lastTime = performance.now();
@@ -82,7 +82,7 @@ export function rafSetInterval(callback: RafCallback, interval: number) {
       try {
         await callback();
       } catch (error: any) {
-        throwError("Raf.setInterval", `Callback error is: ${error}`);
+        throwError("rafSetInterval", `Callback error is: ${error}`);
       } finally {
         isExecuted = false;
       }
@@ -123,7 +123,7 @@ export function rafDebounce(callback: RafCallback, delay: number) {
       isExecuted = true;
       await callback(...args);
     } catch (error: any) {
-      throwError("Raf.debounce", `Callback error: ${error}`);
+      throwError("rafDebounce", `Callback error: ${error}`);
     } finally {
       isExecuted = false;
       lastTime = performance.now();
@@ -194,7 +194,7 @@ export function rafThrottle(callback: RafCallback, interval: number) {
       isExecuted = true;
       await callback(...args);
     } catch (error: any) {
-      throwError("Raf.throttle", `Callback error: ${error}`);
+      throwError("rafThrottle", `Callback error: ${error}`);
     } finally {
       isExecuted = false;
       lastTime = performance.now();
