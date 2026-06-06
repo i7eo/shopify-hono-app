@@ -1,5 +1,6 @@
+import { serializeValue } from "@shamt/utils";
+import type { AppEnv, GraphQLResponse } from "@/types";
 import type { Context } from "hono";
-import type { AppEnv, GraphQLResponse } from "../../types";
 
 /**
  * Minimal typed client for the Shopify Admin GraphQL API.
@@ -26,7 +27,7 @@ export class ShopifyClient {
         "Content-Type": "application/json",
         "X-Shopify-Access-Token": this.accessToken,
       },
-      body: JSON.stringify({ query, variables }),
+      body: serializeValue({ query, variables }),
     });
 
     if (!response.ok) {

@@ -32,6 +32,8 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
+    "@shamt/envs": "workspace:*",
+    "@shamt/utils": "workspace:*",
     "lru-cache": "^11.5.1"
   },
   "devDependencies": {

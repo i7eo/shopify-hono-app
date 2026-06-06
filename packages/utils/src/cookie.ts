@@ -1,7 +1,18 @@
+import { isClient } from "./is";
+import { deserializeValue, serializeValue } from "./json";
+
 /**
- * Engineering-grade cookie operation library
- * Inspired by js-cookie with full TypeScript support
+ * Engineering-grade cookie operation library.
+ *
+ * @example
+ * Cookies.set("theme", "dark", { sameSite: "lax" });
+ * const theme = Cookies.get("theme");
+ * Cookies.remove("theme");
  */
+
+type CookieDocument = {
+  cookie: string;
+};
 
 /**
  * Cookie attribute options
@@ -130,30 +141,39 @@ const DEFAULT_CONVERTER: CookieConverter<string> = {
 
 /**
  * JSON converter for object values
+ *
+ * @example
+ * const JsonCookies = Cookies.withConverter(jsonConverter);
+ * JsonCookies.set("profile", { name: "Ada" });
+ * const profile = JsonCookies.get("profile");
  */
 export const jsonConverter: CookieConverter<unknown> = {
   write: (value: unknown): string => {
-    return encodeURIComponent(JSON.stringify(value));
+    return encodeURIComponent(String(serializeValue(value)));
   },
   read: (value: string): unknown => {
     // Handle quoted values (RFC 6265)
     if (value.startsWith('"') && value.endsWith('"')) {
       value = value.slice(1, -1);
     }
-    try {
-      return JSON.parse(decodeURIComponent(value.replaceAll("+", " ")));
-    } catch {
-      return value;
-    }
+    const decodedValue = decodeURIComponent(value.replaceAll("+", " "));
+    const parsedValue = deserializeValue(decodedValue);
+    return parsedValue === undefined ? value : parsedValue;
   },
 };
 
 /**
  * Check if we're in a browser environment
  */
-const isBrowser = (): boolean => {
-  return typeof document !== "undefined" && typeof document.cookie === "string";
-};
+function getCookieDocument(): CookieDocument | undefined {
+  const scope = globalThis as typeof globalThis & {
+    document?: CookieDocument;
+  };
+
+  return typeof scope.document?.cookie === "string"
+    ? scope.document
+    : undefined;
+}
 
 /**
  * Encode cookie name according to RFC 6265
@@ -210,12 +230,14 @@ const buildAttributeString = (attributes: CookieAttributes): string => {
  * Parse document.cookie string into key-value pairs
  */
 const parseCookies = (): Record<string, string> => {
-  if (!isBrowser()) {
+  if (!isClient()) {
     return {};
   }
 
   const cookies: Record<string, string> = {};
 
+  const document = getCookieDocument();
+  if (!document) return cookies;
   const cookieString = document.cookie;
 
   if (!cookieString) {
@@ -284,7 +306,7 @@ function createCookieApi<T = string>(
   }
 
   function set(name: string, value: T, attributes?: CookieAttributes): string {
-    if (!isBrowser()) {
+    if (!isClient()) {
       return "";
     }
 
@@ -297,7 +319,8 @@ function createCookieApi<T = string>(
       ? `${encodedName}=${encodedValue}; ${attributeString}`
       : `${encodedName}=${encodedValue}`;
 
-    // eslint-disable-next-line unicorn/no-document-cookie -- Cookie library needs direct access
+    const document = getCookieDocument();
+    if (!document) return "";
     document.cookie = cookieString;
     return cookieString;
   }
@@ -338,11 +361,19 @@ function createCookieApi<T = string>(
 
 /**
  * Default cookie instance with string values
+ *
+ * @example
+ * Cookies.set("locale", "en-US");
+ * const locale = Cookies.get("locale");
  */
 export const Cookies = createCookieApi<string>();
 
 /**
  * Create a custom cookie instance
+ *
+ * @example
+ * const ScopedCookies = createCookies(undefined, { path: "/admin" });
+ * ScopedCookies.set("sidebar", "collapsed");
  */
 export const createCookies = createCookieApi;
 
@@ -352,6 +383,11 @@ export const createCookies = createCookieApi;
 
 /**
  * Check if a cookie exists
+ *
+ * @example
+ * if (hasCookie("session")) {
+ *   // Continue with an authenticated browser flow.
+ * }
  */
 export function hasCookie(name: string): boolean {
   return Cookies.get(name) !== undefined;
@@ -359,6 +395,9 @@ export function hasCookie(name: string): boolean {
 
 /**
  * Get all cookie names
+ *
+ * @example
+ * const names = getCookieNames();
  */
 export function getCookieNames(): string[] {
   return Object.keys(Cookies.get());
@@ -366,6 +405,9 @@ export function getCookieNames(): string[] {
 
 /**
  * Clear all cookies (for the current path and domain)
+ *
+ * @example
+ * clearAllCookies({ path: "/" });
  */
 export function clearAllCookies(attributes?: CookieAttributes): void {
   const names = getCookieNames();
@@ -376,26 +418,28 @@ export function clearAllCookies(attributes?: CookieAttributes): void {
 
 /**
  * Get cookie as JSON (convenience function)
+ *
+ * @example
+ * const settings = getCookieJSON<{ density: "compact" | "comfortable" }>("settings");
  */
 export function getCookieJSON<T = unknown>(name: string): T | undefined {
   const value = Cookies.get(name);
   if (value === undefined) {
     return undefined;
   }
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return undefined;
-  }
+  return deserializeValue<T>(value);
 }
 
 /**
  * Set cookie as JSON (convenience function)
+ *
+ * @example
+ * setCookieJSON("settings", { density: "compact" }, { sameSite: "lax" });
  */
 export function setCookieJSON<T>(
   name: string,
   value: T,
   attributes?: CookieAttributes,
 ): string {
-  return Cookies.set(name, JSON.stringify(value), attributes);
+  return Cookies.set(name, serializeValue(value), attributes);
 }

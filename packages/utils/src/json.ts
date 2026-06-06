@@ -1,3 +1,6 @@
+/**
+ * Safely parse a JSON string and return undefined when parsing fails.
+ */
 export function safeJsonParse<T = unknown>(
   value: string | null | undefined,
 ): T | undefined {
@@ -9,10 +12,16 @@ export function safeJsonParse<T = unknown>(
   }
 }
 
+/**
+ * Serialize a value with JSON.stringify.
+ */
 export function serializeValue<T>(value: T): string {
   return JSON.stringify(value);
 }
 
+/**
+ * Deserialize a JSON string and return undefined for null or invalid input.
+ */
 export function deserializeValue<T = unknown>(
   value: string | null,
 ): T | undefined {

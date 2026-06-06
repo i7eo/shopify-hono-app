@@ -5,7 +5,7 @@ import { defineConfig } from "rolldown";
 import { dts as PluginDTS } from "rolldown-plugin-dts";
 import { dependencies } from "./package.json";
 
-const isDev = process.env.NODE_ENV === "development";
+const isDev = process.env.APP_ENV === "development";
 const sourcemap = !isDev;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = "src";
@@ -23,7 +23,7 @@ export default defineConfig([
     ...common,
     plugins: [
       PluginDTS({
-        tsconfig: "./tsconfig.web.json",
+        tsconfig: "./tsconfig.json",
       }),
     ],
     output: {
@@ -50,9 +50,7 @@ export default defineConfig([
   },
   {
     ...common,
-    plugins: [
-      PluginDTS({ tsconfig: "./tsconfig.web.json", emitDtsOnly: true }),
-    ],
+    plugins: [PluginDTS({ tsconfig: "./tsconfig.json", emitDtsOnly: true })],
     output: {
       format: "esm",
       dir: `${outputDir}/cjs`,

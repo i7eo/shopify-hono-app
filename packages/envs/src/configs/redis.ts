@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { DEFAULT_CACHE_REDIS_URL } from "../constants";
 
 export const redisSchema = z.object({
-  APP_CACHE_REDIS_URL: z.url().default(DEFAULT_CACHE_REDIS_URL),
+  APP_CACHE_REDIS_URL: z.url().optional(),
 });
 
 export type ResidSchema = z.infer<typeof redisSchema>;

@@ -23,7 +23,7 @@ export default defineConfig([
     ...common,
     plugins: [
       PluginDTS({
-        tsconfig: "./tsconfig.web.json",
+        tsconfig: "./tsconfig.json",
       }),
     ],
     output: {
@@ -50,9 +50,7 @@ export default defineConfig([
   },
   {
     ...common,
-    plugins: [
-      PluginDTS({ tsconfig: "./tsconfig.web.json", emitDtsOnly: true }),
-    ],
+    plugins: [PluginDTS({ tsconfig: "./tsconfig.json", emitDtsOnly: true })],
     output: {
       format: "esm",
       dir: `${outputDir}/cjs`,

@@ -1,3 +1,4 @@
+import { deserializeValue, serializeValue } from "@shamt/utils";
 import type { CloudflareKvCacheClient, StoredSession } from "@/types";
 
 /**
@@ -14,11 +15,11 @@ export class SessionStore {
   async getOfflineSession(shop: string): Promise<StoredSession | null> {
     const raw = await this.kv.get(`offline:${shop}`);
     if (!raw) return null;
-    return JSON.parse(raw) as StoredSession;
+    return parseStoredSession(raw);
   }
 
   async setOfflineSession(shop: string, session: StoredSession): Promise<void> {
-    await this.kv.put(`offline:${shop}`, JSON.stringify(session));
+    await this.kv.put(`offline:${shop}`, serializeValue(session));
   }
 
   async deleteOfflineSession(shop: string): Promise<void> {
@@ -31,7 +32,7 @@ export class SessionStore {
   ): Promise<StoredSession | null> {
     const raw = await this.kv.get(`online:${shop}:${userId}`);
     if (!raw) return null;
-    const session = JSON.parse(raw) as StoredSession;
+    const session = parseStoredSession(raw);
 
     if (session.expiresAt && new Date(session.expiresAt) <= new Date()) {
       return null;
@@ -46,7 +47,7 @@ export class SessionStore {
     session: StoredSession,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.kv.put(`online:${shop}:${userId}`, JSON.stringify(session), {
+    await this.kv.put(`online:${shop}:${userId}`, serializeValue(session), {
       expirationTtl: ttlSeconds,
     });
   }
@@ -65,4 +66,12 @@ export class SessionStore {
     }
     return shop;
   }
+}
+
+function parseStoredSession(raw: string): StoredSession {
+  const session = deserializeValue<StoredSession>(raw);
+  if (!session) {
+    throw new SyntaxError("Invalid stored session JSON");
+  }
+  return session;
 }

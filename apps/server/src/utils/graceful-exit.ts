@@ -1,7 +1,11 @@
-import { closeCache } from "../modules/cache";
-import logger from "../modules/logger";
-import { clients } from "../shared/clients";
-import { crons } from "../shared/crons";
+import { onAppShutdown } from "@/app/lifecycle/shutdown";
+
+type MaybePromise<T> = T | Promise<T>;
+
+export type GracefulExitTarget = {
+  stop?: () => MaybePromise<void>;
+  close?: (callback?: (error?: Error) => void) => MaybePromise<unknown>;
+};
 
 /**
  * 进程退出信号列表，用于注册优雅退出监听器。
@@ -30,7 +34,7 @@ let isShuttingDown = false;
  *
  * 流程：
  * 1. 检查 isShuttingDown，避免重复执行
- * 2. 移除所有 process 监听器，防止后续信号再次触发
+ * 2. 移除退出信号监听器，防止后续信号再次触发
  * 3. 设置超时定时器，超时则强制退出
  * 4. 执行 cleanup 并等待完成
  * 5. 成功则 process.exit(0)，失败则 process.exit(1)
@@ -44,20 +48,20 @@ export async function gracefulExit(
 ): Promise<void> {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  process.removeAllListeners();
+  exitSignals.forEach((signal) => process.removeAllListeners(signal));
 
   const timeout = setTimeout(() => {
-    logger.warn("📷 Graceful shutdown timeout, forcing exit");
+    console.warn("Graceful shutdown timeout, forcing exit");
     process.exit(1);
   }, SHUTDOWN_TIMEOUT_MS);
 
   try {
     await cleanup();
-    logger.info("📷 Graceful exit completed");
+    console.info("Graceful exit completed");
     clearTimeout(timeout);
     process.exit(0);
   } catch (error) {
-    logger.error({ error, $message: "📷 Error during graceful shutdown" });
+    console.error("Error during graceful shutdown", error);
     clearTimeout(timeout);
     process.exit(1);
   }
@@ -67,11 +71,11 @@ export async function gracefulExit(
  * 为当前进程注册退出信号监听器。
  * 收到 exitSignals 中的任一信号时，调用 gracefulExit 执行 cleanup。
  *
- * @param _server - server 实例（未使用，仅用于类型签名统一）
+ * @param _target - server 实例（未使用，仅用于类型签名统一）
  * @param cleanup - 异步清理函数
  */
 export function registerGracefulExitHandlers(
-  _server: ReturnType<typeof Bun.serve>,
+  _target: GracefulExitTarget | undefined,
   cleanup: () => Promise<void>,
 ) {
   exitSignals.forEach((signal) =>
@@ -82,22 +86,44 @@ export function registerGracefulExitHandlers(
 /**
  * 创建 Worker/单进程的清理函数，按依赖顺序关闭资源。
  *
- * 执行顺序（重要）：
- * 1. server.stop() - 停止接受新请求，等待进行中请求完成
- * 2. 停止 cron - 避免新定时任务启动
- * 3. 关闭 Lark WebSocket - 长连接断开
- * 4. 关闭 shared Redis - 业务用 Redis（auth、aggregator 等）
- * 5. closeCache() - 关闭 cache 模块的 Redis（若使用 Redis 缓存）
- *
- * @param server - Bun.serve 返回的 server 实例
+ * @param target - Runtime server/app handle. Node-style handles usually expose close();
+ * Workers/Bun-like handles may expose stop().
  * @returns 异步清理函数，供 gracefulExit 调用
  */
-export function setupCleanup(server: ReturnType<typeof Bun.serve>) {
+export function setupCleanup(target?: GracefulExitTarget) {
   return async () => {
-    await server.stop();
-    crons.get("autoSummary")?.stop();
-    clients.get("larkws")?.close({ force: true });
-    clients.get("redis")?.close();
-    closeCache();
+    try {
+      await closeTarget(target);
+    } finally {
+      await onAppShutdown();
+    }
   };
+}
+
+async function closeTarget(target?: GracefulExitTarget) {
+  if (!target) return;
+
+  if (target.stop) {
+    await target.stop();
+    return;
+  }
+
+  if (target.close) {
+    await closeWithOptionalCallback(target.close);
+  }
+}
+
+async function closeWithOptionalCallback(
+  close: GracefulExitTarget["close"],
+): Promise<void> {
+  if (!close) return;
+
+  if (close.length > 0) {
+    await new Promise<void>((resolve, reject) => {
+      close((error?: Error) => (error ? reject(error) : resolve()));
+    });
+    return;
+  }
+
+  await close();
 }

@@ -15,7 +15,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Cache
 .cache/
-cache/
 .eslintcache
 .swc/
 .vercel/

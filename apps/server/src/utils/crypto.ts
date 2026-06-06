@@ -1,4 +1,7 @@
+import { deserializeValue } from "@shamt/utils";
+
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 async function createHmacKey(secret: string): Promise<CryptoKey> {
   return await crypto.subtle.importKey(
@@ -28,9 +31,9 @@ export async function hmacSha256Base64(
   return bufferToBase64(signature);
 }
 
-export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-  const aBytes = await encoder.encode(a);
-  const bBytes = await encoder.encode(b);
+export function timingSafeEqual(a: string, b: string): boolean {
+  const aBytes = encoder.encode(a);
+  const bBytes = encoder.encode(b);
 
   if (aBytes.byteLength !== bBytes.byteLength) {
     return false;
@@ -54,8 +57,9 @@ export async function verifyHS256JWT<T>(
 
   const [headerB64, payloadB64, signatureB64] = parts;
 
-  const header = JSON.parse(
-    new TextDecoder().decode(base64UrlDecode(headerB64)),
+  const header = parseJsonOrThrow<{ alg?: string }>(
+    decoder.decode(base64UrlDecode(headerB64)),
+    "Invalid JWT header JSON",
   );
   if (header.alg !== "HS256") {
     throw new Error(`Unsupported JWT algorithm: ${header.alg}`);
@@ -64,15 +68,12 @@ export async function verifyHS256JWT<T>(
   const key = await createHmacKey(secret);
   const signingInput = encoder.encode(`${headerB64}.${payloadB64}`);
   const expectedSignature = base64UrlDecode(signatureB64);
-  const expectedSignatureBuffer = expectedSignature.buffer.slice(
-    expectedSignature.byteOffset,
-    expectedSignature.byteOffset + expectedSignature.byteLength,
-  ) as ArrayBuffer;
 
   const isValid = await crypto.subtle.verify(
     "HMAC",
     key,
-    expectedSignatureBuffer,
+    // @ts-ignore
+    expectedSignature,
     signingInput,
   );
 
@@ -80,18 +81,30 @@ export async function verifyHS256JWT<T>(
     throw new Error("Invalid JWT signature");
   }
 
-  const payload = JSON.parse(
-    new TextDecoder().decode(base64UrlDecode(payloadB64)),
+  const payload = parseJsonOrThrow<T>(
+    decoder.decode(base64UrlDecode(payloadB64)),
+    "Invalid JWT payload JSON",
   );
 
-  return payload as T;
+  return payload;
 }
 
 export function base64UrlDecode(input: string): Uint8Array {
   let base64 = input.replaceAll("-", "+").replaceAll("_", "/");
   const pad = base64.length % 4;
-  if (pad === 2) base64 += "==";
-  else if (pad === 3) base64 += "=";
+  switch (pad) {
+    case 2: {
+      base64 += "==";
+      break;
+    }
+    case 3: {
+      base64 += "=";
+      break;
+    }
+    case 1:
+      throw new Error("Invalid base64url input");
+    // No default
+  }
 
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -117,4 +130,12 @@ function bufferToBase64(buffer: ArrayBuffer): string {
     binary += String.fromCodePoint(b);
   }
   return btoa(binary);
+}
+
+function parseJsonOrThrow<T>(value: string, message: string): T {
+  const parsed = deserializeValue<T>(value);
+  if (parsed === undefined) {
+    throw new SyntaxError(message);
+  }
+  return parsed;
 }

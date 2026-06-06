@@ -1,11 +1,12 @@
 import type { Bindings } from "./cloudflare-kv";
 import type { ShopifySessionTokenClaims } from "./shopify";
-import type { RuntimeConfig } from "@/configs/runtime";
+import type { RuntimeConfig } from "@/infra/env";
+import type { Logger } from "@/infra/logger";
 import type { Cache } from "@shamt/cache";
-import type { Logger } from "@logtape/logtape";
 
 export interface Variables {
-  runtimeEnvConfig: RuntimeConfig;
+  requestId: string;
+  runtimeEnv: RuntimeConfig;
   runtimeLogger: Logger;
   cache: Cache;
 
@@ -13,10 +14,8 @@ export interface Variables {
   shopifySessionToken: ShopifySessionTokenClaims;
   shopDomain: string;
   shopifyUserId: string;
-
   // Set by token-exchange middleware
   shopifyAccessToken: string;
-
   // Set by verify-webhook middleware
   webhookTopic: string;
   webhookShop: string;

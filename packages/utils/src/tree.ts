@@ -1,12 +1,12 @@
 import { traverseTree } from "./traverse";
 
-/** 树形结构字段配置，用于适配不同数据结构 */
+/** Field mapping used to adapt helpers to different tree node shapes. */
 interface TreeHelperConfig {
-  /** 节点唯一标识字段名 */
+  /** Field name for the unique node identifier. */
   id: string;
-  /** 子节点数组字段名 */
+  /** Field name that stores child nodes. */
   children: string;
-  /** 父节点 ID 字段名 */
+  /** Field name for the parent node identifier. */
   pid: string;
 }
 
@@ -20,16 +20,17 @@ const DEFAULT_CONFIG: TreeHelperConfig = {
   pid: "pid",
 };
 
+/** Merge user field mapping with the default tree field mapping. */
 const getConfig = (config: Partial<TreeHelperConfig>) =>
   Object.assign({}, DEFAULT_CONFIG, config);
 
 /**
- * 扁平列表转树形结构
+ * Convert a flat node list into a tree.
  *
- * @param list - 扁平节点列表，每项需包含 id 和 pid
- * @param config - 字段映射，缺省使用 { id, children, pid }
- * @returns 树形结构根节点数组
- * @remarks 会原地修改 list 中的节点，添加 children 字段
+ * @param list - Flat node list. Each item must contain id and pid fields.
+ * @param config - Field mapping. Defaults to { id, children, pid }.
+ * @returns Root nodes of the generated tree.
+ * @remarks Mutates nodes in list by adding the children field.
  *
  * @example
  * const list = [
@@ -64,12 +65,12 @@ export function listToTree<T = any>(
 }
 
 /**
- * 树形结构转扁平列表（BFS 广度优先）
+ * Flatten a tree into a breadth-first list.
  *
- * @param tree - 树形结构根节点数组
- * @param config - 字段映射
- * @param clearParentChildren - 为 true 时清空各节点的 children，减少引用
- * @returns 按 BFS 顺序的扁平节点数组（同一批对象引用）
+ * @param tree - Root nodes of the tree.
+ * @param config - Field mapping.
+ * @param clearParentChildren - Clears each visited node's children when true.
+ * @returns Flat node list in BFS order using the same object references.
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, children: [] }, { id: 3, children: [] }] }];
@@ -99,12 +100,12 @@ export function treeToList<T = any>(
 }
 
 /**
- * 查找树中第一个满足条件的节点
+ * Find the first tree node that matches the predicate.
  *
- * @param tree - 树形结构
- * @param func - 断言函数，返回 true 表示匹配
- * @param config - 字段映射
- * @returns 匹配的节点或 null
+ * @param tree - Root nodes of the tree.
+ * @param func - Predicate that returns true for a match.
+ * @param config - Field mapping.
+ * @returns The matched node, or null when no node matches.
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, name: 'B', children: [] }] }];
@@ -130,17 +131,17 @@ export function findNode<T = any>(
 }
 
 /**
- * 查找树中所有满足条件的节点
+ * Find all tree nodes that match the predicate.
  *
- * @param tree - 树形结构
- * @param func - 断言函数
- * @param config - 字段映射
- * @returns 匹配节点数组
+ * @param tree - Root nodes of the tree.
+ * @param func - Predicate used to match nodes.
+ * @param config - Field mapping.
+ * @returns All matching nodes.
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, children: [] }, { id: 3, children: [] }] }];
  * findNodeAll(tree, (n) => !n.children?.length);
- * // => [{ id: 2, children: [] }, { id: 3, children: [] }]  // 所有叶子节点
+ * // => [{ id: 2, children: [] }, { id: 3, children: [] }]  // all leaf nodes
  */
 export function findNodeAll<T = any>(
   tree: any,
@@ -155,17 +156,17 @@ export function findNodeAll<T = any>(
 }
 
 /**
- * 查找从根到第一个匹配节点的路径
+ * Find the path from a root node to the first matching node.
  *
- * @param tree - 树形结构
- * @param func - 断言函数
- * @param config - 字段映射
- * @returns 路径节点数组 [root, ..., target]，未找到返回 null
+ * @param tree - Root nodes of the tree.
+ * @param func - Predicate used to match the target node.
+ * @param config - Field mapping.
+ * @returns Path nodes [root, ..., target], or null when no node matches.
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, children: [{ id: 4, children: [] }] }] }];
  * findPath(tree, (n) => n.id === 4);
- * // => [节点1, 节点2, 节点4]
+ * // => [node1, node2, node4]
  */
 export function findPath<T = any>(
   tree: any,
@@ -190,17 +191,17 @@ export function findPath<T = any>(
 }
 
 /**
- * 查找所有满足条件节点的路径
+ * Find paths from root nodes to every matching node.
  *
- * @param tree - 树形结构
- * @param func - 断言函数
- * @param config - 字段映射
- * @returns 路径数组，每项为 [root, ..., target]
+ * @param tree - Root nodes of the tree.
+ * @param func - Predicate used to match nodes.
+ * @param config - Field mapping.
+ * @returns An array of paths. Each path is [root, ..., target].
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, children: [] }, { id: 3, children: [] }] }];
  * findPathAll(tree, (n) => !n.children?.length);
- * // => [[节点1, 节点2], [节点1, 节点3]]
+ * // => [[node1, node2], [node1, node3]]
  */
 export function findPathAll(
   tree: any,
@@ -220,13 +221,13 @@ export function findPathAll(
 }
 
 /**
- * 按条件过滤树，保留匹配节点及其祖先（以保证路径完整）
+ * Filter a tree while preserving matching nodes and their ancestors.
  *
- * @param tree - 树形结构
- * @param func - 过滤函数，返回 truthy 表示保留该节点
- * @param config - 字段映射
- * @returns 过滤后的新树（浅拷贝节点）
- * @remarks 若节点不匹配但存在匹配的子节点，该节点仍会保留
+ * @param tree - Root nodes of the tree.
+ * @param func - Filter callback. A truthy return value keeps the node.
+ * @param config - Field mapping.
+ * @returns A filtered tree with shallow-copied nodes.
+ * @remarks Keeps unmatched ancestors when they contain matching descendants.
  *
  * @example
  * const tree = [{ id: 1, name: 'A', children: [{ id: 2, name: 'B', children: [] }] }];
@@ -255,17 +256,17 @@ export function filter<T = any>(
 }
 
 /**
- * 深度优先遍历树
+ * Traverse a tree in depth-first order.
  *
- * @param tree - 树形结构
- * @param func - 回调，返回 true 时终止遍历
- * @param config - 字段映射
- * @remarks 适用于大量节点时提前终止，避免无效遍历
+ * @param tree - Root nodes of the tree.
+ * @param func - Callback called for each node. Return true to stop traversal.
+ * @param config - Field mapping.
+ * @remarks Useful when large trees can stop early after a match.
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, children: [] }] }];
  * forEach(tree, (n) => { console.log(n.id); return n.id === 2; });
- * // 输出 1, 2 后终止
+ * // logs 1 and 2, then stops
  */
 export function forEach<T = any>(
   tree: T[],
@@ -287,13 +288,13 @@ export function forEach<T = any>(
 }
 
 /**
- * 按 conversion 转换整棵树的结构
+ * Map an entire tree into a new node shape.
  *
- * @param treeData - 树形数据
- * @param opt - 配置项
- * @param opt.children - 子节点字段名
- * @param opt.conversion - 转换函数 (node) => 新节点字段
- * @returns 转换后的新树
+ * @param treeData - Tree data.
+ * @param opt - Mapping options.
+ * @param opt.children - Child node field name.
+ * @param opt.conversion - Converts each source node into the new node fields.
+ * @returns The mapped tree.
  *
  * @example
  * const tree = [{ id: 1, name: 'A', children: [{ id: 2, name: 'B', children: [] }] }];
@@ -308,7 +309,7 @@ export function treeMap<T = any>(
 }
 
 /**
- * 转换单个节点及其子树（供 treeMap 内部使用）
+ * Map a single node and its subtree.
  *
  * @example
  * treeMapEach({ id: 1, name: 'A', children: [] }, { conversion: (n) => ({ key: n.id }) });
@@ -333,18 +334,18 @@ export function treeMapEach(
 }
 
 /**
- * 查找以 childrenId 为根的子树中所有节点（含该节点）
+ * Find all nodes in the subtree rooted at childrenId, including the root node.
  *
- * @param tree - 树形结构
- * @param childrenId - 目标子树根节点 id
- * @param func - 可选转换，返回新值则用新值替代原节点
- * @param config - 字段映射
- * @returns 子树节点数组
+ * @param tree - Root nodes of the tree.
+ * @param childrenId - Root node id of the target subtree.
+ * @param func - Optional mapper. Returned values replace original nodes.
+ * @param config - Field mapping.
+ * @returns Nodes inside the target subtree.
  *
  * @example
  * const tree = [{ id: 1, children: [{ id: 2, children: [{ id: 4, children: [] }] }] }];
  * findChildrens(tree, 1, (n) => n);
- * // => [节点1, 节点2, 节点4]
+ * // => [node1, node2, node4]
  */
 export function findChildrens<T = any>(
   tree: T[],
@@ -378,18 +379,18 @@ export function findChildrens<T = any>(
 }
 
 /**
- * 查找指定节点的所有祖先（从该节点到根）
+ * Find a node and all of its ancestors up to the root.
  *
- * @param tree - 树形结构
- * @param parentId - 目标节点 id（注意参数名为 parentId 实为节点 id）
- * @param func - 可选转换
- * @param config - 字段映射
- * @returns 祖先节点数组 [节点自身, 父, 祖父, ...]
+ * @param tree - Root nodes of the tree.
+ * @param parentId - Target node id. The parameter name is kept for compatibility.
+ * @param func - Optional mapper.
+ * @param config - Field mapping.
+ * @returns Ancestor list [node itself, parent, grandparent, ...].
  *
  * @example
  * const tree = [{ id: 1, pid: 0, children: [{ id: 2, pid: 1, children: [{ id: 4, pid: 2, children: [] }] }] }];
  * findParents(tree, 4, (n) => n);
- * // => [节点4, 节点2, 节点1]
+ * // => [node4, node2, node1]
  */
 export function findParents<T = any>(
   tree: T[],

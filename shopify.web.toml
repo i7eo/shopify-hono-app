@@ -1,5 +1,0 @@
-roles = ["frontend", "backend"]
-
-[commands]
-dev = "pnpm cf:dev"
-build = "pnpm cf:deploy"

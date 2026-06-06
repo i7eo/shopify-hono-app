@@ -1,6 +1,7 @@
-import logger, { setupBootstrapLogger } from "@/infra/logger";
+import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
 
 export async function onAppStartup() {
-  await setupBootstrapLogger();
-  logger.info("App startup initialized");
+  getEnvProvider(process.env);
+  const logger = await getLoggerProvider();
+  logger.info("🏖️ Both logger and env are initialized.");
 }

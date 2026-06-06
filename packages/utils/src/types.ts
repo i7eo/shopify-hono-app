@@ -1,58 +1,58 @@
 /**
- * Promise, or maybe not
+ * Value that may be returned directly or as a PromiseLike.
  */
 export type Awaitable<T> = T | PromiseLike<T>;
 
 /**
- * Null or whatever
+ * Value that may be null or undefined.
  */
 export type Nullable<T> = T | null | undefined;
 
 /**
- * Array, or not yet
+ * Value that may be a single item or an array of items.
  */
 export type Arrayable<T> = T | Array<T>;
 
 /**
- * Object, or not yet
+ * String-keyed object record.
  */
 export type Recordable<T = any> = Record<string, T>;
 
 /**
- * Function
+ * Zero-argument function type.
  */
 export type Fn<T = void> = () => T;
 
 /**
- * Constructor
+ * Constructor type for class-like values.
  */
 export type Constructor<T = void> = new (...args: any[]) => T;
 
 /**
- * Use generics get keyof result
+ * Distribute keys across union members.
  * @example
  * type keys = Keys<keyof {}>
  */
 export type Keys<T> = T extends any ? T : never;
 
 /**
- * Infers the element type of an array
+ * Infer the element type of an array.
  */
 export type ElementOf<T> = T extends (infer E)[] ? E : never;
 
 /**
- * Infers the arguments type of a function
+ * Infer the argument tuple type of a function.
  */
 export type ArgumentsOf<T> = T extends (...args: infer A) => any ? A : never;
 
 /**
- * Infers the return type of a function
+ * Infer the resolved return type of a function.
  */
 export type ReturnOf<T extends (...args: any[]) => any> =
   ReturnType<T> extends Promise<infer R> ? R : ReturnType<T>;
 
 /**
- * Merge object, or not yet
+ * Merge two record types by key.
  */
 export type MergeRecord<T extends Recordable, V extends Recordable> = {
   [PK in keyof (T & V)]: PK extends keyof T
@@ -75,10 +75,16 @@ export type UnionToIntersection<U> = (
   ? I
   : never;
 
+/**
+ * Recursively expand mapped object intersections for better type display.
+ */
 export type MergeInsertions<T> = T extends object
   ? { [K in keyof T]: MergeInsertions<T[K]> }
   : T;
 
+/**
+ * Deeply merge two object types.
+ */
 export type DeepMerge<F, S> = MergeInsertions<{
   [K in keyof F | keyof S]: K extends keyof S & keyof F
     ? DeepMerge<F[K], S[K]>
@@ -89,8 +95,11 @@ export type DeepMerge<F, S> = MergeInsertions<{
         : never;
 }>;
 
+/**
+ * Map with typed key/value access for a known object shape.
+ */
 export interface CustomMap<T> extends Map<keyof T, T[keyof T]> {
   get: <Key extends keyof T>(key: Key) => T[Key];
   set: <Key extends keyof T>(key: Key, value: T[Key]) => this;
-  // overwrite other method
+  // Override selected Map methods with key-aware signatures.
 }

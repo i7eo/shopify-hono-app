@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import { SessionStore } from "../../../infra/cloudflare/kv";
-import { verifyWebhook } from "../../../shared/middlewares";
-import type { AppEnv } from "../../../types";
+import { SessionStore } from "@/infra/cloudflare/kv";
+import { verifyWebhook } from "@/shared/middlewares";
+import { createResponse } from "@/shared/models";
+import type { AppEnv } from "@/types";
 
 export const createWebhookRoutes = () => {
   const webhookRoutes = new Hono<AppEnv>();
@@ -14,7 +15,9 @@ export const createWebhookRoutes = () => {
     await store.deleteOfflineSession(shop);
     // eslint-disable-next-line no-console
     console.log(`App uninstalled: ${shop}`);
-    return c.json({ ok: true });
+    return c.json(
+      createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
+    );
   });
 
   webhookRoutes.post("/customers/data-request", (c) => {
@@ -22,7 +25,9 @@ export const createWebhookRoutes = () => {
     const payload = c.var.webhookPayload;
     // eslint-disable-next-line no-console
     console.log(`Customer data request from ${shop}:`, payload);
-    return c.json({ ok: true });
+    return c.json(
+      createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
+    );
   });
 
   webhookRoutes.post("/customers/redact", (c) => {
@@ -30,7 +35,9 @@ export const createWebhookRoutes = () => {
     const payload = c.var.webhookPayload;
     // eslint-disable-next-line no-console
     console.log(`Customer redact request from ${shop}:`, payload);
-    return c.json({ ok: true });
+    return c.json(
+      createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
+    );
   });
 
   webhookRoutes.post("/shop/redact", (c) => {
@@ -38,7 +45,9 @@ export const createWebhookRoutes = () => {
     const payload = c.var.webhookPayload;
     // eslint-disable-next-line no-console
     console.log(`Shop redact request from ${shop}:`, payload);
-    return c.json({ ok: true });
+    return c.json(
+      createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
+    );
   });
 
   return webhookRoutes;

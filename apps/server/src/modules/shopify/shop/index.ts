@@ -1,6 +1,8 @@
+import { createClient } from "@/infra/http/client";
+import { badGatewayError } from "@/shared/exceptions";
+import { AppError, createResponse } from "@/shared/models";
+import type { AppEnv } from "@/types";
 import type { Hono } from "hono";
-import { createClient } from "../../../infra/http/client";
-import type { AppEnv } from "../../../types";
 
 export const registerShopRoutes = (app: Hono<AppEnv>) => {
   app.get("/shop", async (c) => {
@@ -17,15 +19,27 @@ export const registerShopRoutes = (app: Hono<AppEnv>) => {
         }
       }`);
 
-      return c.json(result);
-    } catch (error) {
+      if (result.errors?.length) {
+        throw badGatewayError("Failed to fetch shop info", {
+          details: { errors: result.errors },
+        });
+      }
+
       return c.json(
-        {
-          error: "Failed to fetch shop info",
-          detail: (error as Error).message,
-        },
-        502,
+        createResponse({
+          data: result.data ?? null,
+          requestId: c.get("requestId"),
+        }),
       );
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+
+      throw badGatewayError("Failed to fetch shop info", {
+        details: {
+          cause: error,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
     }
   });
 };

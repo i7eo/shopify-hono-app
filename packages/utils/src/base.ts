@@ -4,18 +4,27 @@ import { objectToString } from "./is";
 //   if (!condition) throw new Error(message);
 // }
 
+/**
+ * Execute a feature probe callback and coerce the result to a boolean.
+ */
 export const isSupport = (callback: () => unknown) => {
   return Boolean(callback());
 };
 
 // export function noop() {}
 
+/**
+ * Return a lowercase runtime type name for a value.
+ */
 export function getTypeName(v: any) {
   if (v === null) return "null";
   const type = objectToString.call(v).slice(8, -1).toLowerCase();
   return typeof v === "object" || typeof v === "function" ? type : typeof v;
 }
 
+/**
+ * Generate a random string from the provided character dictionary.
+ */
 export function randomValue(
   size = 16,
   dict = "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict",
@@ -27,6 +36,9 @@ export function randomValue(
   return id;
 }
 
+/**
+ * Generate a deterministic numeric hash for a string.
+ */
 export const hashString = function (str: string, seed = 0) {
   let h1 = 0xdeadbeef ^ seed;
   let h2 = 0x41c6ce57 ^ seed;

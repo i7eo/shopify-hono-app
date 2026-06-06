@@ -1,1 +1,1 @@
-export * from "../modules/app-shell";
+export * from "../modules/shopify/app-shell";

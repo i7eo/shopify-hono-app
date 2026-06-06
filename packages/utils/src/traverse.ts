@@ -1,38 +1,38 @@
 type TraverseOptions<T> = {
   /**
-   * 获取子节点的函数，默认从 `node.children` 读取
+   * Returns child nodes. Defaults to reading `node.children`.
    */
   getChildren?: (node: T) => T[] | undefined;
   /**
-   * 最大遍历深度，超过则不再递归（不含根层，根层 depth=0）
+   * Maximum traversal depth. The root level is depth 0.
    * @default Infinity
    */
   maxDepth?: number;
 };
 
 type TraverseControl = {
-  /** 为 true 时立即终止整个遍历 */
+  /** Stops the entire traversal when true. */
   stop?: boolean;
-  /** 为 true 时跳过当前节点的子节点 */
+  /** Skips the current node's children when true. */
   skipChildren?: boolean;
 };
 
 type TraverseContext<T> = {
-  /** 父节点，根节点时为 null */
+  /** Parent node. Root nodes use null. */
   parent: T | null;
-  /** 当前深度，根层为 0 */
+  /** Current depth. Root nodes use 0. */
   depth: number;
-  /** 从根到当前节点的路径（只读副本，惰性求值，仅在访问时拷贝） */
+  /** Path from the root to the current node. Copied lazily on access. */
   path: readonly T[];
 };
 
 /**
- * 遍历回调函数
+ * Callback used by traverseTree.
  *
- * 返回值中：
- * - `match`: 为 true 时将该节点加入结果集
- * - `result`: 匹配时使用的值，缺省则用 node 本身
- * - `stop` / `skipChildren`: 控制遍历行为
+ * Return values:
+ * - `match`: Adds this node to the result set when true.
+ * - `result`: Value pushed for a match. Defaults to the node itself.
+ * - `stop` / `skipChildren`: Controls traversal flow.
  */
 type TraverseCallback<T, R> = (
   node: T,
@@ -42,19 +42,20 @@ type TraverseCallback<T, R> = (
   result?: R;
 } & TraverseControl;
 
+/** Default child reader used by traversal helpers. */
 const DEFAULT_GET_CHILDREN = <T>(node: T) =>
   (node as { children?: T[] }).children;
 
 /**
- * 深度优先遍历树，收集所有匹配的节点
+ * Traverse trees in depth-first order and collect matching results.
  *
- * @param nodes - 根节点数组（支持多棵树）
- * @param callback - 每个节点调用一次，通过返回值控制匹配与遍历行为
- * @param options - 可选配置
- * @returns 所有 match 为 true 的节点对应的 result（或 node 本身）
+ * @param nodes - Root nodes. Multiple trees are supported.
+ * @param callback - Called once for each node to match results and control traversal.
+ * @param options - Optional traversal settings.
+ * @returns Result values for every node where match is true, or the node itself.
  *
  * @example
- * // 1. 查找所有叶子节点
+ * // 1. Find all leaf nodes.
  * const tree = [{ id: 1, children: [{ id: 2, children: [] }, { id: 3, children: [] }] }];
  * const leaves = traverseTree(tree, (node) => ({
  *   match: !node.children?.length,
@@ -62,14 +63,14 @@ const DEFAULT_GET_CHILDREN = <T>(node: T) =>
  * // => [{ id: 2, children: [] }, { id: 3, children: [] }]
  *
  * @example
- * // 2. 按条件过滤并转换
+ * // 2. Filter by condition and map results.
  * const ids = traverseTree(tree, (node) => ({
  *   match: node.type === 'file',
  *   result: node.id,
  * }));
  *
  * @example
- * // 3. 查找第一个匹配后终止
+ * // 3. Stop after the first match.
  * const first = traverseTree(tree, (node) => ({
  *   match: node.id === targetId,
  *   result: node,
@@ -77,21 +78,21 @@ const DEFAULT_GET_CHILDREN = <T>(node: T) =>
  * }))[0];
  *
  * @example
- * // 4. 跳过某类节点的子树
+ * // 4. Skip a specific node's subtree.
  * traverseTree(tree, (node) => ({
  *   match: node.visible,
  *   skipChildren: node.collapsed,
  * }));
  *
  * @example
- * // 5. 获取从根到匹配节点的路径
+ * // 5. Collect the path from the root to the matching node.
  * const paths = traverseTree(tree, (node, ctx) => ({
  *   match: node.id === targetId,
  *   result: [...ctx.path],
  * }));
  *
  * @example
- * // 6. 自定义子节点字段 + 限制深度
+ * // 6. Use a custom child field and limit traversal depth.
  * traverseTree(nodes, cb, { getChildren: (n) => n.items, maxDepth: 2 });
  */
 export function traverseTree<T, R = T>(
@@ -163,25 +164,25 @@ export function traverseTree<T, R = T>(
 }
 
 /**
- * 查找树中第一个匹配的节点
+ * Find the first tree node that matches the predicate.
  *
- * @param nodes - 根节点数组
- * @param predicate - 判断是否匹配的函数
- * @param options - 可选配置
- * @returns 第一个匹配的节点，未找到返回 undefined
+ * @param nodes - Root nodes.
+ * @param predicate - Predicate used to match a node.
+ * @param options - Optional traversal settings.
+ * @returns The first matching node, or undefined when no node matches.
  *
  * @example
- * // 按 id 查找
+ * // Find by id.
  * const tree = [{ id: 1, children: [{ id: 2, name: 'B', children: [] }] }];
  * const node = traverseFind(tree, (n) => n.id === 2);
  * // => { id: 2, name: 'B', children: [] }
  *
  * @example
- * // 结合上下文（depth、path）查找
+ * // Match with context values such as depth and path.
  * const node = traverseFind(tree, (n, { depth }) => depth === 1 && n.type === 'file');
  *
  * @example
- * // 自定义子节点字段
+ * // Use a custom child field.
  * traverseFind(nodes, (n) => n.key === target, { getChildren: (n) => n.items });
  */
 export function traverseFind<T>(

@@ -1,30 +1,37 @@
 import { throwError } from "./error";
-import { isServer } from "./is";
 
-type RafCallback = (...args: any[]) => void | Promise<void>;
+type RafHandle = number | ReturnType<typeof setTimeout>;
+type RafCallback = (...args: any) => void | Promise<void>;
 
-function raf(callback: RafCallback): number {
-  if (isServer) {
-    return setTimeout(async () => {
-      await callback();
-    }, 0);
-  } else {
-    return requestAnimationFrame(callback);
+const scope = globalThis as typeof globalThis & {
+  requestAnimationFrame?: (callback: () => void) => number;
+  cancelAnimationFrame?: (handle: number) => void;
+};
+
+/** Schedule a callback with requestAnimationFrame when available, otherwise setTimeout. */
+function raf(callback: RafCallback): RafHandle {
+  if (scope.requestAnimationFrame) {
+    return scope.requestAnimationFrame(async () => await callback());
   }
+
+  return setTimeout(async () => await callback(), 0);
 }
 
-function cancelRaf(handle: number): void {
-  if (isServer) {
-    clearTimeout(handle);
-  } else {
-    cancelAnimationFrame(handle);
+/** Cancel a scheduled raf-compatible callback. */
+function cancelRaf(handle: RafHandle): void {
+  if (typeof handle === "number" && scope.cancelAnimationFrame) {
+    scope.cancelAnimationFrame(handle);
+    return;
   }
+
+  clearTimeout(handle as ReturnType<typeof setTimeout>);
 }
 
 /**
- * 使用 Raf 实现 setTimeout
- * @param callback
- * @param delay
+ * Run a callback once after delay using raf-compatible scheduling.
+ *
+ * @param callback - Callback to execute.
+ * @param delay - Delay in milliseconds.
  * @example
  * const cancelTimeout = rafSetTimeout(() => {
  *   console.log('setTimeout');
@@ -61,9 +68,10 @@ export function rafSetTimeout(callback: RafCallback, delay: number) {
 }
 
 /**
- * 使用 Raf 实现 setInterval
- * @param callback
- * @param interval
+ * Run a callback repeatedly with raf-compatible scheduling.
+ *
+ * @param callback - Callback to execute.
+ * @param interval - Interval in milliseconds.
  * @example
  * const cancelInterval = rafSetInterval(() => {
  *   console.log('setInterval');
@@ -99,9 +107,10 @@ export function rafSetInterval(callback: RafCallback, interval: number) {
 }
 
 /**
- * 使用 Raf 实现 debounce
- * @param callback
- * @param delay
+ * Create a debounced callback driven by raf-compatible scheduling.
+ *
+ * @param callback - Callback to debounce.
+ * @param delay - Debounce delay in milliseconds.
  * @example
  * const debouncedCallback = rafDebounce(() => {
  *   console.log('debouncedCallback');
@@ -111,7 +120,7 @@ export function rafSetInterval(callback: RafCallback, interval: number) {
  * debouncedCallback.cancel();
  */
 export function rafDebounce(callback: RafCallback, delay: number) {
-  let handle: number;
+  let handle: RafHandle;
   let lastTime = 0;
   let isExecuted = false;
   let pendingArgs: any[] | null = null;
@@ -128,7 +137,7 @@ export function rafDebounce(callback: RafCallback, delay: number) {
       isExecuted = false;
       lastTime = performance.now();
 
-      // 如果在执行期间有新的调用，执行最后一次调用
+      // Run the latest call if another invocation arrived during execution.
       if (pendingArgs) {
         const args = pendingArgs;
         pendingArgs = null;
@@ -140,7 +149,7 @@ export function rafDebounce(callback: RafCallback, delay: number) {
   const debounced = (...args: any[]) => {
     cancelRaf(handle);
 
-    // 存储最新的参数
+    // Store the latest arguments for the delayed execution.
     pendingArgs = args;
 
     const loop = () => {
@@ -170,9 +179,10 @@ export function rafDebounce(callback: RafCallback, delay: number) {
 }
 
 /**
- * 使用 Raf 实现 throttle
- * @param callback
- * @param interval
+ * Create a throttled callback driven by raf-compatible scheduling.
+ *
+ * @param callback - Callback to throttle.
+ * @param interval - Minimum interval between executions in milliseconds.
  * @example
  * const throttledCallback = rafThrottle(() => {
  *   console.log('throttledCallback');
@@ -182,7 +192,7 @@ export function rafDebounce(callback: RafCallback, delay: number) {
  * throttledCallback.cancel();
  */
 export function rafThrottle(callback: RafCallback, interval: number) {
-  let handle: number;
+  let handle: RafHandle;
   let lastTime = 0;
   let isExecuted = false;
   let pendingArgs: any[] | null = null;
@@ -199,7 +209,7 @@ export function rafThrottle(callback: RafCallback, interval: number) {
       isExecuted = false;
       lastTime = performance.now();
 
-      // 如果在执行期间有新的调用，执行最后一次调用
+      // Run the latest call if another invocation arrived during execution.
       if (pendingArgs) {
         const args = pendingArgs;
         pendingArgs = null;
@@ -214,7 +224,7 @@ export function rafThrottle(callback: RafCallback, interval: number) {
     if (now - lastTime >= interval && !isExecuted) {
       execute(args);
     } else {
-      // 存储最新的参数
+      // Store the latest arguments for the delayed execution.
       pendingArgs = args;
 
       cancelRaf(handle);

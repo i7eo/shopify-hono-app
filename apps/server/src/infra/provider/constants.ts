@@ -1,6 +1,8 @@
+import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 
 export interface ProviderInstances {
+  env: RuntimeConfig;
   logger: Logger;
 }
 

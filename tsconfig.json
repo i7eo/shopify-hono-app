@@ -1,5 +1,7 @@
 {
   "references": [
+    { "path": "./tsconfig.node.json" },
+
     { "path": "./apps/document" },
     { "path": "./apps/server" },
     { "path": "./apps/web" },

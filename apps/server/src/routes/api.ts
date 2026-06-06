@@ -1,1 +1,1 @@
-export * from "../modules/api";
+export * from "../modules/shopify/api";

@@ -1,25 +1,22 @@
+import { createMiddleware } from "hono/factory";
 import { getLoggerProvider } from "@/infra/provider";
+import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/types";
-import type { MiddlewareHandler } from "hono";
 
-export function runtimeLoggerMiddleware(): MiddlewareHandler<AppEnv> {
-  return async (c, next) => {
+export function runtimeLoggerMiddleware() {
+  return createMiddleware<AppEnv>(async (c, next) => {
     try {
-      const runtimeEnvConfig = c.get("runtimeEnvConfig");
-      const runtimeLogger = await getLoggerProvider(runtimeEnvConfig);
+      const runtimeEnv = c.get("runtimeEnv");
+      const runtimeLogger = await getLoggerProvider(runtimeEnv);
       c.set("runtimeLogger", runtimeLogger);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`runtime logger 获取报错: ${message}`);
-      return c.json(
-        {
-          error: "runtime logger 获取报错",
-          message,
-        },
-        500,
-      );
+      throw internalServerError("runtime logger errors", {
+        details: { cause: error, message },
+        expose: true,
+      });
     }
 
     await next();
-  };
+  });
 }

@@ -1,13 +1,21 @@
 import { throwError } from "./error";
 
 type RandomOptions = {
-  count?: number; // 生成数量（默认1）
-  min?: number; // 最小值（默认0）
-  max?: number; // 最大值（默认1）
-  integer?: boolean; // 是否整数（默认false）
-  unique?: boolean; // 是否去重（默认false）
+  /** Number of values to generate. Defaults to 1. */
+  count?: number;
+  /** Minimum generated value. Defaults to 0. */
+  min?: number;
+  /** Maximum generated value. Defaults to 1. */
+  max?: number;
+  /** Generate integers when true. Defaults to false. */
+  integer?: boolean;
+  /** Deduplicate generated values when true. Defaults to false. */
+  unique?: boolean;
 };
 
+/**
+ * Generate random numbers within a configurable range.
+ */
 export function generateRandom(options: RandomOptions = {}) {
   const {
     count = 1,
@@ -30,6 +38,7 @@ export function generateRandom(options: RandomOptions = {}) {
 
   const result = new Set<number>();
 
+  /** Generate one random value according to the configured range and mode. */
   const getRandom = () => {
     const rand = Math.random() * (max - min) + min;
     return integer ? Math.floor(rand) : rand;
@@ -41,13 +50,13 @@ export function generateRandom(options: RandomOptions = {}) {
     if (unique) {
       result.add(value);
     } else {
-      result.add(Symbol() as unknown as number); // 占位避免 Set 去重
+      result.add(Symbol() as unknown as number); // Placeholder to avoid Set deduplication.
       (result as any).add(value);
       break;
     }
   }
 
-  // 非 unique 时直接返回数组
+  // Return an array directly when unique values are not required.
   if (!unique) {
     return Array.from({ length: count }, getRandom);
   }

@@ -1,14 +1,23 @@
-import { getRuntimeConfig } from "./runtime";
-import type { ConfigSchema } from "./$env";
+import {
+  appConfigSchema,
+  cacheConfigSchema,
+  dataBaseSchema,
+  envConfigSchema,
+  extendConfigSchema,
+  logConfigSchema,
+  redisSchema,
+} from "@shamt/envs";
+import { appConfigSchema as $appConfigSchema } from "./app";
+import type { z } from "zod";
 
-let parsedEnv: ConfigSchema;
+export const configSchema = extendConfigSchema(
+  appConfigSchema,
+  $appConfigSchema,
+)
+  .extend(cacheConfigSchema.shape)
+  .extend(dataBaseSchema.shape)
+  .extend(envConfigSchema.shape)
+  .extend(logConfigSchema.shape)
+  .extend(redisSchema.shape);
 
-try {
-  parsedEnv = getRuntimeConfig(process.env);
-} catch (error) {
-  console.error(`❌ ${(error as Error).message}`);
-  process.exit(1);
-}
-
-export type Env = ConfigSchema;
-export const env = parsedEnv;
+export type ConfigSchema = z.infer<typeof configSchema>;
