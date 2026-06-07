@@ -28,7 +28,7 @@
     "cf:dev1": "pnpm print-env && wrangler dev --port \"$PORT\" --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\" --var \"SHOPIFY_APP_KEY:$SHOPIFY_APP_KEY\" --var \"SHOPIFY_APP_SECRET:$SHOPIFY_APP_SECRET\" --var \"SCOPES:$SCOPES\"",
     "cf:deploy": "wrangler secret bulk ../../.env.production && wrangler deploy",
     "cf:type": "wrangler types",
-    "node:dev": "tsx watch src/index.ts --env-file=../../.env.development",
+    "node:dev": "tsx watch ./src/index.ts --env-file=../../.env.development",
     "build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
     "test": "vitest",
     "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
@@ -38,18 +38,19 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
-    "@ai-sdk/openai": "latest",
+    "@ai-sdk/openai": "^3.0.68",
     "@hono/zod-openapi": "^1.4.0",
-    "@logtape/file": "latest",
-    "@logtape/logtape": "latest",
+    "@logtape/file": "^2.1.1",
+    "@logtape/logtape": "^2.1.1",
     "@shamt/cache": "workspace:*",
     "@shamt/envs": "workspace:*",
     "@shamt/utils": "workspace:*",
-    "ai": "latest",
+    "ai": "^6.0.197",
     "hono": "catalog:hono",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "catalog:cloudflare",
     "@types/node": "catalog:",
     "@unconfig/ts-config-latest": "catalog:dx",
     "rolldown": "catalog:dx",

@@ -28,18 +28,18 @@
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",
+    "@types/node": "catalog:",
     "@types/react": "catalog:react",
     "@types/react-dom": "catalog:react",
+    "@unconfig/ts-config-latest": "catalog:dx",
     "@vitejs/plugin-react": "catalog:react",
     "babel-plugin-react-compiler": "catalog:react",
     "eslint": "catalog:dx",
     "eslint-plugin-react-hooks": "catalog:dx",
     "eslint-plugin-react-refresh": "catalog:dx",
     "globals": "^17.6.0",
+    "typescript": "catalog:",
     "typescript-eslint": "catalog:dx",
-    "vite": "catalog:",
-    "@types/node": "catalog:",
-    "@unconfig/ts-config-latest": "catalog:dx",
-    "typescript": "catalog:"
+    "vite": "catalog:"
   }
 }
