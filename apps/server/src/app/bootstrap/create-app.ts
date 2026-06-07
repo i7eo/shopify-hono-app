@@ -1,9 +1,10 @@
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { isNodeRuntime } from "@/utils";
 import { onAppError } from "../lifecycle/error";
 import { onAppNotFound } from "../lifecycle/not-found";
 import { onAppStartup } from "../lifecycle/startup";
 import { registerMiddleware } from "./register-middleware";
+import { registerOpenAPI } from "./register-openapi";
 import { registerRoutes } from "./register-routes";
 import type { AppEnv } from "@/types";
 import type { DEFAULT_RUNTIMES_VALUES } from "@shamt/envs";
@@ -20,9 +21,10 @@ export async function createApp() {
 
   await onAppStartup();
 
-  const app = new Hono<AppEnv>();
+  const app = new OpenAPIHono<AppEnv>();
   registerMiddleware(app);
   registerRoutes(app);
+  registerOpenAPI(app);
   onAppError(app);
   onAppNotFound(app);
 

@@ -1,7 +1,13 @@
+import { HttpRequestError } from "@shamt/ofetch";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 import { AppError } from "@/shared/models";
-import { internalServerError, unprocessableEntityError } from "./errors";
+import {
+  badGatewayError,
+  internalServerError,
+  timeoutError,
+  unprocessableEntityError,
+} from "./errors";
 
 /**
  * Convert any thrown value into AppError before building the HTTP response.
@@ -9,6 +15,10 @@ import { internalServerError, unprocessableEntityError } from "./errors";
  */
 export function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) return error;
+
+  if (error instanceof HttpRequestError) {
+    return normalizeHttpRequestError(error);
+  }
 
   if (error instanceof ZodError) {
     return unprocessableEntityError("Validation failed", {
@@ -33,6 +43,33 @@ export function normalizeError(error: unknown): AppError {
       cause: error,
       ...getUnknownErrorDetails(error),
     },
+  });
+}
+
+/**
+ * Map transport-layer request errors into the application exception model.
+ * Upstream failures should not leak raw response bodies in production.
+ */
+function normalizeHttpRequestError(error: HttpRequestError): AppError {
+  const details = {
+    kind: error.kind,
+    code: error.code,
+    status: error.status,
+    data: error.data,
+    config: error.config,
+    cause: error,
+  };
+
+  if (error.kind === "timeout" || error.kind === "abort") {
+    return timeoutError(error.message, { details });
+  }
+
+  if (error.kind === "request_validation") {
+    return internalServerError("Invalid upstream request", { details });
+  }
+
+  return badGatewayError(error.message || "Upstream request failed", {
+    details,
   });
 }
 

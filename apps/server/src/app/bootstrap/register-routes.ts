@@ -1,18 +1,17 @@
-import { registerHealthRoutes } from "@/modules/health";
+import { registerHealthController } from "@/modules/health";
 import { registerApiRoutes } from "@/modules/shopify/api";
 import { registerAppShellRoutes } from "@/modules/shopify/app-shell";
 import { registerAuthRoutes } from "@/modules/shopify/auth";
 import { registerWebhookRoutes } from "@/modules/shopify/webhook";
-import type { AppEnv } from "@/types";
-import type { Hono } from "hono";
+import type { AppOpenAPI } from "./register-openapi";
 
 /**
  * Route aggregation only; concrete route behavior lives in modules.
  */
-export function registerRoutes(app: Hono<AppEnv>) {
+export function registerRoutes(app: AppOpenAPI) {
   registerAuthRoutes(app);
   registerWebhookRoutes(app);
   registerApiRoutes(app);
-  registerHealthRoutes(app);
+  registerHealthController(app);
   registerAppShellRoutes(app);
 }

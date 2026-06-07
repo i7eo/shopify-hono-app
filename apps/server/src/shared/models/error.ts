@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import {
   RESPONSE_ERROR_CODE,
   RESPONSE_ERROR_MESSAGE,
@@ -65,3 +66,13 @@ export function createError<T = unknown>(
     details: options.details,
   };
 }
+
+export const ErrorSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+  z.object({
+    code: z.number().openapi({ example: RESPONSE_ERROR_CODE }),
+    message: z.string().openapi({ example: RESPONSE_ERROR_MESSAGE }),
+    success: z.literal(false).openapi({ example: RESPONSE_ERROR_OK }),
+    data: dataSchema.nullable().optional(),
+    requestId: z.string().optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
+  });

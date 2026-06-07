@@ -493,12 +493,18 @@ importers:
       "@logtape/logtape":
         specifier: ^2.1.1
         version: 2.1.1
+      "@scalar/hono-api-reference":
+        specifier: ^0.10.20
+        version: 0.10.20(hono@4.12.23)
       "@shamt/cache":
         specifier: workspace:*
         version: link:../../packages/cache
       "@shamt/envs":
         specifier: workspace:*
         version: link:../../packages/envs
+      "@shamt/ofetch":
+        specifier: workspace:*
+        version: link:../../packages/ofetch
       "@shamt/utils":
         specifier: workspace:*
         version: link:../../packages/utils
@@ -628,6 +634,34 @@ importers:
       zod:
         specifier: "catalog:"
         version: 4.4.3
+    devDependencies:
+      "@types/node":
+        specifier: "catalog:"
+        version: 25.9.2
+      "@unconfig/ts-config-latest":
+        specifier: catalog:dx
+        version: 0.0.1
+      rolldown:
+        specifier: catalog:dx
+        version: 1.1.0
+      rolldown-plugin-dts:
+        specifier: catalog:dx
+        version: 0.25.2(rolldown@1.1.0)(typescript@6.0.3)
+      typescript:
+        specifier: "catalog:"
+        version: 6.0.3
+
+  packages/ofetch:
+    dependencies:
+      "@shamt/envs":
+        specifier: workspace:*
+        version: link:../envs
+      "@shamt/utils":
+        specifier: workspace:*
+        version: link:../utils
+      ky:
+        specifier: ^2.0.2
+        version: 2.0.2
     devDependencies:
       "@types/node":
         specifier: "catalog:"
@@ -3249,6 +3283,50 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  "@scalar/client-side-rendering@0.1.13":
+    resolution:
+      {
+        integrity: sha512-p8V4HgEWjaCpqsnhclg1pTfjE9JA0AWRr0ocBQHexoHo+pqnSs1d83Mv9rjH7R0FZJrlCSandZZeY3DMX2gYXQ==,
+      }
+    engines: { node: ">=22" }
+
+  "@scalar/helpers@0.8.1":
+    resolution:
+      {
+        integrity: sha512-yuiuBCadP5bjAnIv23QvifVN/NaMi9xBF6b8Wdk4QOzwzLPJmp699MAdf33J0A5i2qKcvnu32iz/VkEJmQRe5g==,
+      }
+    engines: { node: ">=22" }
+
+  "@scalar/hono-api-reference@0.10.20":
+    resolution:
+      {
+        integrity: sha512-/Ae0M9rOpsJJb5b121G8LX4vvBo1t2qFX1ffRKkTgCS9VWfpsfq11r0yBcYy1fmAn1x8YLO21Ls1/9h8LzHuDw==,
+      }
+    engines: { node: ">=22" }
+    peerDependencies:
+      hono: ^4.12.5
+
+  "@scalar/schemas@0.3.3":
+    resolution:
+      {
+        integrity: sha512-qDcgFu6ta5Z90L9D2P6DFKzYesU+FW5+m55SGmdI4iRMRCwj5umHpec2Y2W/SJcCF6bbUZawMxuOH2Ja6rUNpQ==,
+      }
+    engines: { node: ">=22" }
+
+  "@scalar/types@0.12.3":
+    resolution:
+      {
+        integrity: sha512-7zaXafbgTFmsJ/9AwYeExUWzXoZNyKOL0SEVAUWRaOndcjxpFCtwzuPrc1elMEWdHopWbY1Qe5pWKbE2aqG2HA==,
+      }
+    engines: { node: ">=22" }
+
+  "@scalar/validation@0.6.0":
+    resolution:
+      {
+        integrity: sha512-tpmmG+/xRE2Kn9RpflU3AIyZv08v10+E1ZrJCx7z6+/91zHVxy0M73kC1LT4/8PbYNt85ywyC8+n+D99JdMcGA==,
+      }
+    engines: { node: ">=20" }
+
   "@shikijs/core@2.5.0":
     resolution:
       {
@@ -5767,6 +5845,13 @@ packages:
         integrity: sha512-JCDrsP4Z1Sb9JwG0aJ8Eo2r7k4Ou5MwmThS/6lcIe1ICyb7UBJKGRIUUdqc2ASdE/42lgz6zFUnzAIhtXnBVrQ==,
       }
 
+  ky@2.0.2:
+    resolution:
+      {
+        integrity: sha512-/GmXpo9F9W+f8n4Ivr2iH+7h7wL7jLbLKWkMlpflcCRb6kGjBfTlASEXaZ9qUgNTn4VgS0P2pwxxzQ4EM6Ulgg==,
+      }
+    engines: { node: ">=22" }
+
   levn@0.4.1:
     resolution:
       {
@@ -7278,6 +7363,13 @@ packages:
       }
     engines: { node: ">=10.0.0" }
 
+  tagged-tag@1.0.0:
+    resolution:
+      {
+        integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==,
+      }
+    engines: { node: ">=20" }
+
   tailwindcss@4.3.0:
     resolution:
       {
@@ -7361,6 +7453,13 @@ packages:
         integrity: sha512-34R7HTnG0XIJcBSn5XhDd7nNFPRcXYRZrBB2O2jdKqYODldSzBAqzsWoZYYvduky73toYS/ESqxPvkDf/F0XMg==,
       }
     engines: { node: ">=10" }
+
+  type-fest@5.7.0:
+    resolution:
+      {
+        integrity: sha512-1URUxUqfHFM1c+zfSPsa3gnkO7Aq21qyH75SIduNYz4SzY964rn1X2vCMQaHSHhktiw+0kPa2iyb6PUpXqB6Vg==,
+      }
+    engines: { node: ">=20" }
 
   typescript-eslint@8.60.1:
     resolution:
@@ -9049,6 +9148,33 @@ snapshots:
   "@rollup/rollup-win32-x64-msvc@4.61.1":
     optional: true
 
+  "@scalar/client-side-rendering@0.1.13":
+    dependencies:
+      "@scalar/schemas": 0.3.3
+      "@scalar/types": 0.12.3
+      "@scalar/validation": 0.6.0
+
+  "@scalar/helpers@0.8.1": {}
+
+  "@scalar/hono-api-reference@0.10.20(hono@4.12.23)":
+    dependencies:
+      "@scalar/client-side-rendering": 0.1.13
+      hono: 4.12.23
+
+  "@scalar/schemas@0.3.3":
+    dependencies:
+      "@scalar/helpers": 0.8.1
+      "@scalar/validation": 0.6.0
+
+  "@scalar/types@0.12.3":
+    dependencies:
+      "@scalar/helpers": 0.8.1
+      nanoid: 5.1.11
+      type-fest: 5.7.0
+      zod: 4.4.3
+
+  "@scalar/validation@0.6.0": {}
+
   "@shikijs/core@2.5.0":
     dependencies:
       "@shikijs/engine-javascript": 2.5.0
@@ -10641,6 +10767,8 @@ snapshots:
 
   known-css-properties@0.37.0: {}
 
+  ky@2.0.2: {}
+
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -11732,6 +11860,8 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
+  tagged-tag@1.0.0: {}
+
   tailwindcss@4.3.0: {}
 
   tapable@2.3.3: {}
@@ -11772,6 +11902,10 @@ snapshots:
       prelude-ls: 1.2.1
 
   type-fest@0.13.1: {}
+
+  type-fest@5.7.0:
+    dependencies:
+      tagged-tag: 1.0.0
 
   typescript-eslint@8.60.1(eslint@10.4.1(jiti@2.7.0))(typescript@6.0.3):
     dependencies:
