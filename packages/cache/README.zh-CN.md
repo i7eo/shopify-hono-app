@@ -27,7 +27,8 @@ Redis、Cloudflare KV 等平台相关 store 不放在这个包内，应该由应
 
 `@shamt/cache` 将 cache contract 与具体运行时存储分离：
 
-- `Cache` 基类声明所有实现类必须具备的方法：`connect`、`create`、`read`、`delete`、`has`、`clear`、`dispose`。
+- `Cache` 基类把底层客户端保存在 `this.store`，并声明所有实现类必须具备的核心 cache 方法：`set`、`get`、`del`、`has`。
+- `connect`、`dispose` 等生命周期方法属于具体实现自己的能力，不放在 `Cache` 基类 contract 中。
 - 基类方法默认抛出 `CacheMethodNotImplementedError`，让未实现的方法在开发阶段尽早暴露。
 - 包内传入的 TTL 均按毫秒处理。
 - value 在 cache 边界统一使用 `@shamt/utils` 的 JSON helper 序列化，让 memory driver 的行为更接近 Redis、KV 这类字符串存储。
@@ -46,7 +47,7 @@ Redis、Cloudflare KV 等平台相关 store 不放在这个包内，应该由应
 
 输出：
 
-- 生命周期与写操作返回 `Promise<void>`。
+- 写操作返回 `Promise<void>`。
 - 读取操作返回 `Promise<T | undefined>`。
 - 存在性检查返回 `Promise<boolean>`。
 - TTL 非法、value 无法序列化、实现类缺少必需方法时抛出错误。
@@ -68,14 +69,12 @@ const cache = createCache({
   keyPrefix: "shop",
 });
 
-await cache.connect();
-await cache.create("settings", { currency: "USD" });
+await cache.set("settings", { currency: "USD" });
 
-const settings = await cache.read<{ currency: string }>("settings");
+const settings = await cache.get<{ currency: string }>("settings");
 const exists = await cache.has("settings");
 
-await cache.delete("settings");
-await cache.dispose();
+await cache.del("settings");
 ```
 
 直接使用 `MemoryCache`：
@@ -90,45 +89,64 @@ const cache = new MemoryCache({
 });
 
 await cache.connect();
-await cache.create("offline:shop.myshopify.com", {
+await cache.set("offline:shop.myshopify.com", {
   accessToken: "token",
 });
 
-const session = await cache.read<{ accessToken: string }>(
+const session = await cache.get<{ accessToken: string }>(
   "offline:shop.myshopify.com",
 );
+
+await cache.dispose();
 ```
 
 实现平台相关 store：
 
 ```ts
-import { Cache, type CacheCreateOptions } from "@shamt/cache";
+import {
+  Cache,
+  deserializeCacheValue,
+  serializeCacheValue,
+  type CacheSetOptions,
+} from "@shamt/cache";
 
-class RedisCache extends Cache {
-  override async connect() {
+interface RedisClient {
+  set: (key: string, value: string, options?: { px: number }) => Promise<void>;
+  get: (key: string) => Promise<string | null>;
+  del: (key: string) => Promise<void>;
+  exists: (key: string) => Promise<number>;
+  quit: () => Promise<void>;
+}
+
+class RedisCache extends Cache<RedisClient> {
+  async connect() {
     // Open Redis connection.
   }
 
-  override async create<T>(
-    key: string,
-    value: T,
-    options: CacheCreateOptions = {},
-  ) {
+  override async set<T>(key: string, value: T, options: CacheSetOptions = {}) {
     const ttl = this.resolveTtl(options.ttl);
-    // Serialize value and write to Redis with ttl in milliseconds.
+    await this.store.set(
+      key,
+      serializeCacheValue(value),
+      ttl === undefined ? undefined : { px: ttl },
+    );
   }
 
-  override async read<T>(key: string): Promise<T | undefined> {
-    // Read and deserialize from Redis.
-    return undefined;
+  override async get<T>(key: string): Promise<T | undefined> {
+    return deserializeCacheValue<T>((await this.store.get(key)) ?? undefined);
   }
 
-  override async delete(key: string) {}
+  override async del(key: string) {
+    await this.store.del(key);
+  }
+
   override async has(key: string) {
-    return false;
+    return (await this.store.exists(key)) > 0;
   }
-  override async clear() {}
-  override async dispose() {}
+
+  async dispose() {
+    await this.store.quit();
+  }
 }
 ```
 

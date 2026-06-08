@@ -1,12 +1,12 @@
-import logger from "@/infra/logger";
-import { getEnvProvider } from "@/infra/provider";
+import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
 import { isDev } from "@/utils";
 
 /**
  * Register global exception handlers for uncaught errors
  */
-export function registerProcessExceptions() {
+export async function registerProcessExceptions() {
   const env = getEnvProvider(process.env);
+  const logger = await getLoggerProvider();
 
   // Handle unhandled promise rejections
   process.on("unhandledRejection", (reason: unknown, promise: Promise<any>) => {

@@ -2,15 +2,15 @@ import { DEFAULT_RUNTIMES } from "@shamt/envs";
 import { z } from "zod";
 import { configSchema } from "@/configs";
 import { parseWithSchema } from "./shared";
-import type { CloudflareKvCacheClient } from "@/types";
+import type { CloudflareKvCacheStore } from "@/types";
 
 export const isolateConfigSchema = configSchema.extend({
   APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.CLOUDFLARE),
-  sofary: z.custom<CloudflareKvCacheClient>(
+  sofary: z.custom<CloudflareKvCacheStore>(
     (value) => {
       if (!value || typeof value !== "object") return false;
       const namespace = value as Partial<
-        Record<keyof CloudflareKvCacheClient, unknown>
+        Record<keyof CloudflareKvCacheStore, unknown>
       >;
       return (
         typeof namespace.get === "function" &&

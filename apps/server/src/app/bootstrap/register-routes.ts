@@ -1,8 +1,8 @@
-import { registerHealthController } from "@/modules/health";
-import { registerApiRoutes } from "@/modules/shopify/api";
-import { registerAppShellRoutes } from "@/modules/shopify/app-shell";
-import { registerAuthRoutes } from "@/modules/shopify/auth";
-import { registerWebhookRoutes } from "@/modules/shopify/webhook";
+import { registerHealthController } from "@/app/modules/health";
+import { registerApiRoutes } from "@/app/modules/shopify/api";
+import { registerAppShellRoutes } from "@/app/modules/shopify/app-shell";
+import { registerAuthRoutes } from "@/app/modules/shopify/auth";
+import { registerWebhookRoutes } from "@/app/modules/shopify/webhook";
 import type { AppOpenAPI } from "./register-openapi";
 
 /**

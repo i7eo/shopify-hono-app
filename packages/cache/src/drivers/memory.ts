@@ -1,8 +1,9 @@
-import { LRUCache } from "lru-cache";
+import { LRUCache as MemoryCacheStore } from "lru-cache";
 import { DEFAULT_CACHE_MAX_SIZE } from "../constants";
 import {
   Cache,
-  type CacheCreateOptions,
+  normalizeCacheTtl,
+  type CacheSetOptions,
   type MemoryCacheOptions,
 } from "../types";
 import {
@@ -22,33 +23,36 @@ import {
  * @example
  * const cache = new MemoryCache({ ttl: 60_000, keyPrefix: "shop" });
  * await cache.connect();
- * await cache.create("settings", { currency: "USD" });
- * const settings = await cache.read<{ currency: string }>("settings");
+ * await cache.set("settings", { currency: "USD" });
+ * const settings = await cache.get<{ currency: string }>("settings");
  * await cache.dispose();
  */
-export class MemoryCache extends Cache {
-  private readonly records: LRUCache<string, string>;
+export class MemoryCache extends Cache<MemoryCacheStore<string, string>> {
   private connected = false;
 
   /**
    * Create a memory cache with optional TTL, key prefix, and max size.
    */
   constructor(options: MemoryCacheOptions = {}) {
-    super({
-      ...options,
-      keyPrefix: normalizeCacheKeyPrefix(options.keyPrefix),
-    });
-    this.records = new LRUCache<string, string>({
-      maxSize: options.maxSize ?? DEFAULT_CACHE_MAX_SIZE,
-      sizeCalculation: estimateCacheValueSize,
-      ttl: this.ttl,
-    });
+    const ttl = normalizeCacheTtl(options.ttl);
+    super(
+      new MemoryCacheStore<string, string>({
+        maxSize: options.maxSize ?? DEFAULT_CACHE_MAX_SIZE,
+        sizeCalculation: estimateCacheValueSize,
+        ttl,
+      }),
+      {
+        ...options,
+        ttl,
+        keyPrefix: normalizeCacheKeyPrefix(options.keyPrefix),
+      },
+    );
   }
 
   /**
    * Mark the memory store as connected.
    */
-  override connect(): Promise<void> {
+  connect(): Promise<void> {
     this.connected = true;
     return Promise.resolve();
   }
@@ -56,36 +60,36 @@ export class MemoryCache extends Cache {
   /**
    * Store a value by key with an optional per-record TTL.
    */
-  override create<T = unknown>(
+  override set<T = unknown>(
     key: string,
     value: T,
-    options: CacheCreateOptions = {},
+    options: CacheSetOptions = {},
   ): Promise<void> {
     const ttl = this.resolveTtl(options.ttl);
     const cacheKey = this.getKey(key);
     const cacheValue = serializeCacheValue(value);
     if (ttl === undefined) {
-      this.records.set(cacheKey, cacheValue);
+      this.store.set(cacheKey, cacheValue);
       return Promise.resolve();
     }
-    this.records.set(cacheKey, cacheValue, { ttl });
+    this.store.set(cacheKey, cacheValue, { ttl });
     return Promise.resolve();
   }
 
   /**
    * Read and deserialize a value by key.
    */
-  override read<T = unknown>(key: string): Promise<T | undefined> {
+  override get<T = unknown>(key: string): Promise<T | undefined> {
     return Promise.resolve(
-      deserializeCacheValue<T>(this.records.get(this.getKey(key))),
+      deserializeCacheValue<T>(this.store.get(this.getKey(key))),
     );
   }
 
   /**
    * Delete a value by key.
    */
-  override delete(key: string): Promise<void> {
-    this.records.delete(this.getKey(key));
+  override del(key: string): Promise<void> {
+    this.store.delete(this.getKey(key));
     return Promise.resolve();
   }
 
@@ -93,23 +97,23 @@ export class MemoryCache extends Cache {
    * Check whether a key exists in memory.
    */
   override has(key: string): Promise<boolean> {
-    return Promise.resolve(this.records.has(this.getKey(key)));
+    return Promise.resolve(this.store.has(this.getKey(key)));
   }
 
   /**
    * Remove every cached record.
    */
-  override clear(): Promise<void> {
-    this.records.clear();
+  clear(): Promise<void> {
+    this.store.clear();
     return Promise.resolve();
   }
 
   /**
    * Clear records and mark the store as disconnected.
    */
-  override dispose(): Promise<void> {
+  dispose(): Promise<void> {
     this.connected = false;
-    this.records.clear();
+    this.store.clear();
     return Promise.resolve();
   }
 

@@ -1,13 +1,13 @@
 import { serializeValue } from "@shamt/utils";
 import { Hono } from "hono";
+import { SessionStore } from "@/infra/cloudflare/kv";
 import {
   badGatewayError,
   badRequestError,
   unauthorizedError,
 } from "@/shared/exceptions";
 import { hmacSha256Hex, timingSafeEqual } from "@/utils";
-import { SessionStore } from "../../../infra/cloudflare/kv";
-import type { AppEnv } from "../../../types";
+import type { AppEnv } from "@/types";
 
 const SHOP_DOMAIN_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
 

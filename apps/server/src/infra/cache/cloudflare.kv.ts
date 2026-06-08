@@ -4,75 +4,73 @@ import {
   deserializeCacheValue,
   normalizeCacheKeyPrefix,
   serializeCacheValue,
-  type CacheCreateOptions,
   type CacheOptions,
+  type CacheSetOptions,
 } from "@shamt/cache";
-import type { CloudflareKvCacheClient } from "@/types";
+import type { CloudflareKvCacheStore } from "@/types";
 
 export interface CloudflareKvCacheOptions extends CacheOptions {
-  client: CloudflareKvCacheClient;
+  store: CloudflareKvCacheStore;
 }
 
-export class CloudflareKvCache extends Cache {
-  private readonly client: CloudflareKvCacheClient;
+export class CloudflareKvCache extends Cache<CloudflareKvCacheStore> {
   private connected = false;
 
   constructor(options: CloudflareKvCacheOptions) {
-    super({
+    super(options.store, {
       ...options,
       keyPrefix: normalizeCacheKeyPrefix(options.keyPrefix),
     });
-    this.client = options.client;
   }
 
-  override connect(): Promise<void> {
+  connect(): Promise<void> {
     this.connected = true;
     return Promise.resolve();
   }
 
-  override async create<T = unknown>(
+  override async set<T = unknown>(
     key: string,
     value: T,
-    options: CacheCreateOptions = {},
+    options: CacheSetOptions = {},
   ): Promise<void> {
     const ttl = this.resolveTtl(options.ttl);
-    await this.client.put(
+    await this.store.put(
       this.getKey(key),
       serializeCacheValue(value),
       this.createPutOptions(ttl),
     );
   }
 
-  override async read<T = unknown>(key: string): Promise<T | undefined> {
+  override async get<T = unknown>(key: string): Promise<T | undefined> {
     return deserializeCacheValue<T>(
-      (await this.client.get(this.getKey(key))) ?? undefined,
+      (await this.store.get(this.getKey(key))) ?? undefined,
     );
   }
 
-  override async delete(key: string): Promise<void> {
-    await this.client.delete(this.getKey(key));
+  override async del(key: string): Promise<void> {
+    await this.store.delete(this.getKey(key));
   }
 
   override async has(key: string): Promise<boolean> {
-    return (await this.client.get(this.getKey(key))) !== null;
+    return (await this.store.get(this.getKey(key))) !== null;
   }
 
-  override async clear(): Promise<void> {
+  async clear(): Promise<void> {
     let cursor: string | undefined;
     do {
-      const result = await this.client.list({
+      const result = await this.store.list({
         prefix: this.keyPrefix,
         cursor,
       });
       await Promise.all(
-        result.keys.map((item) => this.client.delete(item.name)),
+        result.keys.map((item) => this.store.delete(item.name)),
       );
       cursor = result.cursor;
       if (result.list_complete) break;
     } while (cursor);
   }
 
-  override dispose(): Promise<void> {
+  dispose(): Promise<void> {
     this.connected = false;
     return Promise.resolve();
   }

@@ -27,7 +27,8 @@ Platform-specific stores such as Redis and Cloudflare KV should live in the appl
 
 `@shamt/cache` separates the cache contract from concrete runtime storage:
 
-- The `Cache` base class declares the methods every implementation must provide: `connect`, `create`, `read`, `delete`, `has`, `clear`, and `dispose`.
+- The `Cache` base class stores the backing client in `this.store` and declares the core cache methods every implementation must provide: `set`, `get`, `del`, and `has`.
+- Lifecycle methods such as `connect` and `dispose` are implementation-specific and are not part of the base `Cache` contract.
 - Base methods throw `CacheMethodNotImplementedError` by default, so missing implementations fail early during development.
 - TTL values passed into the package are always handled as milliseconds.
 - Values are serialized at the cache boundary with JSON helpers from `@shamt/utils`, making the memory driver behave closer to string-based stores such as Redis and KV.
@@ -46,7 +47,7 @@ Inputs:
 
 Outputs:
 
-- Lifecycle and write methods return `Promise<void>`.
+- Write methods return `Promise<void>`.
 - Read methods return `Promise<T | undefined>`.
 - Existence checks return `Promise<boolean>`.
 - Invalid TTL values, non-serializable values, or missing required methods throw errors.
@@ -68,14 +69,12 @@ const cache = createCache({
   keyPrefix: "shop",
 });
 
-await cache.connect();
-await cache.create("settings", { currency: "USD" });
+await cache.set("settings", { currency: "USD" });
 
-const settings = await cache.read<{ currency: string }>("settings");
+const settings = await cache.get<{ currency: string }>("settings");
 const exists = await cache.has("settings");
 
-await cache.delete("settings");
-await cache.dispose();
+await cache.del("settings");
 ```
 
 Use `MemoryCache` directly:
@@ -90,45 +89,64 @@ const cache = new MemoryCache({
 });
 
 await cache.connect();
-await cache.create("offline:shop.myshopify.com", {
+await cache.set("offline:shop.myshopify.com", {
   accessToken: "token",
 });
 
-const session = await cache.read<{ accessToken: string }>(
+const session = await cache.get<{ accessToken: string }>(
   "offline:shop.myshopify.com",
 );
+
+await cache.dispose();
 ```
 
 Implement a platform-specific store:
 
 ```ts
-import { Cache, type CacheCreateOptions } from "@shamt/cache";
+import {
+  Cache,
+  deserializeCacheValue,
+  serializeCacheValue,
+  type CacheSetOptions,
+} from "@shamt/cache";
 
-class RedisCache extends Cache {
-  override async connect() {
+interface RedisClient {
+  set: (key: string, value: string, options?: { px: number }) => Promise<void>;
+  get: (key: string) => Promise<string | null>;
+  del: (key: string) => Promise<void>;
+  exists: (key: string) => Promise<number>;
+  quit: () => Promise<void>;
+}
+
+class RedisCache extends Cache<RedisClient> {
+  async connect() {
     // Open Redis connection.
   }
 
-  override async create<T>(
-    key: string,
-    value: T,
-    options: CacheCreateOptions = {},
-  ) {
+  override async set<T>(key: string, value: T, options: CacheSetOptions = {}) {
     const ttl = this.resolveTtl(options.ttl);
-    // Serialize value and write to Redis with ttl in milliseconds.
+    await this.store.set(
+      key,
+      serializeCacheValue(value),
+      ttl === undefined ? undefined : { px: ttl },
+    );
   }
 
-  override async read<T>(key: string): Promise<T | undefined> {
-    // Read and deserialize from Redis.
-    return undefined;
+  override async get<T>(key: string): Promise<T | undefined> {
+    return deserializeCacheValue<T>((await this.store.get(key)) ?? undefined);
   }
 
-  override async delete(key: string) {}
+  override async del(key: string) {
+    await this.store.del(key);
+  }
+
   override async has(key: string) {
-    return false;
+    return (await this.store.exists(key)) > 0;
   }
-  override async clear() {}
-  override async dispose() {}
+
+  async dispose() {
+    await this.store.quit();
+  }
 }
 ```
 

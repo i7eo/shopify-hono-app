@@ -3,7 +3,7 @@
 /**
  * Per-write cache options.
  */
-export interface CacheCreateOptions {
+export interface CacheSetOptions {
   /** Default unit is 'ms' */
   ttl?: number;
   /** Default value is 'cache:' */
@@ -31,14 +31,7 @@ export interface MemoryCacheOptions extends CacheOptions {
 /**
  * Methods every cache store must implement.
  */
-export type CacheMethod =
-  | "connect"
-  | "create"
-  | "read"
-  | "delete"
-  | "has"
-  | "clear"
-  | "dispose";
+export type CacheMethod = "set" | "get" | "del" | "has";
 
 /**
  * Options accepted by the default cache factory.
@@ -56,50 +49,46 @@ export class CacheMethodNotImplementedError extends Error {
 }
 
 /**
- * Base cache store contract.
+ * Base cache contract.
  *
- * Concrete stores must override every public method. The base implementation
- * intentionally throws so missing methods fail loudly during development.
+ * Concrete implementations keep their backing client in `store` and override
+ * the core cache operations. Lifecycle methods such as connect/dispose are
+ * implementation-specific and are intentionally not part of this contract.
  */
-export abstract class Cache {
+export abstract class Cache<TStore = unknown> {
+  protected readonly store: TStore;
   protected readonly ttl: number | undefined;
   protected readonly keyPrefix: string;
 
-  constructor(options: CacheOptions = {}) {
+  constructor(store: TStore, options: CacheOptions = {}) {
+    this.store = store;
     this.ttl = normalizeCacheTtl(options.ttl);
     this.keyPrefix = options.keyPrefix ?? "";
   }
 
   /**
-   * Open any required connection or mark the store as ready.
-   */
-  connect(): Promise<void> {
-    throw this.createNotImplementedError("connect");
-  }
-
-  /**
    * Create or overwrite a cache record.
    */
-  create<T = unknown>(
+  set<T = unknown>(
     _key: string,
     _value: T,
-    _options?: CacheCreateOptions,
+    _options?: CacheSetOptions,
   ): Promise<void> {
-    throw this.createNotImplementedError("create");
+    throw this.createNotImplementedError("set");
   }
 
   /**
    * Read a cache record by key.
    */
-  read<T = unknown>(_key: string): Promise<T | undefined> {
-    throw this.createNotImplementedError("read");
+  get<T = unknown>(_key: string): Promise<T | undefined> {
+    throw this.createNotImplementedError("get");
   }
 
   /**
    * Delete a cache record by key.
    */
-  delete(_key: string): Promise<void> {
-    throw this.createNotImplementedError("delete");
+  del(_key: string): Promise<void> {
+    throw this.createNotImplementedError("del");
   }
 
   /**
@@ -107,20 +96,6 @@ export abstract class Cache {
    */
   has(_key: string): Promise<boolean> {
     throw this.createNotImplementedError("has");
-  }
-
-  /**
-   * Remove all records from the store.
-   */
-  clear(): Promise<void> {
-    throw this.createNotImplementedError("clear");
-  }
-
-  /**
-   * Release resources held by the store.
-   */
-  dispose(): Promise<void> {
-    throw this.createNotImplementedError("dispose");
   }
 
   /**

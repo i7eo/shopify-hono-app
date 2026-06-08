@@ -1,5 +1,5 @@
 import { deserializeValue, serializeValue } from "@shamt/utils";
-import type { CloudflareKvCacheClient, StoredSession } from "@/types";
+import type { CloudflareKvCacheStore, StoredSession } from "@/types";
 
 /**
  * KV-backed storage for Shopify sessions and OAuth state.
@@ -10,7 +10,7 @@ import type { CloudflareKvCacheClient, StoredSession } from "@/types";
  *   oauth_state:{nonce}        -> shop domain string (10-minute TTL)
  */
 export class SessionStore {
-  constructor(private kv: CloudflareKvCacheClient) {}
+  constructor(private kv: CloudflareKvCacheStore) {}
 
   async getOfflineSession(shop: string): Promise<StoredSession | null> {
     const raw = await this.kv.get(`offline:${shop}`);

@@ -1,12 +1,16 @@
 import { MemoryCache, type Cache } from "@shamt/cache";
 import { isCloudflareRuntime } from "@/utils";
-import { CloudflareKvCache } from "./cloudflare.kv";
+import { CloudflareKvCacheStore } from "./cloudflare.kv";
 import type { RuntimeConfig } from "@/infra/env";
 
-let cache: Cache | undefined;
+type RuntimeCache = Cache & {
+  dispose: () => Promise<void>;
+};
+
+let cache: RuntimeCache | undefined;
 let cacheSignature: string | undefined;
 
-export function getRuntimeCache(config: RuntimeConfig): Cache {
+export function getRuntimeCache(config: RuntimeConfig): RuntimeCache {
   const signature = getCacheSignature(config);
   if (!cache || cacheSignature !== signature) {
     cache?.dispose();
@@ -16,9 +20,9 @@ export function getRuntimeCache(config: RuntimeConfig): Cache {
   return cache;
 }
 
-export function createRuntimeCache(config: RuntimeConfig): Cache {
+export function createRuntimeCache(config: RuntimeConfig): RuntimeCache {
   if (isCloudflareRuntime(config.APP_RUNTIME)) {
-    return new CloudflareKvCache({
+    return new CloudflareKvCacheStore({
       // @ts-ignore
       client: config.sofary,
       ttl: config.APP_CACHE_EXPIRE,

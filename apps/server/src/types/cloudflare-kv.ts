@@ -3,7 +3,7 @@ import type { DEFAULT_RUNTIMES_VALUES } from "@shamt/envs";
 
 export interface Bindings {
   APP_RUNTIME?: DEFAULT_RUNTIMES_VALUES;
-  sofary: CloudflareKvCacheClient;
+  sofary: CloudflareKvCacheStore;
   SHOPIFY_APP_KEY: string;
   SHOPIFY_APP_SECRET: string;
   SHOPIFY_APP_URL: string;
@@ -11,7 +11,7 @@ export interface Bindings {
   SHOPIFY_API_VERSION: string;
 }
 
-export interface CloudflareKvCacheClient {
+export interface CloudflareKvCacheStore {
   get: (key: string) => Promise<string | null>;
   put: (
     key: string,

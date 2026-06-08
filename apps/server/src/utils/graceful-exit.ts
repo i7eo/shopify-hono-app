@@ -1,129 +1,171 @@
-import { onAppShutdown } from "@/app/lifecycle/shutdown";
-
 type MaybePromise<T> = T | Promise<T>;
+
+export type ProcessGracefulExitLogger = {
+  info: (...args: any[]) => unknown;
+  warn: (...args: any[]) => unknown;
+  error: (...args: any[]) => unknown;
+};
 
 export type GracefulExitTarget = {
   stop?: () => MaybePromise<void>;
   close?: (callback?: (error?: Error) => void) => MaybePromise<unknown>;
 };
 
-/**
- * 进程退出信号列表，用于注册优雅退出监听器。
- * 注意：SIGKILL (9) 无法被捕获或忽略，已排除。
- * - SIGINT: Ctrl+C 触发
- * - SIGQUIT: Ctrl+\ 触发
- * - SIGTERM: kill 命令默认发送，Docker/K8s 停止容器时发送
- */
-export const exitSignals = ["SIGINT", "SIGQUIT", "SIGTERM"] as const;
+type RegisteredExitSignalListener = {
+  signal: ExitSignal;
+  listener: () => void;
+};
 
 /**
- * 优雅退出超时时间（毫秒）。
- * 若 cleanup 在此时间内未完成，将强制 process.exit(1) 避免进程挂起。
+ * Process signals used to register graceful shutdown listeners.
+ * SIGKILL (9) cannot be caught or ignored, so it is intentionally excluded.
+ * - SIGINT: sent by Ctrl+C.
+ * - SIGQUIT: sent by Ctrl+\.
+ * - SIGTERM: sent by kill, Docker, and Kubernetes during normal termination.
+ */
+export const exitSignals = ["SIGINT", "SIGQUIT", "SIGTERM"] as const;
+type ExitSignal = (typeof exitSignals)[number];
+
+/**
+ * Maximum graceful shutdown duration in milliseconds.
+ * If cleanup does not finish in time, the process exits with code 1.
  */
 export const SHUTDOWN_TIMEOUT_MS = 10000;
 
 /**
- * 防重复退出标志。
- * 快速多次按 Ctrl+C 时，仅第一个信号会触发完整清理流程；
- * 后续信号直接忽略，避免重复执行 cleanup 导致的竞态。
- */
-let isShuttingDown = false;
-
-/**
- * 处理进程退出信号的统一入口，执行优雅关闭流程。
+ * Create a graceful exit controller with closure-scoped shutdown state.
+ * This follows the same organization style as rafThrottle: state and cleanup
+ * controls live inside the factory result instead of being exposed as module
+ * variables.
  *
- * 流程：
- * 1. 检查 isShuttingDown，避免重复执行
- * 2. 移除退出信号监听器，防止后续信号再次触发
- * 3. 设置超时定时器，超时则强制退出
- * 4. 执行 cleanup 并等待完成
- * 5. 成功则 process.exit(0)，失败则 process.exit(1)
+ * @example
+ * ```ts
+ * const server = serve({ fetch: app.fetch, port: 3000 });
+ * const cleanup = setupCleanup(server);
+ * const gracefulExit = createProcessGracefulExit(logger);
  *
- * @param _signal - 收到的信号（如 SIGTERM），当前未使用
- * @param cleanup - 异步清理函数，需按顺序关闭 server、cron、clients 等资源
- */
-export async function gracefulExit(
-  _signal: string,
-  cleanup: () => Promise<void>,
-): Promise<void> {
-  if (isShuttingDown) return;
-  isShuttingDown = true;
-  exitSignals.forEach((signal) => process.removeAllListeners(signal));
-
-  const timeout = setTimeout(() => {
-    console.warn("Graceful shutdown timeout, forcing exit");
-    process.exit(1);
-  }, SHUTDOWN_TIMEOUT_MS);
-
-  try {
-    await cleanup();
-    console.info("Graceful exit completed");
-    clearTimeout(timeout);
-    process.exit(0);
-  } catch (error) {
-    console.error("Error during graceful shutdown", error);
-    clearTimeout(timeout);
-    process.exit(1);
-  }
-}
-
-/**
- * 为当前进程注册退出信号监听器。
- * 收到 exitSignals 中的任一信号时，调用 gracefulExit 执行 cleanup。
+ * const unregister = gracefulExit.register(cleanup);
  *
- * @param _target - server 实例（未使用，仅用于类型签名统一）
- * @param cleanup - 异步清理函数
+ * // Optional: remove registered process listeners during tests or hot reload.
+ * unregister();
+ *
+ * // Optional: trigger shutdown manually.
+ * await gracefulExit.shutdown(cleanup);
+ * ```
  */
-export function registerGracefulExitHandlers(
-  _target: GracefulExitTarget | undefined,
-  cleanup: () => Promise<void>,
+export function createProcessGracefulExit(
+  logger: ProcessGracefulExitLogger = console,
 ) {
-  exitSignals.forEach((signal) =>
-    process.on(signal, () => gracefulExit(signal, cleanup)),
-  );
-}
+  let isShuttingDown = false;
+  const registeredListeners: RegisteredExitSignalListener[] = [];
 
-/**
- * 创建 Worker/单进程的清理函数，按依赖顺序关闭资源。
- *
- * @param target - Runtime server/app handle. Node-style handles usually expose close();
- * Workers/Bun-like handles may expose stop().
- * @returns 异步清理函数，供 gracefulExit 调用
- */
-export function setupCleanup(target?: GracefulExitTarget) {
-  return async () => {
+  /** Remove one process listener registered by this controller. */
+  const removeRegisteredListener = ({
+    signal,
+    listener,
+  }: RegisteredExitSignalListener) => {
+    process.off(signal, listener);
+  };
+
+  /** Remove a group of listeners and keep the local registry in sync. */
+  const removeRegisteredListeners = (
+    listeners: RegisteredExitSignalListener[],
+  ) => {
+    listeners.forEach(removeRegisteredListener);
+    registeredListeners.splice(
+      0,
+      registeredListeners.length,
+      ...registeredListeners.filter((item) => !listeners.includes(item)),
+    );
+  };
+
+  /** Preserve current shutdown behavior by removing all listeners for shutdown signals. */
+  const removeAllExitSignalListeners = () => {
+    exitSignals.forEach((signal) => process.removeAllListeners(signal));
+    registeredListeners.length = 0;
+  };
+
+  /** Run cleanup once and exit the process with the matching status code. */
+  const shutdown = async (cleanup: () => Promise<void>) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    removeAllExitSignalListeners();
+
+    const timeout = setTimeout(() => {
+      logger.warn("Graceful shutdown timeout, forcing exit");
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
+
     try {
-      await closeTarget(target);
-    } finally {
-      await onAppShutdown();
+      await cleanup();
+      logger.info("Graceful exit completed");
+      clearTimeout(timeout);
+      process.exit(0);
+    } catch (error) {
+      logger.error("Error during graceful shutdown", error);
+      clearTimeout(timeout);
+      process.exit(1);
     }
+  };
+
+  /** Register process signal listeners and return an unregister function. */
+  const register = (cleanup: () => Promise<void>) => {
+    const listeners = exitSignals.map((signal) => {
+      const listener = async () => {
+        await shutdown(cleanup);
+      };
+      process.on(signal, listener);
+      return { signal, listener };
+    });
+
+    registeredListeners.push(...listeners);
+
+    return () => removeRegisteredListeners(listeners);
+  };
+
+  /**
+   * Create a cleanup function for worker or single-process runtimes.
+   * The returned function closes the app handle first, then runs app shutdown disposers.
+   *
+   */
+  const createCleanup = (
+    app: GracefulExitTarget,
+    callback?: () => Promise<void>,
+  ) => {
+    return async () => {
+      try {
+        await closeApp(app);
+      } finally {
+        callback && (await callback());
+      }
+    };
+  };
+
+  return {
+    register,
+    createCleanup,
+    shutdown,
   };
 }
 
-async function closeTarget(target?: GracefulExitTarget) {
-  if (!target) return;
-
-  if (target.stop) {
-    await target.stop();
+/**
+ * Close the runtime app handle when it exposes a supported stop or close API.
+ * Callback-style close methods are converted to promises.
+ */
+async function closeApp(app: GracefulExitTarget) {
+  if (app.stop) {
+    await app.stop();
     return;
   }
 
-  if (target.close) {
-    await closeWithOptionalCallback(target.close);
+  if (app.close) {
+    if (app.close.length > 0) {
+      await new Promise<void>((resolve, reject) => {
+        app.close?.((error?: Error) => (error ? reject(error) : resolve()));
+      });
+      return;
+    }
+
+    await app.close();
   }
-}
-
-async function closeWithOptionalCallback(
-  close: GracefulExitTarget["close"],
-): Promise<void> {
-  if (!close) return;
-
-  if (close.length > 0) {
-    await new Promise<void>((resolve, reject) => {
-      close((error?: Error) => (error ? reject(error) : resolve()));
-    });
-    return;
-  }
-
-  await close();
 }
