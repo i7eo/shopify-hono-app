@@ -9,9 +9,7 @@ export const isolateConfigSchema = configSchema.extend({
   sofary: z.custom<CloudflareKvCacheStore>(
     (value) => {
       if (!value || typeof value !== "object") return false;
-      const namespace = value as Partial<
-        Record<keyof CloudflareKvCacheStore, unknown>
-      >;
+      const namespace = value as Partial<KVNamespace>;
       return (
         typeof namespace.get === "function" &&
         typeof namespace.put === "function" &&

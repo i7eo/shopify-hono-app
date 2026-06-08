@@ -1,7 +1,7 @@
 import { MemoryCache, type Cache } from "@shamt/cache";
 import { isCloudflareRuntime } from "@/utils";
-import { CloudflareKvCacheStore } from "./cloudflare.kv";
-import type { RuntimeConfig } from "@/infra/env";
+import { CloudflareKvCache } from "./cloudflare.kv";
+import type { CloudflareRuntimeConfig, RuntimeConfig } from "@/infra/env";
 
 type RuntimeCache = Cache & {
   dispose: () => Promise<void>;
@@ -22,9 +22,9 @@ export function getRuntimeCache(config: RuntimeConfig): RuntimeCache {
 
 export function createRuntimeCache(config: RuntimeConfig): RuntimeCache {
   if (isCloudflareRuntime(config.APP_RUNTIME)) {
-    return new CloudflareKvCacheStore({
-      // @ts-ignore
-      client: config.sofary,
+    const cloudflareConfig = config as CloudflareRuntimeConfig;
+    return new CloudflareKvCache({
+      store: cloudflareConfig.sofary,
       ttl: config.APP_CACHE_EXPIRE,
       keyPrefix: "cache",
     });

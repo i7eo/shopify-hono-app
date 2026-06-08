@@ -41,6 +41,7 @@
     "@unconfig/ts-config-latest": "catalog:dx",
     "rolldown": "catalog:dx",
     "rolldown-plugin-dts": "catalog:dx",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:test"
   }
 }

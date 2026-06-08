@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { SessionStore } from "@/infra/cloudflare/kv";
 import { verifyWebhook } from "@/shared/middlewares";
 import { createResponse } from "@/shared/models";
+import { getShopifySessionStorage } from "../session-storage";
 import type { AppEnv } from "@/types";
 
 export const createWebhookRoutes = () => {
@@ -11,10 +11,11 @@ export const createWebhookRoutes = () => {
 
   webhookRoutes.post("/app/uninstalled", async (c) => {
     const shop = c.var.webhookShop;
-    const store = new SessionStore(c.env.sofary);
-    await store.deleteOfflineSession(shop);
-    // eslint-disable-next-line no-console
-    console.log(`App uninstalled: ${shop}`);
+    const sessionStorage = getShopifySessionStorage(c);
+    const sessions = await sessionStorage.findSessionsByShop(shop);
+    await sessionStorage.deleteSessions(sessions.map((session) => session.id));
+    const logger = c.get("runtimeLogger");
+    logger.info(`App uninstalled: ${shop}`);
     return c.json(
       createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
     );
@@ -23,8 +24,10 @@ export const createWebhookRoutes = () => {
   webhookRoutes.post("/customers/data-request", (c) => {
     const shop = c.var.webhookShop;
     const payload = c.var.webhookPayload;
-    // eslint-disable-next-line no-console
-    console.log(`Customer data request from ${shop}:`, payload);
+    const logger = c.get("runtimeLogger");
+    logger.info(
+      `Customer data request from ${shop}: ${JSON.stringify(payload)}`,
+    );
     return c.json(
       createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
     );
@@ -33,8 +36,10 @@ export const createWebhookRoutes = () => {
   webhookRoutes.post("/customers/redact", (c) => {
     const shop = c.var.webhookShop;
     const payload = c.var.webhookPayload;
-    // eslint-disable-next-line no-console
-    console.log(`Customer redact request from ${shop}:`, payload);
+    const logger = c.get("runtimeLogger");
+    logger.info(
+      `Customer redact request from ${shop}: ${JSON.stringify(payload)}`,
+    );
     return c.json(
       createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
     );
@@ -43,8 +48,8 @@ export const createWebhookRoutes = () => {
   webhookRoutes.post("/shop/redact", (c) => {
     const shop = c.var.webhookShop;
     const payload = c.var.webhookPayload;
-    // eslint-disable-next-line no-console
-    console.log(`Shop redact request from ${shop}:`, payload);
+    const logger = c.get("runtimeLogger");
+    logger.info(`Shop redact request from ${shop}: ${JSON.stringify(payload)}`);
     return c.json(
       createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
     );
@@ -52,8 +57,6 @@ export const createWebhookRoutes = () => {
 
   return webhookRoutes;
 };
-
-export const webhookRoutes = createWebhookRoutes();
 
 export const registerWebhookRoutes = (app: Hono<AppEnv>) => {
   app.route("/webhooks", createWebhookRoutes());

@@ -1,25 +1,15 @@
-import { Hono } from "hono";
-import { ensureInstalled } from "@/shared/middlewares";
 import type { AppEnv } from "@/types";
-
-export const createAppShellRoutes = () => {
-  const appRoutes = new Hono<AppEnv>();
-
-  appRoutes.use("/*", ensureInstalled);
-  appRoutes.get("/", (c) => c.html(renderAppShell(c.env.SHOPIFY_APP_KEY)));
-  appRoutes.get("/*", (c) => c.html(renderAppShell(c.env.SHOPIFY_APP_KEY)));
-
-  return appRoutes;
-};
-
-export const appRoutes = createAppShellRoutes();
+import type { Context, Hono } from "hono";
 
 export const registerAppShellRoutes = (app: Hono<AppEnv>) => {
-  app.route("/app", createAppShellRoutes());
-  app.get("/", ensureInstalled, (c) =>
-    c.html(renderAppShell(c.env.SHOPIFY_APP_KEY)),
-  );
+  app.get("/app", renderAppShellResponse);
+  app.get("/app/*", renderAppShellResponse);
+  app.get("/", renderAppShellResponse);
 };
+
+function renderAppShellResponse(c: Context<AppEnv>) {
+  return c.html(renderAppShell(c.get("runtimeEnv").SHOPIFY_APP_KEY));
+}
 
 export function renderAppShell(apiKey: string): string {
   return `
@@ -56,7 +46,7 @@ export function renderAppShell(apiKey: string): string {
         async function loadShopInfo() {
           const container = document.getElementById('shop-info');
           try {
-            const res = await fetch('/api/shop');
+            const res = await fetch('/api/shopify/shop');
             if (!res.ok) throw new Error('Failed to load shop info');
             const data = await res.json();
             const shop = data.data?.shop;
@@ -73,7 +63,7 @@ export function renderAppShell(apiKey: string): string {
         async function loadProducts() {
           const container = document.getElementById('products-container');
           try {
-            const res = await fetch('/api/products');
+            const res = await fetch('/api/shopify/products');
             if (!res.ok) throw new Error('Failed to load products');
             const data = await res.json();
             const products = data.data?.products?.edges || [];

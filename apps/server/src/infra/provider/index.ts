@@ -13,5 +13,7 @@ export async function disposeProviders(): Promise<void> {
   providerDisposers.clear();
 }
 
+export * from "./client";
 export * from "./env";
 export * from "./logger";
+export * from "./shopify";

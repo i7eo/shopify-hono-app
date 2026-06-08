@@ -1,38 +1,31 @@
 import { deserializeValue } from "@shamt/utils";
 import { createMiddleware } from "hono/factory";
+import { getShopifyConfigProvider } from "@/infra/provider";
 import { unauthorizedError } from "@/shared/exceptions";
-import { hmacSha256Base64, timingSafeEqual } from "@/utils";
 import type { AppEnv } from "@/types";
 
 export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
-  const hmacHeader = c.req.header("X-Shopify-Hmac-SHA256");
-  const topic = c.req.header("X-Shopify-Topic");
-  const shopDomain = c.req.header("X-Shopify-Shop-Domain");
-
-  if (!hmacHeader || !topic || !shopDomain) {
-    throw unauthorizedError("Missing required Shopify webhook headers");
-  }
-
-  const rawBody = await c.req.raw.clone().arrayBuffer();
-  const computedHmac = await hmacSha256Base64(
-    c.env.SHOPIFY_APP_SECRET,
+  const rawBody = await c.req.raw.clone().text();
+  const config = c.get("runtimeEnv");
+  const shopify = await getShopifyConfigProvider(config);
+  const validation = await shopify.webhooks.validate({
+    rawRequest: c.req.raw,
     rawBody,
-  );
+  });
 
-  const isValid = await timingSafeEqual(computedHmac, hmacHeader);
-
-  if (!isValid) {
-    throw unauthorizedError("Webhook HMAC verification failed");
+  if (!validation.valid) {
+    throw unauthorizedError("Webhook validation failed", {
+      details: { validation },
+    });
   }
 
-  const bodyText = new TextDecoder().decode(rawBody);
-  const payload = deserializeValue(bodyText);
+  const payload = deserializeValue(rawBody);
   if (payload === undefined) {
     throw unauthorizedError("Invalid Shopify webhook JSON payload");
   }
 
-  c.set("webhookTopic", topic);
-  c.set("webhookShop", shopDomain);
+  c.set("webhookTopic", validation.topic);
+  c.set("webhookShop", validation.domain);
   c.set("webhookPayload", payload);
 
   await next();

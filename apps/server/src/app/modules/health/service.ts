@@ -1,5 +1,5 @@
 import { DEFAULT_RUNTIMES } from "@shamt/envs";
-import { createHttpClient } from "@shamt/ofetch";
+import { getClientProvider } from "@/infra/provider";
 import type {
   DiskHealthDataSchema,
   HealthDataSchema,
@@ -19,14 +19,6 @@ export type ReservedHealthData = z.infer<typeof ReservedHealthDataSchema>;
 type ReservedHealthTarget = ReservedHealthData["target"];
 
 const NETWORK_HEALTH_URL = "https://example.com";
-const NETWORK_HEALTH_TIMEOUT_MS = 3000;
-const networkHealthClient = createHttpClient({
-  timeout: NETWORK_HEALTH_TIMEOUT_MS,
-  retry: { limit: 0 },
-  defaults: {
-    validateBusinessStatus: false,
-  },
-});
 
 export function getHealthStatus(): HealthData {
   return { status: "ok" };
@@ -87,7 +79,8 @@ export function checkMemoryHealth(
 
 export async function checkNetworkHealth(): Promise<NetworkHealthData> {
   const start = performance.now();
-  const response = await networkHealthClient.get<Response>(NETWORK_HEALTH_URL, {
+  const httpClient = getClientProvider();
+  const response = await httpClient.get<Response>(NETWORK_HEALTH_URL, {
     responseType: "response",
   });
 

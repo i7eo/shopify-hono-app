@@ -49,6 +49,8 @@
     "@shamt/ofetch": "workspace:*",
     "@shamt/utils": "workspace:*",
     "@shopify/shopify-api": "^13.0.0",
+    "@shopify/shopify-app-session-storage-kv": "^6.0.0",
+    "@shopify/shopify-app-session-storage-memory": "^6.0.0",
     "hono": "catalog:hono",
     "zod": "catalog:"
   },
@@ -59,6 +61,7 @@
     "rolldown": "catalog:dx",
     "rolldown-plugin-dts": "catalog:dx",
     "typescript": "catalog:",
+    "vitest": "catalog:test",
     "wrangler": "catalog:cloudflare"
   }
 }

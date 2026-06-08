@@ -1,4 +1,3 @@
-import type { CacheOptions } from "@shamt/cache";
 import type { DEFAULT_RUNTIMES_VALUES } from "@shamt/envs";
 
 export interface Bindings {
@@ -11,34 +10,4 @@ export interface Bindings {
   SHOPIFY_API_VERSION: string;
 }
 
-export interface CloudflareKvCacheStore {
-  get: (key: string) => Promise<string | null>;
-  put: (
-    key: string,
-    value: string,
-    options?: {
-      expirationTtl?: CacheOptions["ttl"];
-    },
-  ) => Promise<void>;
-  delete: (key: string) => Promise<void>;
-  list: (options?: { prefix?: string; cursor?: string }) => Promise<{
-    keys: Array<{ name: string }>;
-    list_complete: boolean;
-    cursor?: string;
-  }>;
-}
-
-// ---------------------------------------------------------------------------
-// KV-stored session data
-// ---------------------------------------------------------------------------
-
-export interface StoredSession {
-  shop: string;
-  accessToken: string;
-  scope: string;
-  installedAt: string;
-  /** ISO timestamp — present for online (token-exchange) tokens */
-  expiresAt?: string;
-  /** Shopify user ID — present for online tokens */
-  userId?: string;
-}
+export type CloudflareKvCacheStore = KVNamespace;

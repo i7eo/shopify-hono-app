@@ -65,8 +65,8 @@ export class CloudflareKvCache extends Cache<CloudflareKvCacheStore> {
       await Promise.all(
         result.keys.map((item) => this.store.delete(item.name)),
       );
-      cursor = result.cursor;
       if (result.list_complete) break;
+      cursor = result.cursor;
     } while (cursor);
   }
 

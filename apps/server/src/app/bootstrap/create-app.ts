@@ -8,8 +8,6 @@ import type { AppEnv } from "@/types";
 
 /**
  * Central Hono app factory.
- *
- * This mirrors the src1 bootstrap shape while keeping the current Hono runtime.
  */
 export function createApp() {
   const app = new OpenAPIHono<AppEnv>();

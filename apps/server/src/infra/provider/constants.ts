@@ -2,8 +2,10 @@ import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 
 export interface ProviderInstances {
+  client: unknown;
   env: RuntimeConfig;
   logger: Logger;
+  shopifyConfig: unknown;
 }
 
 export type ProviderName = keyof ProviderInstances;

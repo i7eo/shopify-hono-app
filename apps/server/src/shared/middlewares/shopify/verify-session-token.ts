@@ -1,9 +1,7 @@
 import { createMiddleware } from "hono/factory";
+import { getShopifyConfigProvider } from "@/infra/provider";
 import { unauthorizedError } from "@/shared/exceptions";
-import { verifyHS256JWT } from "@/utils";
-import type { AppEnv, ShopifySessionTokenClaims } from "@/types";
-
-const CLOCK_TOLERANCE_SECONDS = 10;
+import type { AppEnv } from "@/types";
 
 export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
   const authHeader = c.req.header("Authorization");
@@ -14,12 +12,16 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
 
   const token = authHeader.slice(7);
 
-  let claims: ShopifySessionTokenClaims;
+  const config = c.get("runtimeEnv");
+  const shopify = await getShopifyConfigProvider(config);
+
   try {
-    claims = await verifyHS256JWT<ShopifySessionTokenClaims>(
-      token,
-      c.env.SHOPIFY_APP_SECRET,
-    );
+    const claims = await shopify.session.decodeSessionToken(token);
+    const shopDomain = new URL(claims.dest).hostname;
+
+    c.set("shopifySessionToken", claims);
+    c.set("shopDomain", shopDomain);
+    c.set("shopifyUserId", claims.sub);
   } catch (error) {
     throw unauthorizedError("Invalid session token", {
       details: {
@@ -28,37 +30,6 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
       },
     });
   }
-
-  const now = Math.floor(Date.now() / 1000);
-
-  if (claims.exp < now - CLOCK_TOLERANCE_SECONDS) {
-    throw unauthorizedError("Session token has expired");
-  }
-
-  if (claims.nbf > now + CLOCK_TOLERANCE_SECONDS) {
-    throw unauthorizedError("Session token is not yet valid");
-  }
-
-  if (claims.aud !== c.env.SHOPIFY_APP_KEY) {
-    throw unauthorizedError("Session token audience mismatch");
-  }
-
-  const issUrl = new URL(claims.iss);
-  const destUrl = new URL(claims.dest);
-  const issHost = issUrl.hostname;
-  const destHost = destUrl.hostname;
-
-  if (issHost !== destHost) {
-    const issShop = issHost.split(".")[0];
-    const destShop = destHost.split(".")[0];
-    if (issShop !== destShop) {
-      throw unauthorizedError("Session token iss/dest hostname mismatch");
-    }
-  }
-
-  c.set("shopifySessionToken", claims);
-  c.set("shopDomain", destHost);
-  c.set("shopifyUserId", claims.sub);
 
   await next();
 });
