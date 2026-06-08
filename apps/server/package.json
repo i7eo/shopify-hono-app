@@ -48,6 +48,7 @@
     "@shamt/envs": "workspace:*",
     "@shamt/ofetch": "workspace:*",
     "@shamt/utils": "workspace:*",
+    "@shopify/shopify-api": "^13.0.0",
     "hono": "catalog:hono",
     "zod": "catalog:"
   },

@@ -24,8 +24,6 @@
     "clean:workspace": "pnpm -F \"*\" clean",
     "clean:cache": "rimraf pnpm-lock.yaml && rimraf node_modules",
     "commit": "czg",
-    "upgrade": "run-s \"upgrade:**\"",
-    "upgrade:pnpm": "pnpm self-update",
     "upgrade:pkgs": "pnpm update -r --interactive --latest"
   },
   "devDependencies": {
