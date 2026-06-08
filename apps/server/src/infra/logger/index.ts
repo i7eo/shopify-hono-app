@@ -1,26 +1,11 @@
 import { getLogger } from "@logtape/logtape";
 import { DEFAULT_LOG_LEVEL } from "@shamt/envs";
-import { isProcessRuntime } from "@/utils";
+import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { name } from "../../../package.json";
-import { setupIsolateLogger } from "./isolate";
-import { setupConsoleLogger, type LoggerSetupOptions } from "./shared";
+import { setupConsoleLogger } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 
 let loggerConfigured = false;
-type RuntimeLoggerSetup = (
-  config: RuntimeConfig,
-  options: LoggerSetupOptions,
-) => Promise<void>;
-
-let processLoggerSetup: RuntimeLoggerSetup | undefined;
-
-/**
- * Register process-only logger support from the Node entrypoint.
- * Keeping this injectable prevents Cloudflare bundles from seeing file sinks.
- */
-export function registerProcessLoggerSetup(setup: RuntimeLoggerSetup): void {
-  processLoggerSetup = setup;
-}
 
 /**
  * Configure a minimal console logger for application bootstrap.
@@ -43,15 +28,12 @@ export async function setupLogger(
 ): Promise<void> {
   const runtimeConfig = config ?? (await getProcessConfig());
   const reset = options.reset ?? loggerConfigured;
+  const runtimeLoggerSetup = getRuntimeCapability("runtimeLoggerSetup");
 
-  if (isProcessRuntime(runtimeConfig.APP_RUNTIME)) {
-    if (processLoggerSetup) {
-      await processLoggerSetup(runtimeConfig, { reset });
-    } else {
-      await setupConsoleLogger(runtimeConfig.APP_LOGGER_LEVEL, { reset });
-    }
+  if (runtimeLoggerSetup) {
+    await runtimeLoggerSetup(runtimeConfig, { reset });
   } else {
-    await setupIsolateLogger(runtimeConfig, { reset });
+    await setupConsoleLogger(runtimeConfig.APP_LOGGER_LEVEL, { reset });
   }
 
   loggerConfigured = true;

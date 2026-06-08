@@ -1,4 +1,4 @@
-import { DEFAULT_RUNTIMES } from "@shamt/envs";
+import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { getClientProvider } from "@/infra/provider";
 import type {
   DiskHealthDataSchema,
@@ -17,16 +17,8 @@ export type NetworkHealthData = z.infer<typeof NetworkHealthDataSchema>;
 export type ReservedHealthData = z.infer<typeof ReservedHealthDataSchema>;
 
 type ReservedHealthTarget = ReservedHealthData["target"];
-type NodeDiskHealthChecker = () => Promise<string>;
 
 const NETWORK_HEALTH_URL = "https://example.com";
-let nodeDiskHealthChecker: NodeDiskHealthChecker | undefined;
-
-export function registerProcessDiskHealthChecker(
-  checker: NodeDiskHealthChecker,
-): void {
-  nodeDiskHealthChecker = checker;
-}
 
 export function getHealthStatus(): HealthData {
   return { status: "ok" };
@@ -35,7 +27,11 @@ export function getHealthStatus(): HealthData {
 export async function checkDiskHealth(
   runtimeConfig: RuntimeConfig,
 ): Promise<DiskHealthData> {
-  if (runtimeConfig.APP_RUNTIME !== DEFAULT_RUNTIMES.NODE) {
+  const processDiskHealthChecker = getRuntimeCapability(
+    "processDiskHealthChecker",
+  );
+
+  if (!processDiskHealthChecker) {
     return {
       status: "unsupported",
       target: "disk",
@@ -43,15 +39,7 @@ export async function checkDiskHealth(
     };
   }
 
-  if (!nodeDiskHealthChecker) {
-    return {
-      status: "unsupported",
-      target: "disk",
-      runtime: runtimeConfig.APP_RUNTIME,
-    };
-  }
-
-  const diskPath = await nodeDiskHealthChecker();
+  const diskPath = await processDiskHealthChecker();
 
   return {
     status: "ok",

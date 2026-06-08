@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "cf:type": "wrangler types",
-    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev",
+    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev --env-file ../../.env.development",
     "cf:deploy": "wrangler secret bulk ../../.env.production && wrangler deploy",
     "node:dev": "tsx watch ./src/app/runtime/process/index.ts --env-file=../../.env.development",
     "node:build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",

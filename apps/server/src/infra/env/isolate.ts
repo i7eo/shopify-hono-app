@@ -4,7 +4,7 @@ import { configSchema } from "@/configs";
 import { parseWithSchema } from "./shared";
 import type { CloudflareKvCacheStore } from "@/types";
 
-export const isolateConfigSchema = configSchema.extend({
+export const cloudflareIsolateConfigSchema = configSchema.extend({
   APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.CLOUDFLARE),
   sofary: z.custom<CloudflareKvCacheStore>(
     (value) => {
@@ -23,12 +23,26 @@ export const isolateConfigSchema = configSchema.extend({
     },
   ),
 });
+export const vercelEdgeIsolateConfigSchema = configSchema.extend({
+  APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.VERCEL_EDGE),
+});
+export const isolateConfigSchema = z.discriminatedUnion("APP_RUNTIME", [
+  cloudflareIsolateConfigSchema,
+  vercelEdgeIsolateConfigSchema,
+]);
 
 export type IsolateConfig = z.infer<typeof isolateConfigSchema>;
+export type CloudflareIsolateConfig = z.infer<
+  typeof cloudflareIsolateConfigSchema
+>;
+export type VercelEdgeIsolateConfig = z.infer<
+  typeof vercelEdgeIsolateConfigSchema
+>;
 
 /**
- * Validate an isolate runtime config.
- * Isolate configs include request-bound bindings such as Cloudflare KV namespaces.
+ * Validate an isolate runtime config and dispatch by isolate platform.
+ * Cloudflare configs include request-bound bindings such as KV namespaces.
+ * Vercel Edge is intentionally separate so it can grow platform-specific bindings later.
  */
 export function parseIsolateConfig(
   env: Record<string, unknown>,

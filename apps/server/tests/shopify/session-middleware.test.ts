@@ -24,8 +24,11 @@ describe("Shopify session storage", () => {
       MemorySessionStorage: memoryConstructor,
     }));
 
+    const { registerCloudflareIsolateRuntimeCapabilities } =
+      await import("@/app/runtime/isolate/cloudflare/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
+    registerCloudflareIsolateRuntimeCapabilities();
     const namespace = {
       get: vi.fn(),
       put: vi.fn(),
@@ -48,7 +51,7 @@ describe("Shopify session storage", () => {
       namespace,
     });
     expect(kvConstructor).toHaveBeenCalledWith(namespace);
-    expect(memoryConstructor).toHaveBeenCalledOnce();
+    expect(memoryConstructor).not.toHaveBeenCalled();
   });
 
   it("uses one shared memory session storage in node development", async () => {
@@ -64,8 +67,11 @@ describe("Shopify session storage", () => {
       MemorySessionStorage: memoryConstructor,
     }));
 
+    const { registerProcessRuntimeCapabilities } =
+      await import("@/app/runtime/process/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
+    registerProcessRuntimeCapabilities();
     const context = createMockContext({
       vars: {
         runtimeEnv: {
@@ -89,8 +95,11 @@ describe("Shopify session storage", () => {
       MemorySessionStorage: vi.fn(),
     }));
 
+    const { registerProcessRuntimeCapabilities } =
+      await import("@/app/runtime/process/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
+    registerProcessRuntimeCapabilities();
     const context = createMockContext({
       vars: {
         runtimeEnv: {

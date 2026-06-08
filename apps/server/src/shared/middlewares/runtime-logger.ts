@@ -11,6 +11,7 @@ export function runtimeLoggerMiddleware() {
       c.set("runtimeLogger", runtimeLogger);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+
       throw internalServerError("runtime logger errors", {
         details: { cause: error, message },
         expose: true,

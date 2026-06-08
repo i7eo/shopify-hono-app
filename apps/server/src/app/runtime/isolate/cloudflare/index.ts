@@ -1,5 +1,8 @@
 import { bootstrapApp } from "@/app/bootstrap";
+import { registerCloudflareIsolateRuntimeCapabilities } from "./capabilities";
 import type { AppEnv } from "@/types";
+
+registerCloudflareIsolateRuntimeCapabilities();
 
 export default {
   async fetch(request, env, ctx) {

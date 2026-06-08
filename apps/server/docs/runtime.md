@@ -413,7 +413,7 @@ logger 也是同样模型：
 
 ```ts
 type RuntimeCapabilities = {
-  processLoggerSetup: (
+  runtimeLoggerSetup: (
     config: RuntimeConfig,
     options: LoggerSetupOptions,
   ) => Promise<void>;
@@ -424,14 +424,14 @@ type RuntimeCapabilities = {
 // apps/server/src/app/runtimes/node/index.ts
 import { setupProcessLogger } from "@/infra/logger/process";
 
-setRuntimeCapability("processLoggerSetup", setupProcessLogger);
+setRuntimeCapability("runtimeLoggerSetup", setupProcessLogger);
 ```
 
 ```ts
 // apps/server/src/infra/logger/index.ts
-const setup = getRuntimeCapability("processLoggerSetup");
+const setup = getRuntimeCapability("runtimeLoggerSetup");
 
-if (runtimeConfig.APP_RUNTIME === "node" && setup) {
+if (setup) {
   await setup(runtimeConfig, { reset });
 } else {
   await setupConsoleLogger(runtimeConfig.APP_LOGGER_LEVEL, { reset });

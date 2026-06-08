@@ -13,6 +13,7 @@ export type DEFAULT_ENVS_VALUES = (typeof DEFAULT_ENVS)[DEFAULT_ENVS_KEYS];
 export const DEFAULT_RUNTIMES = {
   NODE: "node",
   CLOUDFLARE: "cloudflare",
+  VERCEL_EDGE: "vercel-edge",
 } as const;
 export const DEFAULT_RUNTIME = DEFAULT_RUNTIMES.NODE;
 export type DEFAULT_RUNTIMES_KEYS = keyof typeof DEFAULT_RUNTIMES;

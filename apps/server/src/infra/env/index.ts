@@ -1,7 +1,12 @@
 import { envConfigSchema } from "@shamt/envs";
 import { throwError } from "@shamt/utils";
 import { formatZodError, isIsolateRuntime } from "@/utils";
-import { parseIsolateConfig, type IsolateConfig } from "./isolate";
+import {
+  parseIsolateConfig,
+  type CloudflareIsolateConfig,
+  type IsolateConfig,
+  type VercelEdgeIsolateConfig,
+} from "./isolate";
 import { parseProcessConfig, type ProcessConfig } from "./process";
 import { normalizeEnv } from "./shared";
 
@@ -11,7 +16,8 @@ const runtimeSchema = envConfigSchema.pick({
 
 export type RuntimeConfig = ProcessConfig | IsolateConfig;
 export type NodeRuntimeConfig = ProcessConfig;
-export type CloudflareRuntimeConfig = IsolateConfig;
+export type CloudflareRuntimeConfig = CloudflareIsolateConfig;
+export type VercelEdgeRuntimeConfig = VercelEdgeIsolateConfig;
 
 /**
  * Parse and validate raw runtime environment input.

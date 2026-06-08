@@ -5,6 +5,12 @@ import {
   type DEFAULT_RUNTIMES_VALUES,
 } from "@shamt/envs";
 
+const PROCESS_RUNTIMES = [DEFAULT_RUNTIMES.NODE] as const;
+const ISOLATE_RUNTIMES = [
+  DEFAULT_RUNTIMES.CLOUDFLARE,
+  DEFAULT_RUNTIMES.VERCEL_EDGE,
+] as const;
+
 export function isDev(appEnv?: DEFAULT_ENVS_VALUES) {
   return appEnv === DEFAULT_ENVS.DEVELOPMENT;
 }
@@ -18,9 +24,13 @@ export function isProd(appEnv?: DEFAULT_ENVS_VALUES) {
 }
 
 export function isProcessRuntime(appRuntime?: DEFAULT_RUNTIMES_VALUES) {
-  return appRuntime === DEFAULT_RUNTIMES.NODE;
+  return PROCESS_RUNTIMES.includes(
+    appRuntime as (typeof PROCESS_RUNTIMES)[number],
+  );
 }
 
 export function isIsolateRuntime(appRuntime?: DEFAULT_RUNTIMES_VALUES) {
-  return appRuntime === DEFAULT_RUNTIMES.CLOUDFLARE;
+  return ISOLATE_RUNTIMES.includes(
+    appRuntime as (typeof ISOLATE_RUNTIMES)[number],
+  );
 }
