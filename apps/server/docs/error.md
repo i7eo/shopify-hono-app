@@ -1,16 +1,6 @@
 # Error Design
 
-本文说明服务端错误处理的设计边界。目标是让项目中抛出的错误，无论来自 HTTP、Zod、database、runtime、第三方 API，最终都进入统一的异常处理流程。
-
-## 目标
-
-错误处理只做三件事：
-
-1. 业务代码表达发生了什么错误。
-2. `exceptions` 将任意错误规范化为 `AppError`。
-3. lifecycle 中的 `app.onError` / `app.notFound` 统一记录日志并返回响应。
-
-业务模块不直接拼接错误响应，不维护项目级错误码，也不在每个 route 中重复处理生产环境是否暴露细节。
+本文说明服务端错误处理边界。目标是让业务错误、Zod 错误、Hono 错误、上游请求错误和未知异常都进入同一套响应格式。
 
 ## 响应格式
 
@@ -28,19 +18,18 @@
 
 字段说明：
 
-- `code`: HTTP 标准状态码，例如 `400`、`401`、`422`、`500`。
-- `message`: 业务方写入的错误标识或错误说明。
+- `code`: HTTP status code。
+- `message`: 对外返回的错误说明。
 - `success`: 固定为 `false`。
 - `data`: 错误响应中默认为 `null`。
-- `requestId`: 当前请求 ID，便于关联日志。
-- `details`: 仅在非 production 环境返回，用于调试。
+- `requestId`: 当前请求 ID。
+- `details`: 仅非 production 环境返回，用于调试。
 
-项目不再维护额外的 `errorCode`。如果业务需要区分错误，直接写入稳定的 `message`。
-请求路径 `path` 不进入响应体，只写入错误日志，用于排查和链路定位。
+项目不维护额外业务错误码。需要稳定区分错误时，使用稳定的 `message`。
 
 ## AppError
 
-`AppError` 是项目内部统一错误模型：
+`AppError` 是统一错误模型：
 
 ```ts
 type AppErrorOptions = {
@@ -50,19 +39,16 @@ type AppErrorOptions = {
   data?: unknown | null;
   details?: Record<string, unknown>;
   headers?: Record<string, string>;
-  requestId?: string;
-  stack?: string;
 };
 ```
 
 约定：
 
 - `status` 决定 HTTP 响应码。
-- `code` 等于 `status`，不再承载业务错误码。
-- `message` 是业务错误标识，也是可暴露错误说明。
-- `expose` 决定生产环境是否返回原始 `message`。
+- `code` 等于 `status`。
+- `expose` 决定是否返回原始 `message`。
 - `details` 放调试信息，包括原始错误 `cause`。
-- `cause` 不作为顶层字段存在，统一放入 `details.cause`。
+- 原始错误不要放在顶层字段，统一放进 `details.cause`。
 
 ## 错误工厂
 
@@ -93,81 +79,53 @@ throw badGatewayError("Token exchange failed", {
 - `serviceUnavailableError`
 - `internalServerError`
 
-工厂只负责选择 HTTP status 和默认 `expose` 策略。业务含义由调用方写入 `message`。
-
-## details 与 cause
-
-所有原始错误统一放入 `details.cause`：
-
-```ts
-throw internalServerError("runtime env 获取报错", {
-  details: {
-    cause: error,
-    message: error instanceof Error ? error.message : String(error),
-  },
-  expose: true,
-});
-```
-
-这样做的原因：
-
-- `details` 是唯一的调试信息边界。
-- 生产环境默认不返回 `details`，避免泄露第三方错误、堆栈、token 或环境信息。
-- 日志仍然可以记录完整 details，便于排查。
+工厂只负责选择 HTTP status 和默认 `expose` 策略。业务语义由调用方写入 `message`。
 
 ## normalizeError
 
-`normalizeError` 负责把任意错误转换成 `AppError`：
+`normalizeError` 负责把任意 thrown value 转成 `AppError`：
 
 - `AppError`: 原样返回。
-- `ZodError`: 转成 `422 Unprocessable Entity`。
-- `HTTPException`: 保留原 HTTP status 和 message。
-- 未知错误: 转成 `500 Internal Server Error`。
+- `HttpRequestError`: timeout/abort 转 `408`，其他上游错误转 `502`。
+- `ZodError`: 转 `422 Validation failed`。
+- `HTTPException`: 保留 Hono status 和 message。
+- 未知错误: 转 `500 Unhandled application error`。
 
-这保证所有错误最终都能交给同一个 response builder。
+对应文件：
 
-## lifecycle
+- `src/shared/exceptions/normalize.ts`
+- `src/shared/exceptions/errors.ts`
+- `src/shared/models/error.ts`
 
-Hono 错误入口放在 app lifecycle 中：
+## Lifecycle
 
-- `app/lifecycle/error.ts`: 注册 `app.onError`。
-- `app/lifecycle/not-found.ts`: 注册 `app.notFound`。
+Hono 统一错误入口：
 
-`app.onError` 的职责：
+- `src/app/lifecycle/error.ts`
+- `src/app/lifecycle/not-found.ts`
 
-1. 调用 `normalizeError(error)`。
-2. 使用 `runtimeLogger` 记录错误；如果 logger 不可用，则 fallback 到 `console.error`。
-3. 调用 `createErrorResponse(c, appError)` 返回统一 JSON。
+`app.onError` 流程：
 
-`app.notFound` 的职责：
+1. `normalizeError(error)`。
+2. 使用 `runtimeLogger` 记录错误；如果 runtime logger 不可用，动态引入默认 logger。
+3. `createErrorResponse(c, appError)` 返回 JSON。
 
-1. 构造 `notFoundError(...)`。
-2. 复用统一响应生成逻辑。
+`app.notFound` 复用同一套响应生成逻辑。
 
 ## 暴露策略
 
-默认策略：
+- `4xx` 默认 `expose: true`，返回业务 message。
+- `5xx` 默认 `expose: false`，返回 HTTP 标准 phrase。
+- 显式设置 `expose: true` 时，即使是 `5xx` 也会返回自定义 message。
+- `details` 只在非 production 环境返回。
+- 如果无法识别环境，默认不返回 `details`。
 
-- `4xx` 错误默认 `expose: true`，返回业务 message。
-- `5xx` 错误默认 `expose: false`，生产环境返回 HTTP phrase。
-- `details` 仅在非 production 环境返回。
-- 环境无法识别时，不返回 `details`。
-
-如果确实需要暴露某个 runtime 初始化错误，可以显式设置：
-
-```ts
-throw internalServerError("runtime logger 获取报错", {
-  details: { cause: error, message },
-  expose: true,
-});
-```
+这意味着生产环境不会把第三方响应体、stack、token、env 等调试信息返回给调用方；这些信息只进入日志和非 production details。
 
 ## 业务代码规则
 
-业务代码遵循以下规则：
-
-1. 失败时 `throw xxxError(...)`，不要手写 `return c.json({ error })`。
+1. 失败时 `throw xxxError(...)`，不要手写错误 JSON。
 2. 不维护项目级错误码。
-3. 不把原始错误放在顶层 `cause`，只放入 `details.cause`。
+3. 原始错误统一放入 `details.cause`。
 4. 第三方错误正文、stack、环境信息只进入 `details`。
-5. 成功响应仍由业务 route 自己返回。
+5. 成功响应仍由 route/controller 自己返回。

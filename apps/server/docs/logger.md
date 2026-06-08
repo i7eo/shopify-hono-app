@@ -1,224 +1,96 @@
 # Logger Design
 
-本文说明服务端 logger 的设计边界。logger 既要能在 app 启动时使用，也要能在 route 进入后根据 runtime env 切换到正确配置，因此它有两个调用点：bootstrap 和 route。
+本文说明服务端 logger 的生命周期和 runtime sink 策略。业务代码不直接初始化 LogTape，优先使用请求上下文中的 `runtimeLogger`。
 
-## 目标
+## 两个阶段
 
-logger 设计只做四件事：
+### Bootstrap Logger
 
-1. 启动期提供可用的兜底日志。
-2. route 进入后根据已校验 runtime env 切换到 runtime logger。
-3. 根据 isolate / process 执行模型选择不同 sink。
-4. 通过 provider 统一管理实例、reset 和 dispose。
+启动阶段还没有 Hono context，也不一定有 Cloudflare binding，因此 bootstrap logger 必须简单可靠：
 
-业务代码不直接初始化 logger，也不直接配置 LogTape。业务只从 Hono context 或 provider 中获取 logger。
+- console-only
+- 不依赖文件系统
+- 不依赖 request context
+- 不读取平台 binding
 
-## 为什么需要 bootstrap 调用点
-
-app startup 阶段还没有 Hono route context。此时可能还没有：
-
-- `c.env`
-- Cloudflare bindings
-
-但启动阶段仍然需要记录日志，例如：
-
-- app startup 成功或失败。
-- bootstrap env 校验结果。
-- process exception handler 注册。
-- 模块初始化错误。
-
-因此 bootstrap 阶段调用：
+入口：
 
 ```ts
-const logger = await getLoggerProvider();
-logger.info("Both logger and env are initialized.");
+await getLoggerProvider();
 ```
 
-此时 `getLoggerProvider()` 不传 runtime config，内部会调用：
+对应代码：
 
-```ts
-setupBootstrapLogger();
-```
+- `src/infra/provider/logger.ts`
+- `src/infra/logger/index.ts`
 
-bootstrap logger 的原则：
+### Runtime Logger
 
-- console-only。
-- 不依赖 route。
-- 不依赖 Cloudflare bindings。
-- 不触碰文件系统。
-- 只保证启动期有日志可用。
-
-## 为什么需要 route 调用点
-
-route 进入后，runtime middleware 可以拿到最新 env：
-
-```ts
-const runtimeEnv = c.get("runtimeEnv");
-```
-
-这时 logger 可以根据完整 runtime config 切换：
+请求进入后，`runtimeLoggerMiddleware` 使用已校验的 `runtimeEnv` 配置 runtime logger：
 
 ```ts
 const runtimeLogger = await getLoggerProvider(runtimeEnv);
 c.set("runtimeLogger", runtimeLogger);
 ```
 
-route 调用点的职责：
-
-1. 从 bootstrap logger 切换到 runtime logger。
-2. 根据 `APP_RUNTIME` 选择 isolate/process 配置。
-3. 将 logger 注入 Hono context。
-4. 让 route、middleware、exception handler 使用统一 logger。
-
-这样业务代码可以统一写：
+业务代码和 middleware 能拿到 `c` 时，优先使用：
 
 ```ts
 const logger = c.get("runtimeLogger");
 ```
 
-而不是在业务层 import 全局 logger。
+## Provider 行为
 
-## Provider 生命周期
+logger provider 使用阶段标记避免普通请求反复 reset LogTape：
 
-logger provider 只有一个入口：
+- `bootstrap`: 已配置启动期 logger。
+- `runtime`: 已配置 runtime logger。
 
-```ts
-getLoggerProvider();
-getLoggerProvider(runtimeEnv);
-getLoggerProvider(runtimeEnv, { override: true });
-```
+只有以下情况会重新配置：
 
-语义：
+- 从 bootstrap 阶段切到 runtime 阶段。
+- 显式传入 `{ override: true }`。
+- provider 被 reset 或 dispose 后重新初始化。
 
-- `getLoggerProvider()`: bootstrap 阶段使用，初始化 console-only logger。
-- `getLoggerProvider(runtimeEnv)`: route 阶段使用，如果当前还不是 runtime phase，则 reset logger 配置。
-- `getLoggerProvider(runtimeEnv, { override: true })`: 动态配置刷新时强制 reset。
+## Runtime Sink
 
-provider 内部维护阶段：
+| Runtime             | Sink 策略                     |
+| ------------------- | ----------------------------- |
+| Cloudflare isolate  | console-only                  |
+| Node non-production | console-only                  |
+| Node production     | console + rotating file sinks |
 
-```ts
-type LoggerProviderPhase = "bootstrap" | "runtime";
-```
-
-这不是缓存业务数据，只是 logger 生命周期状态。它保证普通请求不会每次重复执行 LogTape reset。
-
-provider disposer 会：
-
-1. 调用 LogTape `dispose()`。
-2. 删除 provider map 中的 `logger`。
-3. 删除 provider disposer。
-4. 重置 logger phase。
-
-## Logger 实例与 LogTape 配置
-
-项目中 logger 对象来自：
-
-```ts
-const logger = getLogger([name]);
-```
-
-这个 logger 对象可以稳定复用。bootstrap 到 runtime 的切换不是创建很多不同 logger，而是通过：
-
-```ts
-configure({
-  reset: true,
-  // ...
-});
-```
-
-覆盖 LogTape 全局 sink 和 logger 配置。
-
-因此 provider 中保存的是同一个 logger facade，变化的是 LogTape 配置。
-
-## Isolate Logger
-
-isolate runtime 使用：
-
-```ts
-setupIsolateLogger(runtimeEnv, options);
-```
-
-特点：
-
-- console-only。
-- 不写本地文件。
-- 不动态引入 `node:*`。
-- 适合 Cloudflare Workers、Vercel Edge 等 isolate runtime。
-
-即使 Cloudflare Workers 支持 `process.env` 或部分 virtual file system，也不把它当作持久日志文件系统。日志应交给 console/platform logging。
-
-## Process Logger
-
-process runtime 使用：
-
-```ts
-setupProcessLogger(runtimeEnv, options);
-```
-
-特点：
-
-- 非 production 使用 console-only。
-- production 可以写文件。
-- 文件能力只在 process 文件中动态引入。
-- 支持 size rotating file sink 和 daily rotating file sink。
-
-process logger 可以使用：
+Node production 文件日志只在 process logger 中动态引入 Node-only 依赖：
 
 - `node:fs/promises`
 - `node:path`
 - `node:url`
 - `@logtape/file`
 
-这些能力不会出现在 isolate logger 的启动路径中。
+这些依赖不会出现在 Cloudflare isolate entry 的静态 import graph 中。
 
-## Sink 策略
+对应文件：
 
-公共 console logger 来自：
+- `src/infra/logger/shared.ts`
+- `src/infra/logger/isolate.ts`
+- `src/infra/logger/process.ts`
+- `src/app/runtime/process/capabilities.ts`
+- `src/app/runtime/isolate/cloudflare/capabilities.ts`
 
-```ts
-setupConsoleLogger(level, options);
-```
+## Error Lifecycle
 
-使用场景：
-
-- bootstrap logger。
-- isolate runtime logger。
-- non-production process logger。
-
-process production logger 根据配置选择：
-
-- `APP_LOGGER_MAX_SIZE`: 启用 size rotating files。
-- `APP_LOGGER_EXPIRE`: 启用 daily rotating files。
-- 两者都没有设置时，使用默认 daily rotation。
-
-日志文件位置由 `APP_LOGGER_DIR` 决定。
-
-## Error Lifecycle 中的 logger
-
-`app/lifecycle/error.ts` 优先使用 request context 中的 runtime logger：
+全局错误处理优先使用请求上下文中的 logger：
 
 ```ts
 const logger = getContextValue(c, "runtimeLogger");
 ```
 
-如果错误发生在 route logger 注入之前，则动态引入 bootstrap logger：
+如果错误发生在 runtime logger 注入之前，会动态引入默认 logger 作为兜底。错误响应规则见 [error.md](./error.md)。
 
-```ts
-const logger = (await import("@/infra/logger")).default;
-```
+## 规则
 
-这保证错误处理在两个阶段都能记录日志：
-
-- request 前或 middleware 早期错误: 使用 bootstrap logger。
-- route/runtime 阶段错误: 使用 `runtimeLogger`。
-
-## 设计规则
-
-1. logger provider 只暴露 `getLoggerProvider` 一个入口。
-2. bootstrap 调用不传 runtime config。
-3. route 调用传入已校验 runtime env。
-4. 普通请求不传 `override`，避免每次 request reset LogTape。
-5. 动态配置刷新才使用 `{ override: true }`。
-6. isolate logger 不写文件。
-7. process-only 文件能力只放在 `process.ts`。
-8. 业务代码优先使用 `c.get("runtimeLogger")`，不要到处 import logger。
+1. 业务代码不要直接调用 LogTape `configure()`。
+2. 有 Hono context 时优先使用 `c.get("runtimeLogger")`。
+3. 没有 context 的启动期代码使用 `getLoggerProvider()`。
+4. Cloudflare/isolate 不写本地日志文件。
+5. Node-only 文件日志能力只放在 process logger 和 process capability 中。

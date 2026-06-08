@@ -13,7 +13,7 @@
 我们主要使用这些官方包：
 
 - `@shopify/shopify-api`: 负责 Shopify App 的 OAuth、session token、token exchange、webhook 校验、Admin GraphQL client。
-- `@shopify/shopify-app-session-storage-kv`: Cloudflare Workers 生产环境用 Cloudflare KV 保存 Shopify session。
+- `@shopify/shopify-app-session-storage-kv`: Cloudflare runtime 使用 Cloudflare KV 保存 Shopify session。
 - `@shopify/shopify-app-session-storage-memory`: Node 本地开发时用内存保存 Shopify session。
 
 ## 核心概念
@@ -63,6 +63,35 @@ Session token 只能证明用户身份，不能直接拿来调用 Shopify Admin 
 对应代码：
 
 - `src/shared/middlewares/shopify/token-exchange.ts`
+- `src/app/modules/shopify/session.ts`
+
+现在 token exchange 的核心逻辑集中在 `session.ts`：
+
+- 先尝试从 session storage 读取当前请求对应的 online session。
+- 如果 session 还有效，就复用。
+- 如果没有可用 session，就用当前请求里的 session token 调用 Shopify 官方 token exchange。
+- 换到的新 session 会保存回 session storage。
+
+这样中间件本身只负责串联流程，具体 session 逻辑不会分散在多个地方。
+
+### Admin API 自动刷新
+
+有一种情况比较常见：本地或 KV 里保存的 session 看起来还没过期，但 Shopify Admin API 实际返回了 `401 Unauthorized`。这可能是 token 被 Shopify 侧撤销、重新授权、scope 变化或本地存储里残留了旧 token。
+
+现在后端会自动处理一次：
+
+1. 先用当前 session 调用 Shopify Admin API。
+2. 如果 Shopify 返回 `401`，服务端删除当前 online session。
+3. 用当前请求里的 session token 重新做一次 Shopify 官方 token exchange。
+4. 用新 session 重新创建 GraphQL client。
+5. 同一个请求只重试一次。
+
+对应代码：
+
+- `src/app/modules/shopify/admin.ts`
+- `src/app/modules/shopify/session.ts`
+
+这可以避免商家遇到旧 token 时直接看到接口 502，也避免要求前端手动清缓存或重新打开 App。
 
 ### Session Storage
 
@@ -70,7 +99,7 @@ Token exchange 得到的 Shopify session 需要保存起来，下次请求可以
 
 不同运行环境保存方式不同：
 
-- Cloudflare Workers: 使用 Cloudflare KV。
+- Cloudflare Workers: 无论 `APP_ENV` 是什么，都使用 Cloudflare KV。
 - Node development: 使用内存。
 - Node production: 当前不允许使用内存，会直接报错，避免线上 session 丢失。
 - Vercel Edge: 只是预留 runtime 类型，目前没有完整支持。
@@ -170,6 +199,8 @@ Authorization: Bearer <session_token>
 
 如果没有可用 session，就用 Shopify 官方 token exchange 换取新的 session，并保存起来。
 
+这里使用的是 online session，也就是和当前 Shopify Admin 用户相关的 session。
+
 ### 6. 服务端请求 Shopify Admin API
 
 拿到可用 session 后，服务端创建 Shopify 官方 GraphQL client：
@@ -181,8 +212,11 @@ Authorization: Bearer <session_token>
 相关代码：
 
 - `src/infra/http/shopify.ts`
+- `src/app/modules/shopify/admin.ts`
 - `src/app/modules/shopify/shop/service.ts`
 - `src/app/modules/shopify/product/service.ts`
+
+如果 Shopify Admin API 返回 `401 Unauthorized`，服务端会自动刷新一次 online session，并用新 session 重试同一个查询。这个刷新只发生一次，避免无限重试。
 
 ## App 安装和授权流程
 
@@ -250,6 +284,8 @@ APP_RUNTIME=cloudflare
 
 Cloudflare 使用 KV 保存 Shopify session。
 
+只要 `APP_RUNTIME=cloudflare`，就使用 `@shopify/shopify-app-session-storage-kv`，不受 `APP_ENV` 影响。
+
 对应代码：
 
 - `src/app/runtime/isolate/cloudflare/capabilities.ts`
@@ -268,6 +304,8 @@ Cloudflare request context 里拿到 KV binding
 ### Node
 
 Node 只在 development 环境允许使用 memory session storage。
+
+也就是只有下面这种组合会使用 `@shopify/shopify-app-session-storage-memory`：
 
 对应代码：
 
@@ -302,6 +340,8 @@ APP_ENV=production
 
 所以当前不要把它当作可上线 runtime 使用。
 
+更完整的 runtime 入口、构建产物和 Cloudflare 类型生成说明见 [runtime.md](./runtime.md)。
+
 ## 关键文件职责
 
 | 文件                                                     | 职责                                                          |
@@ -311,6 +351,8 @@ APP_ENV=production
 | `src/infra/provider/shopify.ts`                          | 缓存 app 级 Shopify SDK 配置，并创建当前请求的 Shopify client |
 | `src/app/modules/shopify/app-shell/index.ts`             | 返回 Shopify Admin 中显示的 App 页面                          |
 | `src/app/modules/shopify/auth/index.ts`                  | 处理 OAuth 安装和回调                                         |
+| `src/app/modules/shopify/admin.ts`                       | 执行 Admin API 请求，遇到 401 时刷新 session 并重试一次       |
+| `src/app/modules/shopify/session.ts`                     | 读取、换取、刷新和写入 Shopify online session                 |
 | `src/app/modules/shopify/session-storage.ts`             | 根据 runtime 获取 session storage                             |
 | `src/shared/middlewares/shopify/verify-session-token.ts` | 验证前端请求带来的 session token                              |
 | `src/shared/middlewares/shopify/token-exchange.ts`       | 换取或复用 Shopify Admin API access token                     |
@@ -318,6 +360,7 @@ APP_ENV=production
 | `src/app/modules/shopify/shop/service.ts`                | 请求 Shopify 店铺信息                                         |
 | `src/app/modules/shopify/product/service.ts`             | 请求 Shopify 商品列表                                         |
 | `src/app/modules/shopify/webhook/index.ts`               | 处理具体 webhook 事件                                         |
+| `src/infra/http/shopify.ts`                              | 使用当前请求的 Shopify session 创建 Admin GraphQL client      |
 | `src/app/runtime/isolate/cloudflare/capabilities.ts`     | 注册 Cloudflare 专用能力                                      |
 | `src/app/runtime/process/capabilities.ts`                | 注册 Node 专用能力                                            |
 
@@ -342,6 +385,8 @@ APP_ENV=production
 
 - Shopify app 级配置会缓存。
 - 每次请求 Shopify Admin API 时，会用当前请求的 session 创建新的 GraphQL client。
+- env provider 会按关键配置字段生成签名。配置没变时，不会每次请求都重新解析 env。
+- Shopify config provider 也会按 app key、app secret、app url、api version、scopes 生成签名。签名没变时，复用同一个 Shopify SDK 配置。
 
 这样既避免重复创建固定配置，又避免把某个商家的 session 错误复用到另一个请求里。
 
@@ -403,6 +448,18 @@ KV 是 Cloudflare 提供的持久存储，适合保存 Shopify session。
 
 所以固定的 Shopify SDK 配置可以缓存，但带 session 的 Admin client 按请求创建。
 
+### 为什么旧 session 会导致 401，后端又能自动恢复
+
+本地或 KV 里保存的 session 可能还没到过期时间，但 Shopify 侧已经不接受它了。
+
+这种情况下，第一次 Admin API 请求会返回 `401 Unauthorized`。后端会认为“这个 session 不能再用了”，然后：
+
+1. 删除当前 online session。
+2. 用当前请求里的 session token 重新换一个新 session。
+3. 用新 session 重试一次 Admin API 请求。
+
+如果重试后仍然失败，就会按普通 Shopify 上游错误处理。
+
 ### Webhook 为什么一定要验签
 
 Webhook 是外部请求。如果不验签，任何人都可以假装 Shopify 调用我们的接口。
@@ -411,16 +468,18 @@ Webhook 是外部请求。如果不验签，任何人都可以假装 Shopify 调
 
 ## 出问题时看哪里
 
-| 现象                               | 优先检查                                                        |
-| ---------------------------------- | --------------------------------------------------------------- |
-| App 页面打不开                     | `app-shell/index.ts`、`SHOPIFY_APP_KEY`、`SHOPIFY_APP_URL`      |
-| 安装或授权失败                     | `auth/index.ts`、Shopify app 配置里的 callback URL              |
-| API 返回 401                       | `verify-session-token.ts`，确认前端请求是否带 session token     |
-| API 返回 502 token exchange failed | `token-exchange.ts`，确认 app secret、scopes、shop 域名         |
-| Shopify 数据查不到                 | `shop/service.ts`、`product/service.ts`，确认 scopes 是否足够   |
-| Webhook 失败                       | `verify-webhook.ts`，确认 webhook secret/app secret 和 raw body |
-| Cloudflare session 找不到          | KV binding `sofary`、`cloudflare/capabilities.ts`               |
-| Node 本地 session 异常             | `APP_ENV` 是否是 `development`                                  |
+| 现象                               | 优先检查                                                              |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| App 页面打不开                     | `app-shell/index.ts`、`SHOPIFY_APP_KEY`、`SHOPIFY_APP_URL`            |
+| 安装或授权失败                     | `auth/index.ts`、Shopify app 配置里的 callback URL                    |
+| API 返回 401                       | `verify-session-token.ts`，确认前端请求是否带 session token           |
+| API 返回 502 token exchange failed | `session.ts`、`token-exchange.ts`，确认 app secret、scopes、shop 域名 |
+| Admin API 第一次返回 401           | `admin.ts`、`session.ts`，确认是否触发自动刷新和一次重试              |
+| Shopify 数据查不到                 | `shop/service.ts`、`product/service.ts`，确认 scopes 是否足够         |
+| Webhook 失败                       | `verify-webhook.ts`，确认 webhook secret/app secret 和 raw body       |
+| Cloudflare session 找不到          | KV binding `sofary`、`cloudflare/capabilities.ts`                     |
+| Node 本地 session 异常             | `APP_ENV` 是否是 `development`                                        |
+| Wrangler 类型文件提交报错          | 确认 `lint-staged.config.ts` 已过滤生成的 Cloudflare typings          |
 
 ## 当前测试覆盖
 
@@ -431,6 +490,7 @@ Shopify 相关测试主要在：
 - `tests/shopify/session-middleware.test.ts`
 - `tests/shopify/services-controllers.test.ts`
 - `tests/shopify/webhook-routes.test.ts`
+- `tests/provider.test.ts`
 
 这些测试覆盖了：
 
@@ -442,3 +502,5 @@ Shopify 相关测试主要在：
 - Webhook 校验。
 - Node/Cloudflare session storage。
 - Shopify API controller/service。
+- Admin API 401 后刷新 online session 并重试一次。
+- provider env 缓存和 provider dispose 行为。
