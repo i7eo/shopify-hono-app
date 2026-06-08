@@ -48,10 +48,13 @@ function setShopifyConfigProvider(shopify: Shopify, signature: string) {
 
 function getShopifyConfigSignature(config: RuntimeConfig): string {
   return [
+    config.APP_RUNTIME,
+    config.APP_ENV,
     config.SHOPIFY_APP_KEY,
-    config.SHOPIFY_APP_SECRET,
     config.SHOPIFY_APP_URL,
     config.SHOPIFY_API_VERSION,
     config.SCOPES,
-  ].join(":");
+  ]
+    .map((value) => String(value ?? ""))
+    .join(":");
 }

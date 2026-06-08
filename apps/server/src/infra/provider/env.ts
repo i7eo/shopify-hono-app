@@ -7,6 +7,7 @@ type EnvProviderOptions = {
 };
 
 let envProviderRawEnv: Record<string, unknown> | undefined;
+let envProviderSignature: string | undefined;
 
 /**
  * Get the validated runtime env provider.
@@ -16,15 +17,19 @@ export function getEnvProvider(
   rawEnv: unknown,
   options: EnvProviderOptions = {},
 ): RuntimeConfig {
+  const nextRawEnv = rawEnv ?? ({} as any);
+  const nextMergedRawEnv = options.merge
+    ? { ...envProviderRawEnv, ...nextRawEnv }
+    : nextRawEnv;
+  const nextSignature = getEnvProviderSignature(nextMergedRawEnv);
   const shouldSetup =
-    options.override || options.merge || !providers.has("env");
+    options.override ||
+    !providers.has("env") ||
+    envProviderSignature !== nextSignature;
 
   if (shouldSetup) {
-    const nextRawEnv = rawEnv ?? ({} as any);
-    envProviderRawEnv = options.merge
-      ? { ...envProviderRawEnv, ...nextRawEnv }
-      : nextRawEnv;
-
+    envProviderRawEnv = nextMergedRawEnv;
+    envProviderSignature = nextSignature;
     setEnvProvider(getRuntimeConfig(envProviderRawEnv));
   }
 
@@ -39,6 +44,7 @@ export function resetEnvProvider() {
   providers.delete("env");
   providerDisposers.delete("env");
   envProviderRawEnv = undefined;
+  envProviderSignature = undefined;
 }
 
 /**
@@ -50,4 +56,18 @@ function setEnvProvider(config: RuntimeConfig) {
   providerDisposers.set("env", () => {
     resetEnvProvider();
   });
+}
+
+function getEnvProviderSignature(config: Record<string, unknown>): string {
+  return [
+    config.APP_RUNTIME,
+    config.APP_ENV,
+    config.SHOPIFY_APP_KEY,
+    config.SHOPIFY_APP_URL,
+    config.SHOPIFY_API_VERSION,
+    config.SCOPES,
+    config.sofary ? "sofary" : "",
+  ]
+    .map((value) => String(value ?? ""))
+    .join(":");
 }

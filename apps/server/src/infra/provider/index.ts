@@ -5,7 +5,9 @@ import { providerDisposers, providers } from "./constants";
  * Call this during application shutdown or test teardown.
  */
 export async function disposeProviders(): Promise<void> {
-  for (const dispose of providerDisposers.values()) {
+  const disposers = Array.from(providerDisposers.values());
+
+  for (const dispose of disposers) {
     await dispose();
   }
 
