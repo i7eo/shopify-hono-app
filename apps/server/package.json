@@ -5,31 +5,15 @@
   "private": true,
   "author": "i7eo",
   "license": "MIT",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "main": "./dist/cjs/index.cjs",
-    "module": "./dist/esm/index.js",
-    "types": "./dist/esm/index.d.mts",
-    "exports": {
-      ".": {
-        "import": "./dist/esm/index.mjs",
-        "require": "./dist/cjs/index.cjs"
-      },
-      "./package.json": "./package.json"
-    }
-  },
   "scripts": {
-    "print-env": "node -e \"console.log('🚀 process =', process.env)\"",
-    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev",
-    "cf:dev1": "pnpm print-env && wrangler dev --port \"$PORT\" --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\" --var \"SHOPIFY_APP_KEY:$SHOPIFY_APP_KEY\" --var \"SHOPIFY_APP_SECRET:$SHOPIFY_APP_SECRET\" --var \"SCOPES:$SCOPES\"",
-    "cf:deploy": "wrangler secret bulk ../../.env.production && wrangler deploy",
     "cf:type": "wrangler types",
-    "node:dev": "tsx watch ./src/index.ts --env-file=../../.env.development",
-    "build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
+    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev",
+    "cf:deploy": "wrangler secret bulk ../../.env.production && wrangler deploy",
+    "node:dev": "tsx watch ./src/app/runtime/process/index.ts --env-file=../../.env.development",
+    "node:build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
     "test": "vitest run",
     "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
     "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",

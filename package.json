@@ -15,6 +15,7 @@
     "postinstall": "simple-git-hooks",
     "dev:prepare": "tsx ./scripts/write-shopify-file/index.ts --env-file=./.env.development",
     "app:dev": "pnpm dev:prepare && shopify app dev",
+    "app:dev:localhost": "pnpm dev:prepare && shopify app dev --use-localhost",
     "deploy:prepare": "tsx ./scripts/write-shopify-file/index.ts --env-file=./.env.production",
     "app:deploy": "pnpm deploy:prepare && shopify app deploy",
     "dev": "pnpm app:dev",

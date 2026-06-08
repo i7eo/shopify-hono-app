@@ -1,8 +1,11 @@
+import { DEFAULT_APP_GLOBAL_API_PREFIX } from "@shamt/envs";
 import { capitalize } from "@shamt/utils";
-import { getEnvProvider } from "@/infra/provider";
 
-const env = getEnvProvider(process.env);
+const globalPrefix =
+  typeof process !== "undefined" && process.env.APP_GLOBAL_PREFIX
+    ? process.env.APP_GLOBAL_PREFIX
+    : DEFAULT_APP_GLOBAL_API_PREFIX;
 
-export const apiPath = `/${env.APP_GLOBAL_PREFIX}/health`;
-export const tag = `${capitalize(env.APP_GLOBAL_PREFIX)} - Health`;
+export const apiPath = `/${globalPrefix}/health`;
+export const tag = `${capitalize(globalPrefix)} - Health`;
 export const tags = [tag];

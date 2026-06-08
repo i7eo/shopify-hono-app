@@ -17,10 +17,10 @@ export function isProd(appEnv?: DEFAULT_ENVS_VALUES) {
   return appEnv === DEFAULT_ENVS.PRODUCTION;
 }
 
-export function isNodeRuntime(appRuntime?: DEFAULT_RUNTIMES_VALUES) {
+export function isProcessRuntime(appRuntime?: DEFAULT_RUNTIMES_VALUES) {
   return appRuntime === DEFAULT_RUNTIMES.NODE;
 }
 
-export function isCloudflareRuntime(appRuntime?: DEFAULT_RUNTIMES_VALUES) {
+export function isIsolateRuntime(appRuntime?: DEFAULT_RUNTIMES_VALUES) {
   return appRuntime === DEFAULT_RUNTIMES.CLOUDFLARE;
 }

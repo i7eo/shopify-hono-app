@@ -17,8 +17,16 @@ export type NetworkHealthData = z.infer<typeof NetworkHealthDataSchema>;
 export type ReservedHealthData = z.infer<typeof ReservedHealthDataSchema>;
 
 type ReservedHealthTarget = ReservedHealthData["target"];
+type NodeDiskHealthChecker = () => Promise<string>;
 
 const NETWORK_HEALTH_URL = "https://example.com";
+let nodeDiskHealthChecker: NodeDiskHealthChecker | undefined;
+
+export function registerProcessDiskHealthChecker(
+  checker: NodeDiskHealthChecker,
+): void {
+  nodeDiskHealthChecker = checker;
+}
 
 export function getHealthStatus(): HealthData {
   return { status: "ok" };
@@ -35,11 +43,15 @@ export async function checkDiskHealth(
     };
   }
 
-  const { access } = await import("node:fs/promises");
-  const { constants } = await import("node:fs");
-  const diskPath = process.cwd();
+  if (!nodeDiskHealthChecker) {
+    return {
+      status: "unsupported",
+      target: "disk",
+      runtime: runtimeConfig.APP_RUNTIME,
+    };
+  }
 
-  await access(diskPath, constants.R_OK | constants.W_OK);
+  const diskPath = await nodeDiskHealthChecker();
 
   return {
     status: "ok",

@@ -1,4 +1,4 @@
-import { getRuntimeConfig } from ".";
+import { getRuntimeConfig } from "@/infra/env";
 import type { ConfigSchema } from "@/configs";
 
 /**

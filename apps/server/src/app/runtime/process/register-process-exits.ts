@@ -1,6 +1,6 @@
 import { getLoggerProvider } from "@/infra/provider";
 import { createProcessGracefulExit } from "@/utils";
-import { onAppShutdown } from "../lifecycle/shutdown";
+import { onAppShutdown } from "./lifecycle/shutdown";
 import type { AppEnv } from "@/types";
 import type { ServerType } from "@hono/node-server";
 import type { Hono } from "hono";

@@ -1,6 +1,6 @@
 {
   "name": "shopify-hono-app",
-  "main": "src/index.ts",
+  "main": "src/app/runtime/isolate/index.ts",
   "compatibility_date": "2026-06-05",
   "observability": {
     "enabled": true

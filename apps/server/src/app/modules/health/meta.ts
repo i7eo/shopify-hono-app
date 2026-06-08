@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorSchema, ResponseSchema } from "@/shared/models";
-import { path, tags } from "./constants";
+import { apiPath, tags } from "./constants";
 
 const HealthStatusSchema = z.enum(["ok", "unsupported", "reserved"]);
 
@@ -12,7 +12,7 @@ export const HealthDataSchema = z.object({
 });
 export const getHealthRoute = createRoute({
   method: "get",
-  path,
+  path: apiPath,
   tags,
   summary: "Health check",
   description: "Check whether the server is running.",
@@ -48,7 +48,7 @@ export const DiskHealthDataSchema = z.object({
 });
 export const getDiskHealthRoute = createRoute({
   method: "get",
-  path: `${path}/disk`,
+  path: `${apiPath}/disk`,
   tags,
   summary: "Disk health check",
   description: "Check filesystem availability when the runtime supports it.",
@@ -100,7 +100,7 @@ export const MemoryHealthDataSchema = z.object({
 });
 export const getMemoryHealthRoute = createRoute({
   method: "get",
-  path: `${path}/memory`,
+  path: `${apiPath}/memory`,
   tags,
   summary: "Memory health check",
   description: "Check runtime memory metrics when available.",
@@ -140,7 +140,7 @@ export const NetworkHealthDataSchema = z.object({
 });
 export const getNetworkHealthRoute = createRoute({
   method: "get",
-  path: `${path}/network`,
+  path: `${apiPath}/network`,
   tags,
   summary: "Network health check",
   description: "Check outbound network connectivity.",
@@ -183,17 +183,17 @@ export const ReservedHealthDataSchema = z.object({
   }),
 });
 export const getDatabaseHealthRoute = createReservedHealthRoute(
-  `${path}/database`,
+  `${apiPath}/database`,
   "Database health check",
   "Reserved database health check endpoint.",
 );
 export const getRedisHealthRoute = createReservedHealthRoute(
-  `${path}/redis`,
+  `${apiPath}/redis`,
   "Redis health check",
   "Reserved Redis health check endpoint.",
 );
 export const getCloudflareKvHealthRoute = createReservedHealthRoute(
-  `${path}/cloudflare-kv`,
+  `${apiPath}/cloudflare-kv`,
   "Cloudflare KV health check",
   "Reserved Cloudflare KV health check endpoint.",
 );

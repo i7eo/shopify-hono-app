@@ -154,7 +154,7 @@ When you run `shopify app dev`, Shopify CLI:
 ### Running locally
 
 ```bash
-shopify app dev
+pnpm app:dev
 ```
 
 That's it. On first run it will prompt you to:
@@ -191,13 +191,21 @@ However, **Wrangler reads secrets from `.dev.vars`**, not from shell env vars. S
 
 ### Alternative: Localhost mode (stable URL)
 
-If you don't want the tunnel URL to change each time, use localhost mode (requires Shopify CLI 3.80+):
+If Cloudflare Quick Tunnel times out or you don't want the tunnel URL to change each time, use localhost mode:
 
 ```bash
-shopify app dev --use-localhost
+pnpm app:dev:localhost
 ```
 
 This serves the app at `https://localhost:3458` with a self-signed certificate. The URL is stable across sessions. Note: webhooks and app proxies won't work in this mode since Shopify can't reach localhost.
+
+If you need webhooks or another feature that must call back into your app, run your own tunnel first and pass it to Shopify CLI:
+
+```bash
+ngrok http 10001
+pnpm dev:prepare
+shopify app dev --tunnel-url https://your-tunnel-url.example:10001
+```
 
 ### Alternative: Wrangler only (no Shopify CLI)
 

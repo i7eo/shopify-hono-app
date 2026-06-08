@@ -1,6 +1,6 @@
-import { DEFAULT_RUNTIMES, envConfigSchema } from "@shamt/envs";
+import { envConfigSchema } from "@shamt/envs";
 import { throwError } from "@shamt/utils";
-import { formatZodError } from "@/utils";
+import { formatZodError, isIsolateRuntime } from "@/utils";
 import { parseIsolateConfig, type IsolateConfig } from "./isolate";
 import { parseProcessConfig, type ProcessConfig } from "./process";
 import { normalizeEnv } from "./shared";
@@ -30,7 +30,7 @@ export function parseRuntimeConfig(rawEnv: unknown): RuntimeConfig {
   if (!runtimeResult.success)
     throwError("apps/server", formatZodError(runtimeResult.error));
 
-  if (runtimeResult.data.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE) {
+  if (isIsolateRuntime(runtimeResult.data.APP_RUNTIME)) {
     return parseIsolateConfig(env);
   }
 

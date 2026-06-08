@@ -1,5 +1,5 @@
 import { MemoryCache, type Cache } from "@shamt/cache";
-import { isCloudflareRuntime } from "@/utils";
+import { isIsolateRuntime } from "@/utils";
 import { CloudflareKvCache } from "./cloudflare.kv";
 import type { CloudflareRuntimeConfig, RuntimeConfig } from "@/infra/env";
 
@@ -21,7 +21,7 @@ export function getRuntimeCache(config: RuntimeConfig): RuntimeCache {
 }
 
 export function createRuntimeCache(config: RuntimeConfig): RuntimeCache {
-  if (isCloudflareRuntime(config.APP_RUNTIME)) {
+  if (isIsolateRuntime(config.APP_RUNTIME)) {
     const cloudflareConfig = config as CloudflareRuntimeConfig;
     return new CloudflareKvCache({
       store: cloudflareConfig.sofary,
