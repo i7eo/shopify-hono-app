@@ -4,6 +4,7 @@ import {
   shopifyRedirectPaths,
 } from "./constants";
 import {
+  fileExists,
   formatTomlString,
   getPort,
   getRequiredEnv,
@@ -24,6 +25,14 @@ async function updateTomlPort(tomlPath: string, port: number) {
 
 export async function writeAppShopifyFile(envs: Map<string, string>) {
   for (const target of appShopifyTargets) {
+    if (
+      "optional" in target &&
+      target.optional &&
+      !(await fileExists(target.tomlPath))
+    ) {
+      continue;
+    }
+
     await updateTomlPort(target.tomlPath, getPort(envs, target.envKey));
   }
 }

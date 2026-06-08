@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { envPath, root } from "./constants";
@@ -39,6 +39,19 @@ export async function readRequiredFile(filePath: string) {
       throw new Error(`${path.relative(root, filePath)} does not exist`, {
         cause: error,
       });
+    }
+
+    throw error;
+  }
+}
+
+export async function fileExists(filePath: string) {
+  try {
+    await access(filePath);
+    return true;
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return false;
     }
 
     throw error;

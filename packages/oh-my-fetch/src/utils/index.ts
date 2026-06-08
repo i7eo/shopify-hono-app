@@ -1,40 +1,26 @@
-import { DATE_TIME_FORMAT } from "./constants";
-import type { MomentLike, QueryParams, QueryPrimitive } from "./types";
+import {
+  DATE_TIME_FORMAT,
+  formatToDateTime,
+  isDateObject,
+  isPlainObject,
+  timestamp,
+} from "@shamt/utils";
+import type { DayjsLike, QueryParams, QueryPrimitive } from "./types";
 
-/** Check whether a value is a plain object without treating Date/FormData/Blob as plain data. */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (Object.prototype.toString.call(value) !== "[object Object]") {
-    return false;
-  }
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+type DateTimeInput = Parameters<typeof formatToDateTime>[0];
 
-/** Detect moment/dayjs-compatible values and format request time fields consistently. */
-function isMomentLike(value: unknown): value is MomentLike {
-  return (
-    isPlainObject(value) &&
-    value._isAMomentObject === true &&
-    typeof value.format === "function"
-  );
-}
-
-/** Format Date as the backend-friendly `YYYY-MM-DD HH:mm:ss` string. */
-function formatDate(value: Date): string {
-  const pad = (num: number) => String(num).padStart(2, "0");
-  return `${[
-    value.getFullYear(),
-    pad(value.getMonth() + 1),
-    pad(value.getDate()),
-  ].join(
-    "-",
-  )} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+/** Detect Day.js-compatible values and format request time fields consistently. */
+function isDayjsLike(value: unknown): value is DayjsLike {
+  return isPlainObject(value) && typeof value.format === "function";
 }
 
 /** Convert query scalar values into URLSearchParams-compatible strings. */
 function normalizeScalar(value: QueryPrimitive): string {
-  if (value instanceof Date) {
-    return formatDate(value);
+  if (isDateObject(value)) {
+    return formatToDateTime(value as DateTimeInput);
+  }
+  if (isDayjsLike(value)) {
+    return value.format(DATE_TIME_FORMAT);
   }
   if (value === null) {
     return "null";
@@ -101,7 +87,7 @@ export function appendTimestamp(
   const next = searchParams
     ? new URLSearchParams(searchParams)
     : new URLSearchParams();
-  next.set("_t", String(Date.now()));
+  next.set("_t", String(timestamp()));
   return next;
 }
 
@@ -113,10 +99,10 @@ export function normalizeRequestData<T>(
   if (typeof value === "string") {
     return value.trim() as T;
   }
-  if (value instanceof Date) {
-    return formatDate(value) as T;
+  if (isDateObject(value)) {
+    return formatToDateTime(value as DateTimeInput) as T;
   }
-  if (isMomentLike(value)) {
+  if (isDayjsLike(value)) {
     return value.format(DATE_TIME_FORMAT) as T;
   }
   if (Array.isArray(value)) {

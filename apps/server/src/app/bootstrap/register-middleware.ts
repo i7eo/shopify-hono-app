@@ -19,7 +19,7 @@ export function registerMiddleware(app: Hono<AppEnv>) {
   app.use("*", requestId());
   app.use("*", runtimeEnvMiddleware());
   app.use("*", runtimeLoggerMiddleware());
-  app.use(loggerMiddleware({ ignorePaths: ["/favicon.ico", "/public"] }));
+  app.use(loggerMiddleware({ ignorePaths: ["/favicon.ico", "/public", "/"] }));
   // app.use(
   //   `/${env.APP_GLOBAL_PREFIX}/*`,
   //   cors({

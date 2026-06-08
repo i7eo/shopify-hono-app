@@ -33,7 +33,9 @@ cloudflare -> isolate
 node       -> process
 ```
 
-后续如果支持更多平台，只需要扩展分类逻辑：
+当前正式支持的 runtime 只有 `cloudflare` 和 `node`。`vercel-edge` 目前只是预留的 isolate 类型，用于保留未来扩展空间；它没有完整的入口、binding、session storage 和部署配置，不应作为当前可部署目标使用。
+
+后续如果支持更多平台，需要补齐平台入口、runtime capability、binding/session storage 策略和部署配置：
 
 ```txt
 vercel-edge -> isolate
@@ -232,7 +234,8 @@ Cloudflare Workers、Vercel Edge、Deno Deploy 等 V8 isolate runtime 更接近 
 这些文件使用 Node API 是正常的，因为它们属于构建、测试或脚本，不进入 Worker runtime：
 
 - `scripts/write-shopify-file/*`
-- `apps/server/build.config.ts`
+- `apps/server/build.process.config.ts`
+- `apps/server/build.isolate-cloudflare.config.ts`
 - `apps/server/vitest.config.ts`
 - `apps/server/tests/*`
 - `packages/*/build.config.ts`
@@ -261,8 +264,8 @@ Node entry 可以导入 Node-only 能力，例如：
 
 ```ts
 import { serve } from "@hono/node-server";
-import { setupProcessLogger } from "@/infra/logger/process";
 import { checkProcessDiskAccess } from "@/app/modules/health/disk.node";
+import { setupProcessLogger } from "@/infra/logger/process";
 ```
 
 这个边界比在同一个 entry 中写 runtime 条件判断更稳。原因是 Worker bundler 会静态扫描 import graph；即使某个 `import()` 只在 Node 分支运行，只要它对 isolate entry 可见，也可能触发 Node built-in warning 或构建失败。
@@ -559,6 +562,6 @@ Failed to write to log file ... /Library/Preferences/.wrangler/logs/...
 
 ## 参考资料
 
-- Cloudflare Node.js compatibility: https://developers.cloudflare.com/workers/runtime-apis/nodejs/
-- Cloudflare Module Workers: https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/
-- Vercel Edge Runtime: https://vercel.com/docs/functions/runtimes/edge/edge-functions.rsc
+- Cloudflare Node.js compatibility: <https://developers.cloudflare.com/workers/runtime-apis/nodejs/>
+- Cloudflare Module Workers: <https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/>
+- Vercel Edge Runtime: <https://vercel.com/docs/functions/runtimes/edge/edge-functions.rsc>

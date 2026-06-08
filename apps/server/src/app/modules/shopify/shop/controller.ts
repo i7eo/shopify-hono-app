@@ -1,18 +1,16 @@
-import { getShopifyClientProvider } from "@/infra/provider";
 import { badGatewayError } from "@/shared/exceptions";
 import { AppError, createResponse } from "@/shared/models";
+import { runWithShopifyAdminClient } from "../admin";
 import { getShopRoute } from "./meta";
 import { getShopInfo } from "./service";
 import type { AppOpenAPI } from "@/app/bootstrap/register-openapi";
 
 export function registerShopController(app: AppOpenAPI) {
   app.openapi(getShopRoute, async (c) => {
-    const client = await getShopifyClientProvider(c);
-
     try {
       return c.json(
         createResponse({
-          data: await getShopInfo(client),
+          data: await runWithShopifyAdminClient(c, getShopInfo),
           requestId: c.get("requestId"),
         }),
         200,

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMockContext, logger } from "./test-utils";
 
 describe("Shopify services", () => {
   it("fetches products, handles empty data, and wraps GraphQL errors", async () => {
@@ -87,6 +88,7 @@ describe("Shopify controllers", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/infra/provider");
+    vi.doUnmock("@/app/modules/shopify/admin");
     vi.doUnmock("@/app/modules/shopify/product/service");
     vi.doUnmock("@/app/modules/shopify/shop/service");
   });
@@ -102,9 +104,11 @@ describe("Shopify controllers", () => {
 
   it("registers product controller success and error handlers", async () => {
     const { AppError } = await import("@/shared/models");
-    vi.doMock("@/infra/provider", async (importOriginal) => ({
-      ...(await importOriginal<typeof import("@/infra/provider")>()),
-      getShopifyClientProvider: vi.fn(() => ({ id: "client" })),
+    const runWithShopifyAdminClient = vi.fn((_c, operation) =>
+      operation({ id: "client" }),
+    );
+    vi.doMock("@/app/modules/shopify/admin", () => ({
+      runWithShopifyAdminClient,
     }));
     const getProducts = vi
       .fn()
@@ -145,9 +149,11 @@ describe("Shopify controllers", () => {
 
   it("registers shop controller success and error handlers", async () => {
     const { AppError } = await import("@/shared/models");
-    vi.doMock("@/infra/provider", async (importOriginal) => ({
-      ...(await importOriginal<typeof import("@/infra/provider")>()),
-      getShopifyClientProvider: vi.fn(() => ({ id: "client" })),
+    const runWithShopifyAdminClient = vi.fn((_c, operation) =>
+      operation({ id: "client" }),
+    );
+    vi.doMock("@/app/modules/shopify/admin", () => ({
+      runWithShopifyAdminClient,
     }));
     const getShopInfo = vi
       .fn()
@@ -196,5 +202,94 @@ describe("Shopify controllers", () => {
       status: 502,
       details: { message: "boom" },
     });
+  });
+});
+
+describe("Shopify Admin API client runner", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.doUnmock("@/infra/provider");
+    vi.doUnmock("@/app/modules/shopify/session");
+  });
+
+  it("refreshes the online session and retries once after Shopify returns 401", async () => {
+    const firstClient = { id: "first-client" };
+    const refreshedClient = { id: "refreshed-client" };
+    const refreshedSession = {
+      id: "refreshed-session",
+      accessToken: "fresh-token",
+    };
+    const getShopifyClientProvider = vi
+      .fn()
+      .mockResolvedValueOnce(firstClient)
+      .mockResolvedValueOnce(refreshedClient);
+    const refreshShopifyOnlineSession = vi.fn(() => refreshedSession);
+    const setShopifySessionContext = vi.fn();
+
+    vi.doMock("@/infra/provider", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getShopifyClientProvider,
+    }));
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      refreshShopifyOnlineSession,
+      setShopifySessionContext,
+    }));
+
+    const { runWithShopifyAdminClient } =
+      await import("@/app/modules/shopify/admin");
+    const unauthorizedError = Object.assign(new Error("Unauthorized"), {
+      response: { code: 401 },
+    });
+    const operation = vi
+      .fn()
+      .mockRejectedValueOnce(unauthorizedError)
+      .mockResolvedValueOnce("ok");
+    const context = createMockContext({
+      vars: { shopDomain: "shop.myshopify.com" },
+    });
+
+    await expect(
+      runWithShopifyAdminClient(context as never, operation),
+    ).resolves.toBe("ok");
+
+    expect(operation).toHaveBeenNthCalledWith(1, firstClient);
+    expect(operation).toHaveBeenNthCalledWith(2, refreshedClient);
+    expect(refreshShopifyOnlineSession).toHaveBeenCalledWith(context);
+    expect(setShopifySessionContext).toHaveBeenCalledWith(
+      context,
+      refreshedSession,
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Shopify Admin API returned 401 for shop.myshopify.com; refreshing online session and retrying once",
+    );
+  });
+
+  it("does not refresh the online session for non-auth Shopify errors", async () => {
+    const error = Object.assign(new Error("Forbidden"), {
+      response: { code: 403 },
+    });
+    const getShopifyClientProvider = vi.fn(() => ({ id: "client" }));
+    const refreshShopifyOnlineSession = vi.fn();
+
+    vi.doMock("@/infra/provider", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getShopifyClientProvider,
+    }));
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      refreshShopifyOnlineSession,
+      setShopifySessionContext: vi.fn(),
+    }));
+
+    const { runWithShopifyAdminClient } =
+      await import("@/app/modules/shopify/admin");
+
+    await expect(
+      runWithShopifyAdminClient(
+        createMockContext() as never,
+        vi.fn().mockRejectedValue(error),
+      ),
+    ).rejects.toBe(error);
+    expect(refreshShopifyOnlineSession).not.toHaveBeenCalled();
   });
 });

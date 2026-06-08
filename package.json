@@ -13,9 +13,9 @@
   ],
   "scripts": {
     "postinstall": "simple-git-hooks",
+    "dev:tunnel": "TUNNEL_TRANSPORT_PROTOCOL=http2 wrangler tunnel run sofary",
     "dev:prepare": "tsx ./scripts/write-shopify-file/index.ts --env-file=./.env.development",
-    "app:dev": "pnpm dev:prepare && shopify app dev",
-    "app:dev:localhost": "pnpm dev:prepare && shopify app dev --use-localhost",
+    "app:dev": "pnpm dev:prepare && shopify app dev --tunnel-url=https://sofary-app-dev-server.i7eo.com:10101",
     "deploy:prepare": "tsx ./scripts/write-shopify-file/index.ts --env-file=./.env.production",
     "app:deploy": "pnpm deploy:prepare && shopify app deploy",
     "dev": "pnpm app:dev",
@@ -45,7 +45,8 @@
     "rimraf": "catalog:",
     "simple-git-hooks": "catalog:dx",
     "tsx": "catalog:dx",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "wrangler": "catalog:cloudflare"
   },
   "simple-git-hooks": {
     "pre-commit": "lint-staged --concurrent false",

@@ -200,25 +200,17 @@ describe("tokenExchange middleware", () => {
   it("reuses active stored sessions", async () => {
     const storedSession = {
       accessToken: "stored-token",
-      isActive: vi.fn(() => true),
     };
-    const loadSession = vi.fn(() => storedSession);
-    const storeSession = vi.fn();
-    const tokenExchangeCall = vi.fn();
-    vi.doMock("@shopify/shopify-api", () => ({
-      RequestedTokenType: {
-        OnlineAccessToken: "online",
-      },
-    }));
-    vi.doMock("@/app/modules/shopify/session-storage", () => ({
-      getShopifySessionStorage: vi.fn(() => ({ loadSession, storeSession })),
-    }));
-    vi.doMock("@/infra/provider", () => ({
-      getShopifyConfigProvider: vi.fn(() => ({
-        config: { scopes: ["read_products"] },
-        session: { getCurrentId: vi.fn(() => "session-id") },
-        auth: { tokenExchange: tokenExchangeCall },
-      })),
+    const loadActiveShopifyOnlineSession = vi.fn(() => storedSession);
+    const exchangeShopifyOnlineSession = vi.fn();
+    const setShopifySessionContext = vi.fn((context, session) => {
+      context.set("shopifySession", session);
+      context.set("shopifyAccessToken", session.accessToken);
+    });
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      loadActiveShopifyOnlineSession,
+      exchangeShopifyOnlineSession,
+      setShopifySessionContext,
     }));
 
     const { tokenExchange } =
@@ -231,10 +223,12 @@ describe("tokenExchange middleware", () => {
 
     await tokenExchange(context as never, next);
 
-    expect(loadSession).toHaveBeenCalledWith("session-id");
-    expect(storedSession.isActive).toHaveBeenCalledWith(["read_products"]);
-    expect(tokenExchangeCall).not.toHaveBeenCalled();
-    expect(storeSession).not.toHaveBeenCalled();
+    expect(loadActiveShopifyOnlineSession).toHaveBeenCalledWith(context);
+    expect(exchangeShopifyOnlineSession).not.toHaveBeenCalled();
+    expect(setShopifySessionContext).toHaveBeenCalledWith(
+      context,
+      storedSession,
+    );
     expect(context.var.shopifySession).toBe(storedSession);
     expect(context.var.shopifyAccessToken).toBe("stored-token");
     expect(next).toHaveBeenCalledOnce();
@@ -242,25 +236,16 @@ describe("tokenExchange middleware", () => {
 
   it("exchanges tokens and stores new sessions when no active session exists", async () => {
     const session = { accessToken: "new-token", shop: "shop.myshopify.com" };
-    const storeSession = vi.fn();
-    const tokenExchangeCall = vi.fn(() => ({ session }));
-    vi.doMock("@shopify/shopify-api", () => ({
-      RequestedTokenType: {
-        OnlineAccessToken: "online",
-      },
-    }));
-    vi.doMock("@/app/modules/shopify/session-storage", () => ({
-      getShopifySessionStorage: vi.fn(() => ({
-        loadSession: vi.fn(() => undefined),
-        storeSession,
-      })),
-    }));
-    vi.doMock("@/infra/provider", () => ({
-      getShopifyConfigProvider: vi.fn(() => ({
-        config: { scopes: ["read_products"] },
-        session: { getCurrentId: vi.fn(() => undefined) },
-        auth: { tokenExchange: tokenExchangeCall },
-      })),
+    const loadActiveShopifyOnlineSession = vi.fn(() => undefined);
+    const exchangeShopifyOnlineSession = vi.fn(() => session);
+    const setShopifySessionContext = vi.fn((context, nextSession) => {
+      context.set("shopifySession", nextSession);
+      context.set("shopifyAccessToken", nextSession.accessToken);
+    });
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      loadActiveShopifyOnlineSession,
+      exchangeShopifyOnlineSession,
+      setShopifySessionContext,
     }));
 
     const { tokenExchange } =
@@ -273,37 +258,21 @@ describe("tokenExchange middleware", () => {
 
     await tokenExchange(context as never, next);
 
-    expect(tokenExchangeCall).toHaveBeenCalledWith({
-      shop: "shop.myshopify.com",
-      sessionToken: "session-token",
-      requestedTokenType: "online",
-    });
-    expect(storeSession).toHaveBeenCalledWith(session);
+    expect(loadActiveShopifyOnlineSession).toHaveBeenCalledWith(context);
+    expect(exchangeShopifyOnlineSession).toHaveBeenCalledWith(context);
+    expect(setShopifySessionContext).toHaveBeenCalledWith(context, session);
     expect(context.var.shopifySession).toBe(session);
     expect(context.var.shopifyAccessToken).toBe("new-token");
     expect(next).toHaveBeenCalledOnce();
   });
 
   it("wraps token exchange failures", async () => {
-    vi.doMock("@shopify/shopify-api", () => ({
-      RequestedTokenType: {
-        OnlineAccessToken: "online",
-      },
-    }));
-    vi.doMock("@/app/modules/shopify/session-storage", () => ({
-      getShopifySessionStorage: vi.fn(() => ({
-        loadSession: vi.fn(() => undefined),
-        storeSession: vi.fn(),
-      })),
-    }));
-    vi.doMock("@/infra/provider", () => ({
-      getShopifyConfigProvider: vi.fn(() => ({
-        config: { scopes: [] },
-        session: { getCurrentId: vi.fn(() => undefined) },
-        auth: {
-          tokenExchange: vi.fn(() => ({ session: {} })),
-        },
-      })),
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      loadActiveShopifyOnlineSession: vi.fn(() => undefined),
+      exchangeShopifyOnlineSession: vi.fn(() => {
+        throw new Error("Token exchange did not return an access token");
+      }),
+      setShopifySessionContext: vi.fn(),
     }));
 
     const { tokenExchange } =

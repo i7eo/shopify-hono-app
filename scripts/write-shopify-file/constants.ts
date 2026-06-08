@@ -26,6 +26,7 @@ export const appShopifyTargets = [
   {
     envKey: "APP__WEB_PORT",
     tomlPath: path.resolve(root, "apps/web/shopify.web.toml"),
+    optional: true,
   },
 ] as const;
 

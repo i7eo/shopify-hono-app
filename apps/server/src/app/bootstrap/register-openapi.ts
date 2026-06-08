@@ -1,4 +1,3 @@
-import { Scalar } from "@scalar/hono-api-reference";
 import { name, version } from "../../../package.json";
 import type { AppEnv } from "@/types";
 import type { OpenAPIHono, RouteConfig, RouteHandler } from "@hono/zod-openapi";
@@ -6,7 +5,15 @@ import type { Schema } from "hono";
 
 export type AppOpenAPI<S extends Schema = {}> = OpenAPIHono<AppEnv, S>;
 export type AppRouteHandler<R extends RouteConfig> = RouteHandler<R, AppEnv>;
-export function registerOpenAPI(app: AppOpenAPI) {
+
+export function registerOpenAPI(
+  app: AppOpenAPI,
+  options: {
+    enabled?: boolean;
+  } = {},
+) {
+  if (!options.enabled) return;
+
   app.doc31("/document", {
     openapi: "3.1.0",
     info: {
@@ -15,9 +22,9 @@ export function registerOpenAPI(app: AppOpenAPI) {
     },
   });
 
-  app.get(
-    "/reference",
-    Scalar({
+  app.get("/reference", async (c, next) => {
+    const { Scalar } = await import("@scalar/hono-api-reference");
+    const handler = Scalar<AppEnv>({
       url: "/document",
       theme: "kepler",
       layout: "classic",
@@ -25,6 +32,8 @@ export function registerOpenAPI(app: AppOpenAPI) {
         targetKey: "js",
         clientKey: "fetch",
       },
-    }),
-  );
+    });
+
+    return handler(c, next);
+  });
 }

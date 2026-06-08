@@ -9,11 +9,14 @@
     "dist"
   ],
   "scripts": {
-    "cf:type": "wrangler types",
-    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev --env-file ../../.env.development",
+    "cf:type": "wrangler types ./typings/cloudflare-worker-configuration.d.ts",
+    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev --port \"$BACKEND_PORT\" --env-file ../../.env.development --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\"",
+    "cf:build": "rimraf dist/isolate/cloudflare && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.isolate-cloudflare.config.ts",
     "cf:deploy": "wrangler secret bulk ../../.env.production && wrangler deploy",
-    "node:dev": "tsx watch ./src/app/runtime/process/index.ts --env-file=../../.env.development",
-    "node:build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
+    "node:dev": "tsx watch --env-file=../../.env.development ./src/app/runtime/process/index.ts",
+    "node:build": "rimraf dist/process && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.process.config.ts",
+    "node:deploy": "",
+    "build": "pnpm cf:build && pnpm node:build",
     "test": "vitest run",
     "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
     "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",

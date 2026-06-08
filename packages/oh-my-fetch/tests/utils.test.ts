@@ -73,20 +73,17 @@ describe("appendTimestamp", () => {
 });
 
 describe("normalizeRequestData", () => {
-  it("trims strings and formats Date and moment-like values recursively", () => {
+  it("trims strings and formats Date and Day.js-like values recursively", () => {
     const source = {
       name: " Ada ",
       date: new Date(2024, 0, 2, 3, 4, 5),
-      nested: [
-        " value ",
-        { moment: { _isAMomentObject: true, format: () => "formatted" } },
-      ],
+      nested: [" value ", { dayjs: { format: () => "formatted" } }],
     };
 
     expect(normalizeRequestData(source)).toEqual({
       name: "Ada",
       date: "2024-01-02 03:04:05",
-      nested: ["value", { moment: "formatted" }],
+      nested: ["value", { dayjs: "formatted" }],
     });
     expect(source.name).toBe(" Ada ");
   });

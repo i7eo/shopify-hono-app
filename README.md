@@ -1,300 +1,342 @@
 # Shopify Hono App
 
-A Shopify embedded app backend built with [Hono](https://hono.dev) and deployed to [Cloudflare Workers](https://developers.cloudflare.com/workers/). It implements the full Shopify OAuth flow, session token authentication, token exchange, webhook handling, and a minimal GraphQL API layer — all without external Shopify libraries.
+This repository contains a Shopify embedded app built for Cloudflare Workers
+with Hono, Shopify CLI, Wrangler, and a small set of shared TypeScript
+packages.
+
+It is organized as a pnpm monorepo. The app code lives under `apps/`, reusable
+runtime libraries live under `packages/`, and root scripts coordinate Shopify
+configuration, Cloudflare Tunnel, local development, formatting, linting, and
+deployment.
+
+## Workspace
+
+### Apps
+
+These packages are private application entry points.
+
+| Package                              | Version | Description                                                                             |
+| ------------------------------------ | ------- | --------------------------------------------------------------------------------------- |
+| [`@shamt/server`](./apps/server)     | `0.0.0` | Hono app for Shopify auth, embedded admin UI, API routes, webhooks, and Worker runtime. |
+| [`@shamt/web`](./apps/web#readme)    | `0.0.0` | Optional React and Vite frontend workspace.                                             |
+| [`@shamt/document`](./apps/document) | `0.0.0` | VitePress documentation app.                                                            |
+
+### Shared Runtime Packages
+
+These packages provide reusable framework-neutral building blocks for the apps.
+
+| Package                                               | Version | Description                                                                |
+| ----------------------------------------------------- | ------- | -------------------------------------------------------------------------- |
+| [`@shamt/utils`](./packages/utils#readme)             | `0.0.0` | Shared utility functions for JSON, dates, guards, cookies, trees, and ids. |
+| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Shared constants and Zod schemas for environment and runtime config.       |
+| [`@shamt/cache`](./packages/cache#readme)             | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.          |
+| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with retries, validation, and errors.  |
 
 ## Architecture
 
-```
-src/
-├── index.ts                         # Hono app entry point & route mounting
-├── types.ts                         # TypeScript types (bindings, JWT claims, API responses)
-├── routes/
-│   ├── auth.ts                      # OAuth install + callback (/auth, /auth/callback)
-│   ├── app.ts                       # Embedded app HTML shell (/app)
-│   ├── api.ts                       # Authenticated API endpoints (/api/shop, /api/products)
-│   └── webhooks.ts                  # Webhook receivers (/webhooks/*)
-├── middleware/
-│   ├── ensure-installed.ts          # Checks for offline token, redirects to OAuth if missing
-│   ├── verify-session-token.ts      # Validates App Bridge session token (JWT)
-│   ├── token-exchange.ts            # Exchanges session token for online access token
-│   └── verify-webhook.ts            # HMAC-SHA256 webhook signature verification
-└── lib/
-    ├── crypto.ts                    # Web Crypto helpers (HMAC, JWT, timing-safe compare)
-    ├── session-store.ts             # KV-backed session & OAuth state storage
-    └── shopify-client.ts            # Minimal Shopify Admin GraphQL API client
+The dependency direction is intentionally one-way:
+
+```text
+@shamt/utils
+  -> @shamt/envs
+  -> @shamt/cache / @shamt/oh-my-fetch
+  -> apps/server
+  -> Shopify Admin API / Cloudflare Workers
 ```
 
-### Request flow
+`@shamt/utils` is the lowest-level shared layer. It exposes small helpers and
+selected external utilities without depending on the rest of the workspace.
 
-1. **Installation** — Merchant visits `/auth?shop=...`, gets redirected to Shopify's OAuth consent screen, then back to `/auth/callback` where the offline access token is stored in KV.
-2. **Embedded app** — Shopify Admin loads `/app?shop=...` in an iframe. The `ensureInstalled` middleware verifies the shop has an offline token; if not, it redirects to OAuth. The response is a minimal HTML shell that loads App Bridge.
-3. **API calls** — App Bridge intercepts `fetch()` calls from the frontend and attaches a session token JWT. The `/api/*` routes validate this JWT (`verifySessionToken`), exchange it for a short-lived online access token (`tokenExchange`), and then call the Shopify Admin GraphQL API.
-4. **Webhooks** — Shopify sends POST requests to `/webhooks/*` with an HMAC signature header. The `verifyWebhook` middleware validates the signature before passing the payload to route handlers.
+`@shamt/envs` centralizes constants and Zod schemas, but it does not read from
+`process.env` or Cloudflare bindings directly. Apps choose the runtime source of
+environment values.
 
-### Key design decisions
+`@shamt/cache` defines the shared cache contract and default memory driver.
+Runtime-specific stores, such as Cloudflare KV backed Shopify session storage,
+stay in the app layer.
 
-- **Zero Shopify library dependencies** — OAuth, HMAC verification, JWT validation, and token exchange are all implemented with the Web Crypto API, keeping the bundle small and Worker-compatible.
-- **KV for sessions** — Cloudflare KV stores offline tokens (permanent), online tokens (with TTL), and OAuth state nonces (10-minute TTL).
-- **Token exchange over cookie sessions** — Uses Shopify's token exchange grant type instead of traditional cookie-based sessions, which is the recommended approach for embedded apps.
+`@shamt/oh-my-fetch` wraps `ky` for consistent HTTP behavior across services:
+query serialization, body handling, timeout, retry, response parsing, business
+status validation, schema validation, and normalized request errors.
 
-## Routes
+`apps/server` composes the shared packages with Hono, Shopify API libraries,
+Cloudflare Workers bindings, LogTape logging, and Shopify embedded app routes.
+It has two runtime entries:
 
-| Method | Path                               | Auth                           | Description                           |
-| ------ | ---------------------------------- | ------------------------------ | ------------------------------------- |
-| `GET`  | `/auth`                            | None                           | Starts OAuth install flow             |
-| `GET`  | `/auth/callback`                   | HMAC-verified                  | Completes OAuth, stores offline token |
-| `GET`  | `/app`                             | `ensureInstalled`              | Serves embedded app HTML shell        |
-| `GET`  | `/api/shop`                        | Session token + token exchange | Returns shop name, email, domain      |
-| `GET`  | `/api/products`                    | Session token + token exchange | Lists first 5 products                |
-| `POST` | `/webhooks/app/uninstalled`        | Webhook HMAC                   | Cleans up session on uninstall        |
-| `POST` | `/webhooks/customers/data-request` | Webhook HMAC                   | GDPR customer data request            |
-| `POST` | `/webhooks/customers/redact`       | Webhook HMAC                   | GDPR customer data deletion           |
-| `POST` | `/webhooks/shop/redact`            | Webhook HMAC                   | GDPR shop data deletion               |
-| `GET`  | `/health`                          | None                           | Health check                          |
+| Runtime            | Entry                                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare Workers | [`apps/server/src/app/runtime/isolate/cloudflare/index.ts`](./apps/server/src/app/runtime/isolate/cloudflare/index.ts) |
+| Node process       | [`apps/server/src/app/runtime/process/index.ts`](./apps/server/src/app/runtime/process/index.ts)                       |
 
-## Prerequisites
+## Server App
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) (v4+) — installed as a dev dependency
-- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli) (v3+)
-- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
-- A [Shopify Partner account](https://partners.shopify.com/) and a development store
+The server app is the primary product surface. It provides:
 
-## Setup
+- Shopify OAuth and callback handling.
+- Shopify embedded app shell.
+- Session-token verification and token exchange middleware.
+- Admin GraphQL-backed shop and product API routes.
+- Shopify webhook endpoints.
+- Cloudflare KV session storage integration.
+- Health checks and OpenAPI route registration.
+- Cloudflare Worker and Node process runtime adapters.
 
-### 1. Install dependencies
+The Shopify admin UI served by the app shell uses Shopify Polaris web
+components. The app shell loads:
+
+```html
+<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
+```
+
+Admin UI markup should use Polaris web components such as `<s-page>`,
+`<s-section>`, `<s-banner>`, `<s-spinner>`, and `<s-text>`.
+
+## Local Development
+
+### Requirements
+
+- Node.js `26.2.0`, as declared in [`pnpm-workspace.yaml`](./pnpm-workspace.yaml).
+- pnpm with workspace protocol support.
+- Shopify CLI from the root dev dependencies.
+- Wrangler from the root dev dependencies.
+- A Shopify Partner account and development store.
+- A Cloudflare account with the `sofary` named tunnel configured.
+
+Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
-### 2. Create and link a Shopify app
+### Environment Files
 
-Run the following command from the project root:
+Development values are read from `.env.development`. Production values are read
+from `.env.production`.
 
-```bash
-shopify app config link
-```
+The development file should include:
 
-This will prompt you to either **create a new app** or **connect to an existing app** in your Partner Dashboard. It updates `shopify.app.toml` with the correct `client_id` and app settings.
+```dotenv
+APP_ENV=development
+APP_RUNTIME=node
+APP__SERVER_PORT=10001
+APP__WEB_PORT=10002
 
-After linking, find your **Client Secret** in the [Shopify Dev Dashboard](https://dev.shopify.com/) under your app's **Client credentials** section — you'll need it for the next steps.
-
-### 3. Create a KV namespace
-
-```bash
-npx wrangler kv namespace create sofary
-```
-
-Copy the output `id` and update [wrangler.toml](wrangler.toml):
-
-```toml
-[[kv_namespaces]]
-binding = "sofary"
-id = "your-actual-kv-namespace-id"
-```
-
-### 4. Configure environment variables
-
-Copy the example file and fill in your values:
-
-```bash
-cp .dev.vars.example .dev.vars
-```
-
-Edit `.dev.vars`:
-
-```
-SHOPIFY_APP_KEY=your_app_client_id
-SHOPIFY_APP_SECRET=your_app_client_secret
-SHOPIFY_APP_URL=https://your-tunnel-url.trycloudflare.com
+SHOPIFY_APP_KEY=...
+SHOPIFY_APP_SECRET=...
+SHOPIFY_APP_URL=https://sofary-app-dev-server.i7eo.com
+SHOPIFY_API_VERSION=2026-04
 SCOPES=read_products,write_products,read_orders
 ```
 
-> **Note:** When using `shopify app dev` (recommended), the `SHOPIFY_APP_URL` in `.dev.vars` gets overridden automatically — Shopify CLI injects the tunnel URL as the `APP_URL` environment variable. You still need the other three values.
+The root preparation script writes Shopify config values from the selected env
+file before local dev or deploy:
 
-### 5. Update shopify.app.toml
+```bash
+pnpm dev:prepare
+pnpm deploy:prepare
+```
 
-Edit [shopify.app.toml](shopify.app.toml) with your app's `client_id`. The `application_url` and `redirect_urls` are updated automatically by Shopify CLI during `shopify app dev`.
+`apps/web/shopify.web.toml` is optional. If it does not exist, the prepare
+script skips that web target and continues with the server and app config.
 
-## Development
+### Switching Server Runtime
 
-### How Shopify CLI and Wrangler work together
+`apps/server` can run locally as a Node process or through Wrangler's
+Cloudflare Workers dev runtime. Keep the Shopify web target command and
+`APP_RUNTIME` aligned.
 
-This project uses **two tools** during local development, and understanding their roles is key:
-
-| Tool            | Role                                                                                                                                                                         |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Wrangler**    | Runs the Cloudflare Worker locally (your actual app code), simulates KV bindings, reads `.dev.vars` for secrets                                                              |
-| **Shopify CLI** | Creates an HTTPS tunnel, updates your app's URLs in the Partner Dashboard, injects env vars (`SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`, `APP_URL`, etc.), opens your dev store |
-
-You do **not** run them separately. Shopify CLI starts Wrangler for you.
-
-### How it works
-
-The [shopify.web.toml](shopify.web.toml) file tells Shopify CLI how to start your app:
+Use the Node process runtime when you want fast local debugging with
+`@hono/node-server`:
 
 ```toml
-roles = ["backend"]
-
+# apps/server/shopify.web.toml
 [commands]
-dev = "npx wrangler dev --port $PORT"
-build = "npx wrangler deploy"
+dev = "pnpm node:dev"
 ```
 
-When you run `shopify app dev`, Shopify CLI:
+```dotenv
+# .env.development
+APP_RUNTIME=node
+```
 
-1. Reads `shopify.web.toml` and finds the `dev` command
-2. Picks a port and sets `$PORT` (along with `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`, `APP_URL`, `SCOPES`, etc. as env vars)
-3. Executes `npx wrangler dev --port $PORT` — starting your Worker on that port
-4. Opens a Cloudflare Quick Tunnel (HTTPS) pointing to that port
-5. Updates your app's URLs in the Shopify Partner Dashboard to match the tunnel
-6. Opens the app in your development store
+Use the Cloudflare Workers runtime when you want local dev to exercise the
+Worker entry and Cloudflare bindings:
 
-### Running locally
+```toml
+# apps/server/shopify.web.toml
+[commands]
+dev = "pnpm cf:dev"
+```
+
+```dotenv
+# .env.development
+APP_RUNTIME=cloudflare
+```
+
+After changing either file, restart `pnpm dev`. The `APP_RUNTIME` value is
+validated during bootstrap, so a mismatch fails early instead of silently
+running the wrong adapter.
+
+### Development Tunnel
+
+The final local tunnel setup uses the named Cloudflare Tunnel `sofary` and the
+public hostname:
+
+```text
+https://sofary-app-dev-server.i7eo.com
+```
+
+In Cloudflare Zero Trust, the Public Hostname for
+`sofary-app-dev-server.i7eo.com` must point to the Shopify CLI local proxy:
+
+```text
+http://[::1]:10101
+```
+
+The local port split is:
+
+| Port    | Owner              | Purpose                               |
+| ------- | ------------------ | ------------------------------------- |
+| `10101` | Shopify CLI        | Local proxy for the custom tunnel URL |
+| `10001` | Wrangler / workerd | Cloudflare Worker development server  |
+
+Start the tunnel and the app in separate terminals:
 
 ```bash
-pnpm app:dev
+pnpm dev:tunnel
 ```
-
-That's it. On first run it will prompt you to:
-
-- Select your Shopify Partner org
-- Select or create a development store
-- Confirm the app configuration
-
-Once running, you'll see output like:
-
-```
- ›   Press p to open your app's URL in the browser
- ›   Preview URL: https://abc123.trycloudflare.com/app
-```
-
-Shopify CLI keeps the tunnel alive and restarts Wrangler if it crashes.
-
-### Environment variables during dev
-
-Shopify CLI automatically injects these env vars into the Wrangler process:
-
-| Variable                | Source                                                   |
-| ----------------------- | -------------------------------------------------------- |
-| `SHOPIFY_APP_KEY`       | From your app's Partner Dashboard config                 |
-| `SHOPIFY_APP_SECRET`    | From your app's Partner Dashboard config                 |
-| `APP_URL` / `HOST`      | The tunnel URL (e.g. `https://abc123.trycloudflare.com`) |
-| `SCOPES`                | From `shopify.app.toml`                                  |
-| `BACKEND_PORT` / `PORT` | The port Wrangler should listen on                       |
-
-However, **Wrangler reads secrets from `.dev.vars`**, not from shell env vars. So you still need your `.dev.vars` file with `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`, and `SCOPES`. The `SHOPIFY_APP_URL` in `.dev.vars` should be kept up to date — if the tunnel URL changes each session, you can either:
-
-- Update `.dev.vars` each time with the new tunnel URL, or
-- Use `--use-localhost` mode (see below) for a stable URL
-
-### Alternative: Localhost mode (stable URL)
-
-If Cloudflare Quick Tunnel times out or you don't want the tunnel URL to change each time, use localhost mode:
 
 ```bash
-pnpm app:dev:localhost
+pnpm dev
 ```
 
-This serves the app at `https://localhost:3458` with a self-signed certificate. The URL is stable across sessions. Note: webhooks and app proxies won't work in this mode since Shopify can't reach localhost.
+The relevant root scripts are:
 
-If you need webhooks or another feature that must call back into your app, run your own tunnel first and pass it to Shopify CLI:
+```json
+{
+  "dev:tunnel": "TUNNEL_TRANSPORT_PROTOCOL=http2 wrangler tunnel run sofary",
+  "app:dev": "pnpm dev:prepare && shopify app dev --tunnel-url=https://sofary-app-dev-server.i7eo.com:10101"
+}
+```
+
+Do not configure the tunnel service as `https://127.0.0.1:10101`; the Shopify
+CLI proxy is plain HTTP.
+
+If Cloudflare returns `1033`, the tunnel connector is not active. Check:
 
 ```bash
-ngrok http 10001
-pnpm dev:prepare
-shopify app dev --tunnel-url https://your-tunnel-url.example:10001
+pnpm exec wrangler tunnel info sofary
 ```
 
-### Alternative: Wrangler only (no Shopify CLI)
+If Cloudflare returns `502`, the tunnel is active but cannot reach the local
+Shopify CLI proxy. Verify that `10101` is listening locally.
 
-If you prefer to manage tunnels yourself:
+### Common Commands
+
+Run the embedded app locally:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
-This runs `wrangler dev` on `http://localhost:8787`. You'll need to:
-
-- Set up your own tunnel (e.g. `cloudflared tunnel`, ngrok)
-- Manually update `SHOPIFY_APP_URL` in `.dev.vars` with the tunnel URL
-- Manually update `application_url` and `redirect_urls` in `shopify.app.toml`
-
-### Type checking
+Run the Cloudflare Tunnel:
 
 ```bash
-npm run typecheck
+pnpm dev:tunnel
 ```
 
-### Regenerate Cloudflare types
+Format all workspaces:
 
 ```bash
-npm run cf-typegen
+pnpm format
 ```
 
-## Production Deployment
-
-### 1. Create the KV namespace (if not done)
+Lint all workspaces:
 
 ```bash
-npx wrangler kv namespace create sofary
+pnpm lint
 ```
 
-Update the `id` in [wrangler.toml](wrangler.toml) with the production namespace ID.
-
-### 2. Set production secrets
+Run server tests:
 
 ```bash
-npx wrangler secret put SHOPIFY_APP_KEY
-npx wrangler secret put SHOPIFY_APP_SECRET
-npx wrangler secret put SHOPIFY_APP_URL
-npx wrangler secret put SCOPES
+pnpm -F @shamt/server test
 ```
 
-Each command will prompt you to enter the secret value. `SHOPIFY_APP_URL` should be your production Worker URL (e.g., `https://shopify-hono-app.your-subdomain.workers.dev`) or a custom domain.
-
-### 3. Deploy
+Build a shared package:
 
 ```bash
-npm run deploy
+pnpm -F @shamt/utils build
 ```
 
-This runs `wrangler deploy`, which builds and publishes the Worker to Cloudflare.
-
-### 4. Update Shopify app settings
-
-In your Shopify Partner Dashboard (or in `shopify.app.toml`), set:
-
-- **App URL** to `https://your-worker.your-subdomain.workers.dev/app`
-- **Allowed redirection URL(s)** to `https://your-worker.your-subdomain.workers.dev/auth/callback`
-
-Then push the config:
+Generate Cloudflare Worker types for the server app:
 
 ```bash
-shopify app deploy
+pnpm -F @shamt/server cf:type
 ```
 
-### 5. Configure webhooks
+Clean workspace outputs:
 
-Webhook subscriptions are declared in [shopify.app.toml](shopify.app.toml). Running `shopify app deploy` registers them automatically. The `app/uninstalled` webhook and GDPR compliance webhooks are pre-configured.
+```bash
+pnpm clean
+```
 
-### Custom domains
+## Deployment
 
-To use a custom domain instead of `*.workers.dev`, add a Custom Domain in the Cloudflare dashboard under **Workers & Pages > your worker > Settings > Domains & Routes**, then update `SHOPIFY_APP_URL` and the Shopify app URLs accordingly.
+Prepare production config from `.env.production`:
 
-## Environment Variables
+```bash
+pnpm deploy:prepare
+```
 
-| Variable              | Description                                                     |
-| --------------------- | --------------------------------------------------------------- |
-| `SHOPIFY_APP_KEY`     | App client ID from the Shopify Partner Dashboard                |
-| `SHOPIFY_APP_SECRET`  | App client secret                                               |
-| `SHOPIFY_APP_URL`     | Public URL of this Worker (no trailing slash)                   |
-| `SCOPES`              | Comma-separated Shopify access scopes                           |
-| `SHOPIFY_API_VERSION` | Shopify API version (set in `wrangler.toml`, default `2025-10`) |
+Deploy the Shopify app configuration:
 
-## KV Bindings
+```bash
+pnpm app:deploy
+```
+
+Deploy the Worker from the server workspace:
+
+```bash
+pnpm -F @shamt/server cf:deploy
+```
+
+The server deploy command bulk-loads production secrets with Wrangler before
+deploying:
+
+```bash
+wrangler secret bulk ../../.env.production
+wrangler deploy
+```
+
+## Configuration Files
+
+| File                                                             | Purpose                                                      |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)                   | Workspace globs, catalogs, Node version, and pnpm policy.    |
+| [`shopify.app.toml`](./shopify.app.toml)                         | Shopify app client id, app URL, scopes, and redirects.       |
+| [`apps/server/shopify.web.toml`](./apps/server/shopify.web.toml) | Shopify CLI web target for the server app.                   |
+| [`apps/server/wrangler.json`](./apps/server/wrangler.json)       | Cloudflare Worker entry, compatibility date, and KV binding. |
+| [`scripts/write-shopify-file`](./scripts/write-shopify-file)     | Env-driven writer for Shopify app and web TOML files.        |
+
+## Runtime Data
+
+Cloudflare KV stores Shopify session data through the server app's Shopify
+session storage integration.
 
 | Binding  | Purpose                                                      |
 | -------- | ------------------------------------------------------------ |
 | `sofary` | Stores offline tokens, online tokens, and OAuth state nonces |
+
+Local Wrangler data is stored under `.wrangler/` during development.
+
+## Notes For Contributors
+
+- Keep shared packages runtime-neutral unless the package is explicitly an
+  adapter.
+- Keep dependency direction flowing from `packages/` into `apps/`, not the other
+  way around.
+- Keep Shopify admin UI inside Polaris web components.
+- Put package-specific setup and API details in package READMEs.
+- Treat root README as the navigation and architecture entry point.

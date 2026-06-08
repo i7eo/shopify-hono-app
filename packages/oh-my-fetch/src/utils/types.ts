@@ -1,8 +1,7 @@
 import type { HTTP_METHODS, RESPONSE_BODY_TYPES } from "./constants";
 import type { Input, Options } from "ky";
 
-export interface MomentLike {
-  _isAMomentObject: boolean;
+export interface DayjsLike {
   format: (format: string) => string;
 }
 
@@ -18,7 +17,8 @@ export type QueryPrimitive =
   | boolean
   | null
   | undefined
-  | Date;
+  | Date
+  | DayjsLike;
 export type QueryValue = QueryPrimitive | readonly QueryPrimitive[];
 export type QueryParams =
   | string
@@ -176,9 +176,9 @@ export interface RequestBehavior {
   businessStatusValidator?: BusinessStatusValidator;
   /** Receive normalized error messages so application code can show UI feedback. */
   onErrorMessage?: ErrorMessageHandler;
-  /** Append `_t=Date.now()` to GET requests to bypass caches. */
+  /** Append a current `_t` timestamp to GET requests to bypass caches. */
   timestamp?: boolean;
-  /** Trim strings and format Date/Moment-like values before sending. */
+  /** Trim strings and format Date/Day.js-like values before sending. */
   formatRequestData?: boolean;
   /** Abort an in-flight request with the same key before starting a new one. */
   dedupe?: DedupeOption;

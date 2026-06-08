@@ -448,6 +448,9 @@ importers:
       typescript:
         specifier: "catalog:"
         version: 6.0.3
+      wrangler:
+        specifier: catalog:cloudflare
+        version: 4.98.0(@cloudflare/workers-types@4.20260607.1)
 
   apps/document:
     dependencies:

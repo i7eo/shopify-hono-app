@@ -2,11 +2,10 @@ import { DEFAULT_RUNTIMES } from "@shamt/envs";
 import { z } from "zod";
 import { configSchema } from "@/configs";
 import { parseWithSchema } from "./shared";
-import type { CloudflareKvCacheStore } from "@/types";
 
 export const cloudflareIsolateConfigSchema = configSchema.extend({
   APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.CLOUDFLARE),
-  sofary: z.custom<CloudflareKvCacheStore>(
+  sofary: z.custom<Env["sofary"]>(
     (value) => {
       if (!value || typeof value !== "object") return false;
       const namespace = value as Partial<KVNamespace>;
@@ -28,6 +27,8 @@ export const vercelEdgeIsolateConfigSchema = configSchema.extend({
 });
 export const isolateConfigSchema = z.discriminatedUnion("APP_RUNTIME", [
   cloudflareIsolateConfigSchema,
+  // Reserved for future support. Vercel Edge currently has no runtime entry,
+  // platform bindings, or Shopify session storage strategy in this app.
   vercelEdgeIsolateConfigSchema,
 ]);
 
