@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { tokenExchange, verifySessionToken } from "@/shared/middlewares";
 import { ErrorSchema, ResponseSchema } from "@/shared/models";
-import { apiPath, tags } from "../constants";
+import { apiPath, tag } from "../constants";
 
 export const ShopifyShopDataSchema = z.object({
   shop: z.object({
@@ -24,7 +24,7 @@ export const getShopRoute = createRoute({
   method: "get",
   path: `${apiPath}/shop`,
   middleware: [verifySessionToken, tokenExchange] as const,
-  tags,
+  tags: [tag, `${tag}: Shop`],
   summary: "Shop info",
   description: "Fetch basic Shopify shop information for the embedded app.",
   responses: {

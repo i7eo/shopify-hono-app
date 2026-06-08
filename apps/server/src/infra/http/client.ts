@@ -1,5 +1,5 @@
 import { DEFAULT_REQUEST_TIMEOUT } from "@shamt/envs";
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 export function createClient() {
   return createHttpClient({

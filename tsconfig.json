@@ -8,6 +8,7 @@
 
     { "path": "./packages/cache" },
     { "path": "./packages/envs" },
+    { "path": "./packages/oh-my-fetch" },
     { "path": "./packages/utils" }
   ],
   "files": []

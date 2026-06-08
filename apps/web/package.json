@@ -40,6 +40,7 @@
     "globals": "^17.6.0",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:dx",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:test"
   }
 }

@@ -1,4 +1,4 @@
-# @shamt/ofetch
+# @shamt/oh-my-fetch
 
 <p><strong>中文</strong> | <a href="./README.md">English</a></p>
 
@@ -13,7 +13,7 @@
 
 ## 介绍
 
-`@shamt/ofetch` 是 workspace 的共享 HTTP client 包。它基于 `ky` 做了一层更适合项目使用的收口封装，补充请求体处理、query 序列化、响应解析、retry、timeout、业务 wrapper 校验、schema validation、dedupe 和统一请求错误。
+`@shamt/oh-my-fetch` 是 workspace 的共享 HTTP client 包。它基于 `ky` 做了一层更适合项目使用的收口封装，补充请求体处理、query 序列化、响应解析、retry、timeout、业务 wrapper 校验、schema validation、dedupe 和统一请求错误。
 
 这个包的目标是让 application service 代码保持成功路径：
 
@@ -25,7 +25,7 @@ const user = await api.get<User>("users/current");
 
 ## 设计与架构
 
-`@shamt/ofetch` 的设计原则：
+`@shamt/oh-my-fetch` 的设计原则：
 
 - 保留 `ky` 作为传输引擎，但只暴露 workspace 需要标准化的配置面。
 - URL 参数统一使用 `query`，请求体统一使用 `body`，避免直接散落 `searchParams`、`json`、`body` 等底层细节。
@@ -60,7 +60,7 @@ const user = await api.get<User>("users/current");
 创建通用 client：
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const api = createHttpClient({
   prefix: "/api",
@@ -81,7 +81,7 @@ const user = await api.get<User>("users/current");
 调用不使用 workspace success/error wrapper 的外部服务时，仍然使用同一个 factory，并通过配置关闭业务 wrapper 校验：
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const google = createHttpClient({
   timeout: 3_000,
@@ -102,7 +102,7 @@ const response = await google.get<Response>(
 调用使用 workspace wrapper 的内部 API 时，也使用同一个 factory。默认行为会把 `{ success: false }` 视为错误：
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const internalApi = createHttpClient({
   prefix: "/api",
@@ -116,7 +116,7 @@ const result = await internalApi.post("jobs", {
 使用 `businessStatusValidator` 处理自定义业务 code：
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const api = createHttpClient({
   prefix: "/api",
@@ -242,7 +242,7 @@ const result = await api.upload("assets", {
 所有归一化后的失败都会使用 `HttpRequestError` 表示：
 
 ```ts
-import { HttpRequestError } from "@shamt/ofetch";
+import { HttpRequestError } from "@shamt/oh-my-fetch";
 
 try {
   await api.get("users/current");
@@ -268,7 +268,7 @@ try {
 
 ## 运行时说明
 
-`@shamt/ofetch` 对 process-style 和 isolate-style runtime 都保持中立，只要运行时提供 Fetch-compatible API 即可。它可以用于 Node、Cloudflare Workers、Vercel 类 serverless 环境和浏览器。
+`@shamt/oh-my-fetch` 对 process-style 和 isolate-style runtime 都保持中立，只要运行时提供 Fetch-compatible API 即可。它可以用于 Node、Cloudflare Workers、Vercel 类 serverless 环境和浏览器。
 
 部分能力取决于具体运行时：
 

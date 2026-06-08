@@ -25,6 +25,7 @@
   "scripts": {
     "dev": "pnpm clean:cache && node --env-file=../../.env.development ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
     "build": "pnpm clean:cache && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.config.ts",
+    "test": "vitest run",
     "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
     "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",
     "clean": "run-p \"clean:**\"",
@@ -41,6 +42,7 @@
     "@unconfig/ts-config-latest": "catalog:dx",
     "rolldown": "catalog:dx",
     "rolldown-plugin-dts": "catalog:dx",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:test"
   }
 }

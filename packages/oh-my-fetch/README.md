@@ -1,4 +1,4 @@
-# @shamt/ofetch
+# @shamt/oh-my-fetch
 
 <p><a href="./README.zh-CN.md">中文</a> | <strong>English</strong></p>
 
@@ -13,7 +13,7 @@
 
 ## Overview
 
-`@shamt/ofetch` is the shared HTTP client package for the workspace. It wraps `ky` with a smaller project-facing API and adds common behavior for request bodies, query serialization, response parsing, retry, timeout, business wrapper checks, schema validation, dedupe, and normalized request errors.
+`@shamt/oh-my-fetch` is the shared HTTP client package for the workspace. It wraps `ky` with a smaller project-facing API and adds common behavior for request bodies, query serialization, response parsing, retry, timeout, business wrapper checks, schema validation, dedupe, and normalized request errors.
 
 The package is designed for application services that should read like a success path:
 
@@ -25,7 +25,7 @@ Transport failures, non-2xx responses, timeout errors, business wrapper failures
 
 ## Design and Architecture
 
-`@shamt/ofetch` follows these design principles:
+`@shamt/oh-my-fetch` follows these design principles:
 
 - Keep `ky` as the transport engine and expose only the options this workspace wants to standardize.
 - Use `query` for URL parameters and a single `body` field for request bodies instead of exposing `searchParams`, `json`, and `body` separately.
@@ -60,7 +60,7 @@ Outputs:
 Create a general client:
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const api = createHttpClient({
   prefix: "/api",
@@ -82,7 +82,7 @@ Use the same client factory for external services. Disable business wrapper
 validation when the upstream response does not use the workspace wrapper:
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const google = createHttpClient({
   timeout: 3_000,
@@ -104,7 +104,7 @@ Use the same factory for internal APIs. The default behavior treats
 `{ success: false }` as an error:
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const internalApi = createHttpClient({
   prefix: "/api",
@@ -118,7 +118,7 @@ const result = await internalApi.post("jobs", {
 Handle custom business codes with `businessStatusValidator`:
 
 ```ts
-import { createHttpClient } from "@shamt/ofetch";
+import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const api = createHttpClient({
   prefix: "/api",
@@ -248,7 +248,7 @@ const result = await api.upload("assets", {
 All normalized failures are represented as `HttpRequestError`:
 
 ```ts
-import { HttpRequestError } from "@shamt/ofetch";
+import { HttpRequestError } from "@shamt/oh-my-fetch";
 
 try {
   await api.get("users/current");
@@ -274,7 +274,7 @@ The `kind` field is stable and can be used by application-level adapters:
 
 ## Runtime Notes
 
-`@shamt/ofetch` is runtime-neutral for process-style and isolate-style runtimes as long as the runtime provides Fetch-compatible APIs. It can be used in Node, Cloudflare Workers, Vercel-like serverless environments, and browsers.
+`@shamt/oh-my-fetch` is runtime-neutral for process-style and isolate-style runtimes as long as the runtime provides Fetch-compatible APIs. It can be used in Node, Cloudflare Workers, Vercel-like serverless environments, and browsers.
 
 Some capabilities depend on the runtime:
 

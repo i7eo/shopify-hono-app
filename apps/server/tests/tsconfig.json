@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "lib": ["ES2022", "DOM"],
+    "rootDir": "..",
+    "types": ["node", "vitest", "@cloudflare/workers-types"],
+    "noEmit": true
+  },
+  "include": ["../vitest.config.ts", "./**/*.ts"],
+  "exclude": ["../dist/**/*", "../node_modules/**/*"]
+}
