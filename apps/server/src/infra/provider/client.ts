@@ -1,0 +1,51 @@
+import { createClient } from "@/infra/http/client";
+import { providerDisposers, providers } from "./constants";
+import { getEnvProvider } from "./env";
+import type { RuntimeConfig } from "@/infra/env";
+
+export type HttpClient = ReturnType<typeof createClient>;
+
+let clientProviderSignature: string | undefined;
+
+export function getClientProvider(config?: RuntimeConfig): HttpClient {
+  const clientConfig = config ?? getCurrentEnvProvider();
+
+  const signature = getClientProviderSignature(clientConfig);
+  if (!providers.has("client") || clientProviderSignature !== signature) {
+    setClientProvider(createClient(clientConfig), signature);
+  }
+
+  return providers.get("client") as HttpClient;
+}
+
+export function resetClientProvider() {
+  const client = providers.get("client") as HttpClient | undefined;
+  client?.dispose();
+  providers.delete("client");
+  providerDisposers.delete("client");
+  clientProviderSignature = undefined;
+}
+
+function setClientProvider(client: HttpClient, signature: string) {
+  const current = providers.get("client") as HttpClient | undefined;
+  if (current && current !== client) {
+    current.dispose();
+  }
+  providers.set("client", client);
+  clientProviderSignature = signature;
+  providerDisposers.set("client", resetClientProvider);
+}
+
+function getCurrentEnvProvider(): RuntimeConfig {
+  const env = providers.get("env") as RuntimeConfig | undefined;
+
+  if (env) return env;
+
+  return getEnvProvider();
+}
+
+function getClientProviderSignature(config: RuntimeConfig): string {
+  return [config.APP_RUNTIME, config.APP_ENV, config.APP_REQUEST_TIMEOUT]
+    .map((value) => String(value ?? ""))
+    .join(":");
+}

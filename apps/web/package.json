@@ -1,0 +1,46 @@
+{
+  "name": "@shamt/web",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "author": "i7eo",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
+    "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",
+    "clean": "run-p \"clean:**\"",
+    "clean:cache": "rimraf dist",
+    "clean:deps": "rimraf node_modules"
+  },
+  "dependencies": {
+    "react": "catalog:react",
+    "react-dom": "catalog:react"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@eslint/js": "^10.0.1",
+    "@rolldown/plugin-babel": "^0.2.3",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:react",
+    "@types/react-dom": "catalog:react",
+    "@unconfig/ts-config-latest": "catalog:dx",
+    "@vitejs/plugin-react": "catalog:react",
+    "babel-plugin-react-compiler": "catalog:react",
+    "eslint": "catalog:dx",
+    "eslint-plugin-react-hooks": "catalog:dx",
+    "eslint-plugin-react-refresh": "catalog:dx",
+    "globals": "^17.6.0",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:dx",
+    "vite": "catalog:",
+    "vitest": "catalog:test"
+  }
+}

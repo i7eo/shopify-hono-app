@@ -1,32 +1,63 @@
 {
-  "name": "shopify-hono-app",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@shamt/repository",
   "type": "module",
+  "private": true,
+  "description": "🚀 A modern high-performance monorepo project with hono + shopify app!",
+  "author": "i7eo",
+  "license": "MIT",
+  "keywords": [
+    "hono",
+    "monorepo",
+    "shopify",
+    "shopify app"
+  ],
   "scripts": {
-    "print-env": "node -e \"console.log('🚀 process =', process.env)\"",
+    "postinstall": "simple-git-hooks",
+    "dev:tunnel": "TUNNEL_TRANSPORT_PROTOCOL=http2 wrangler tunnel run sofary",
+    "dev:prepare": "tsx ./scripts/write-shopify-file/index.ts --env-file=./.env.development",
+    "app:dev": "pnpm dev:prepare && shopify app dev --tunnel-url=https://sofary-app-dev-server.i7eo.com:10101",
+    "deploy:prepare": "tsx ./scripts/write-shopify-file/index.ts --env-file=./.env.production",
+    "app:deploy": "pnpm deploy:prepare && shopify app deploy",
     "dev": "pnpm app:dev",
-    "app:dev": "pnpm shopify app dev",
-    "app:deploy": "pnpm shopify app deploy", 
-    "cf:dev": "pnpm print-env && pnpm wrangler dev --port \"$PORT\" --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\" --var \"SHOPIFY_APP_KEY:$SHOPIFY_APP_KEY\" --var \"SHOPIFY_APP_SECRET:$SHOPIFY_APP_SECRET\" --var \"SCOPES:$SCOPES\"",
-    "cf:deploy": "pnpm wrangler secret bulk .env.production && pnpm wrangler deploy",
-    "cf:type": "pnpm wrangler types",
-    "node:dev": "pnpm tsx src/index.ts --watch",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "hono": "^4.12.21"
+    "format": "pnpm -F \"*\" format",
+    "lint": "pnpm -F \"*\" lint",
+    "clean": "run-s \"clean:**\"",
+    "clean:workspace": "pnpm -F \"*\" clean",
+    "clean:cache": "rimraf pnpm-lock.yaml && rimraf node_modules",
+    "commit": "czg",
+    "upgrade:pkgs": "pnpm update -r --interactive --latest"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
-    "@cloudflare/workers-types": "latest",
-    "typescript": "^6.0.3",
-    "wrangler": "latest",
-    "@shopify/cli": "latest",
-    "tsx": "^4.22.3"
+    "@commitlint/cli": "catalog:dx",
+    "@commitlint/config-conventional": "catalog:dx",
+    "@commitlint/types": "catalog:dx",
+    "@manypkg/get-packages": "catalog:dx",
+    "@shopify/cli": "catalog:shopify",
+    "@sxzz/eslint-config": "catalog:dx",
+    "@types/node": "catalog:",
+    "@unconfig/stylelint-config": "catalog:dx",
+    "@unconfig/ts-config-latest": "catalog:dx",
+    "czg": "catalog:dx",
+    "eslint": "catalog:dx",
+    "lint-staged": "catalog:dx",
+    "npm-run-all2": "catalog:",
+    "prettier": "catalog:dx",
+    "prettier-plugin-tailwindcss": "catalog:dx",
+    "rimraf": "catalog:",
+    "simple-git-hooks": "catalog:dx",
+    "tsx": "catalog:dx",
+    "typescript": "catalog:",
+    "wrangler": "catalog:cloudflare"
   },
-  "engines": {
-    "node": ">=25",
-    "pnpm": ">=10"
+  "simple-git-hooks": {
+    "pre-commit": "lint-staged --concurrent false",
+    "commit-msg": "commitlint --edit $1"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": ">=11.0.0",
+      "onFail": "download"
+    }
   }
 }

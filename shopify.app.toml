@@ -2,22 +2,22 @@
 
 client_id = "fe68b5e4a88eab465983b36b0ddd33a5"
 name = "unmanual"
-application_url = "https://shopify-hono-app.i7eo.workers.dev"
+application_url = "https://sofary-app-dev-server.i7eo.com"
 embedded = true
-
-[webhooks]
-api_version = "2026-07"
-
-[access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_orders,read_products,write_products"
-
-[auth]
-redirect_urls = [
-  "https://shopify-hono-app.i7eo.workers.dev/auth/callback",
-  "https://shopify-hono-app.i7eo.workers.dev/auth/shopify/callback",
-  "https://shopify-hono-app.i7eo.workers.dev/api/auth/callback"
-]
 
 [build]
 automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products,write_products,read_orders"
+
+[auth]
+redirect_urls = [
+  "https://sofary-app-dev-server.i7eo.com/auth/callback",
+  "https://sofary-app-dev-server.i7eo.com/auth/shopify/callback",
+  "https://sofary-app-dev-server.i7eo.com/api/auth/callback"
+]

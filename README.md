@@ -1,6 +1,36 @@
 # Shopify Hono App
 
-A Shopify embedded app backend built with [Hono](https://hono.dev) and deployed to [Cloudflare Workers](https://developers.cloudflare.com/workers/). It implements the full Shopify OAuth flow, session token authentication, token exchange, webhook handling, and a minimal GraphQL API layer — all without external Shopify libraries.
+This repository contains a Shopify embedded app built for Cloudflare Workers
+with Hono, Shopify CLI, Wrangler, and a small set of shared TypeScript
+packages.
+
+It is organized as a pnpm monorepo. The app code lives under `apps/`, reusable
+runtime libraries live under `packages/`, and root scripts coordinate Shopify
+configuration, Cloudflare Tunnel, local development, formatting, linting, and
+deployment.
+
+## Workspace
+
+### Apps
+
+These packages are private application entry points.
+
+| Package                              | Version | Description                                                                             |
+| ------------------------------------ | ------- | --------------------------------------------------------------------------------------- |
+| [`@shamt/server`](./apps/server)     | `0.0.0` | Hono app for Shopify auth, embedded admin UI, API routes, webhooks, and Worker runtime. |
+| [`@shamt/web`](./apps/web#readme)    | `0.0.0` | Optional React and Vite frontend workspace.                                             |
+| [`@shamt/document`](./apps/document) | `0.0.0` | VitePress documentation app.                                                            |
+
+### Shared Runtime Packages
+
+These packages provide reusable framework-neutral building blocks for the apps.
+
+| Package                                               | Version | Description                                                                |
+| ----------------------------------------------------- | ------- | -------------------------------------------------------------------------- |
+| [`@shamt/utils`](./packages/utils#readme)             | `0.0.0` | Shared utility functions for JSON, dates, guards, cookies, trees, and ids. |
+| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Shared constants and Zod schemas for environment and runtime config.       |
+| [`@shamt/cache`](./packages/cache#readme)             | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.          |
+| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with retries, validation, and errors.  |
 
 ## Architecture
 
@@ -39,18 +69,18 @@ src/
 
 ## Routes
 
-| Method | Path                               | Auth                           | Description                           |
-| ------ | ---------------------------------- | ------------------------------ | ------------------------------------- |
-| `GET`  | `/auth`                            | None                           | Starts OAuth install flow             |
-| `GET`  | `/auth/callback`                   | HMAC-verified                  | Completes OAuth, stores offline token |
-| `GET`  | `/app`                             | `ensureInstalled`              | Serves embedded app HTML shell        |
-| `GET`  | `/api/shop`                        | Session token + token exchange | Returns shop name, email, domain      |
-| `GET`  | `/api/products`                    | Session token + token exchange | Lists first 5 products                |
-| `POST` | `/webhooks/app/uninstalled`        | Webhook HMAC                   | Cleans up session on uninstall        |
-| `POST` | `/webhooks/customers/data-request` | Webhook HMAC                   | GDPR customer data request            |
-| `POST` | `/webhooks/customers/redact`       | Webhook HMAC                   | GDPR customer data deletion           |
-| `POST` | `/webhooks/shop/redact`            | Webhook HMAC                   | GDPR shop data deletion               |
-| `GET`  | `/health`                          | None                           | Health check                          |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/auth` | None | Starts OAuth install flow |
+| `GET` | `/auth/callback` | HMAC-verified | Completes OAuth, stores offline token |
+| `GET` | `/app` | `ensureInstalled` | Serves embedded app HTML shell |
+| `GET` | `/api/shop` | Session token + token exchange | Returns shop name, email, domain |
+| `GET` | `/api/products` | Session token + token exchange | Lists first 5 products |
+| `POST` | `/webhooks/app/uninstalled` | Webhook HMAC | Cleans up session on uninstall |
+| `POST` | `/webhooks/customers/data-request` | Webhook HMAC | GDPR customer data request |
+| `POST` | `/webhooks/customers/redact` | Webhook HMAC | GDPR customer data deletion |
+| `POST` | `/webhooks/shop/redact` | Webhook HMAC | GDPR shop data deletion |
+| `GET` | `/health` | None | Health check |
 
 ## Prerequisites
 
@@ -65,12 +95,31 @@ src/
 ### 1. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
-### 2. Create and link a Shopify app
+### Environment Files
 
-Run the following command from the project root:
+Development values are read from `.env.development`. Production values are read
+from `.env.production`.
+
+The development file should include:
+
+```dotenv
+APP_ENV=development
+APP_RUNTIME=node
+APP__SERVER_PORT=10001
+APP__WEB_PORT=10002
+
+SHOPIFY_APP_KEY=...
+SHOPIFY_APP_SECRET=...
+SHOPIFY_APP_URL=https://sofary-app-dev-server.i7eo.com
+SHOPIFY_API_VERSION=2026-04
+SCOPES=read_products,write_products,read_orders
+```
+
+The root preparation script writes Shopify config values from the selected env
+file before local dev or deploy:
 
 ```bash
 shopify app config link
@@ -83,14 +132,14 @@ After linking, find your **Client Secret** in the [Shopify Dev Dashboard](https:
 ### 3. Create a KV namespace
 
 ```bash
-npx wrangler kv namespace create sofary
+npx wrangler kv namespace create SESSION_KV
 ```
 
 Copy the output `id` and update [wrangler.toml](wrangler.toml):
 
 ```toml
 [[kv_namespaces]]
-binding = "sofary"
+binding = "SESSION_KV"
 id = "your-actual-kv-namespace-id"
 ```
 
@@ -105,8 +154,8 @@ cp .dev.vars.example .dev.vars
 Edit `.dev.vars`:
 
 ```
-SHOPIFY_APP_KEY=your_app_client_id
-SHOPIFY_APP_SECRET=your_app_client_secret
+SHOPIFY_API_KEY=your_app_client_id
+SHOPIFY_API_SECRET=your_app_client_secret
 SHOPIFY_APP_URL=https://your-tunnel-url.trycloudflare.com
 SCOPES=read_products,write_products,read_orders
 ```
@@ -123,10 +172,10 @@ Edit [shopify.app.toml](shopify.app.toml) with your app's `client_id`. The `appl
 
 This project uses **two tools** during local development, and understanding their roles is key:
 
-| Tool            | Role                                                                                                                                                                         |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Wrangler**    | Runs the Cloudflare Worker locally (your actual app code), simulates KV bindings, reads `.dev.vars` for secrets                                                              |
-| **Shopify CLI** | Creates an HTTPS tunnel, updates your app's URLs in the Partner Dashboard, injects env vars (`SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`, `APP_URL`, etc.), opens your dev store |
+| Tool | Role |
+|------|------|
+| **Wrangler** | Runs the Cloudflare Worker locally (your actual app code), simulates KV bindings, reads `.dev.vars` for secrets |
+| **Shopify CLI** | Creates an HTTPS tunnel, updates your app's URLs in the Partner Dashboard, injects env vars (`SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `APP_URL`, etc.), opens your dev store |
 
 You do **not** run them separately. Shopify CLI starts Wrangler for you.
 
@@ -145,7 +194,7 @@ build = "npx wrangler deploy"
 When you run `shopify app dev`, Shopify CLI:
 
 1. Reads `shopify.web.toml` and finds the `dev` command
-2. Picks a port and sets `$PORT` (along with `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`, `APP_URL`, `SCOPES`, etc. as env vars)
+2. Picks a port and sets `$PORT` (along with `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `APP_URL`, `SCOPES`, etc. as env vars)
 3. Executes `npx wrangler dev --port $PORT` — starting your Worker on that port
 4. Opens a Cloudflare Quick Tunnel (HTTPS) pointing to that port
 5. Updates your app's URLs in the Shopify Partner Dashboard to match the tunnel
@@ -158,7 +207,6 @@ shopify app dev
 ```
 
 That's it. On first run it will prompt you to:
-
 - Select your Shopify Partner org
 - Select or create a development store
 - Confirm the app configuration
@@ -176,15 +224,15 @@ Shopify CLI keeps the tunnel alive and restarts Wrangler if it crashes.
 
 Shopify CLI automatically injects these env vars into the Wrangler process:
 
-| Variable                | Source                                                   |
-| ----------------------- | -------------------------------------------------------- |
-| `SHOPIFY_APP_KEY`       | From your app's Partner Dashboard config                 |
-| `SHOPIFY_APP_SECRET`    | From your app's Partner Dashboard config                 |
-| `APP_URL` / `HOST`      | The tunnel URL (e.g. `https://abc123.trycloudflare.com`) |
-| `SCOPES`                | From `shopify.app.toml`                                  |
-| `BACKEND_PORT` / `PORT` | The port Wrangler should listen on                       |
+| Variable | Source |
+|----------|--------|
+| `SHOPIFY_API_KEY` | From your app's Partner Dashboard config |
+| `SHOPIFY_API_SECRET` | From your app's Partner Dashboard config |
+| `APP_URL` / `HOST` | The tunnel URL (e.g. `https://abc123.trycloudflare.com`) |
+| `SCOPES` | From `shopify.app.toml` |
+| `BACKEND_PORT` / `PORT` | The port Wrangler should listen on |
 
-However, **Wrangler reads secrets from `.dev.vars`**, not from shell env vars. So you still need your `.dev.vars` file with `SHOPIFY_APP_KEY`, `SHOPIFY_APP_SECRET`, and `SCOPES`. The `SHOPIFY_APP_URL` in `.dev.vars` should be kept up to date — if the tunnel URL changes each session, you can either:
+However, **Wrangler reads secrets from `.dev.vars`**, not from shell env vars. So you still need your `.dev.vars` file with `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, and `SCOPES`. The `SHOPIFY_APP_URL` in `.dev.vars` should be kept up to date — if the tunnel URL changes each session, you can either:
 
 - Update `.dev.vars` each time with the new tunnel URL, or
 - Use `--use-localhost` mode (see below) for a stable URL
@@ -194,21 +242,16 @@ However, **Wrangler reads secrets from `.dev.vars`**, not from shell env vars. S
 If you don't want the tunnel URL to change each time, use localhost mode (requires Shopify CLI 3.80+):
 
 ```bash
-shopify app dev --use-localhost
+pnpm -F @shamt/server test
 ```
 
-This serves the app at `https://localhost:3458` with a self-signed certificate. The URL is stable across sessions. Note: webhooks and app proxies won't work in this mode since Shopify can't reach localhost.
-
-### Alternative: Wrangler only (no Shopify CLI)
-
-If you prefer to manage tunnels yourself:
+Build a shared package:
 
 ```bash
 npm run dev
 ```
 
 This runs `wrangler dev` on `http://localhost:8787`. You'll need to:
-
 - Set up your own tunnel (e.g. `cloudflared tunnel`, ngrok)
 - Manually update `SHOPIFY_APP_URL` in `.dev.vars` with the tunnel URL
 - Manually update `application_url` and `redirect_urls` in `shopify.app.toml`
@@ -216,55 +259,44 @@ This runs `wrangler dev` on `http://localhost:8787`. You'll need to:
 ### Type checking
 
 ```bash
-npm run typecheck
+pnpm -F @shamt/server cf:type
 ```
 
-### Regenerate Cloudflare types
+Clean workspace outputs:
 
 ```bash
-npm run cf-typegen
+pnpm clean
 ```
 
-## Production Deployment
+## Deployment
 
-### 1. Create the KV namespace (if not done)
+Prepare production config from `.env.production`:
 
 ```bash
-npx wrangler kv namespace create sofary
+npx wrangler kv namespace create SESSION_KV
 ```
 
-Update the `id` in [wrangler.toml](wrangler.toml) with the production namespace ID.
-
-### 2. Set production secrets
+Deploy the Shopify app configuration:
 
 ```bash
-npx wrangler secret put SHOPIFY_APP_KEY
-npx wrangler secret put SHOPIFY_APP_SECRET
+npx wrangler secret put SHOPIFY_API_KEY
+npx wrangler secret put SHOPIFY_API_SECRET
 npx wrangler secret put SHOPIFY_APP_URL
 npx wrangler secret put SCOPES
 ```
 
-Each command will prompt you to enter the secret value. `SHOPIFY_APP_URL` should be your production Worker URL (e.g., `https://shopify-hono-app.your-subdomain.workers.dev`) or a custom domain.
-
-### 3. Deploy
+Deploy the Worker from the server workspace:
 
 ```bash
-npm run deploy
+pnpm -F @shamt/server cf:deploy
 ```
 
-This runs `wrangler deploy`, which builds and publishes the Worker to Cloudflare.
-
-### 4. Update Shopify app settings
-
-In your Shopify Partner Dashboard (or in `shopify.app.toml`), set:
-
-- **App URL** to `https://your-worker.your-subdomain.workers.dev/app`
-- **Allowed redirection URL(s)** to `https://your-worker.your-subdomain.workers.dev/auth/callback`
-
-Then push the config:
+The server deploy command bulk-loads production secrets with Wrangler before
+deploying:
 
 ```bash
-shopify app deploy
+wrangler secret bulk ../../.env.production
+wrangler deploy
 ```
 
 ### 5. Configure webhooks
@@ -277,16 +309,16 @@ To use a custom domain instead of `*.workers.dev`, add a Custom Domain in the Cl
 
 ## Environment Variables
 
-| Variable              | Description                                                     |
-| --------------------- | --------------------------------------------------------------- |
-| `SHOPIFY_APP_KEY`     | App client ID from the Shopify Partner Dashboard                |
-| `SHOPIFY_APP_SECRET`  | App client secret                                               |
-| `SHOPIFY_APP_URL`     | Public URL of this Worker (no trailing slash)                   |
-| `SCOPES`              | Comma-separated Shopify access scopes                           |
+| Variable | Description |
+|----------|-------------|
+| `SHOPIFY_API_KEY` | App client ID from the Shopify Partner Dashboard |
+| `SHOPIFY_API_SECRET` | App client secret |
+| `SHOPIFY_APP_URL` | Public URL of this Worker (no trailing slash) |
+| `SCOPES` | Comma-separated Shopify access scopes |
 | `SHOPIFY_API_VERSION` | Shopify API version (set in `wrangler.toml`, default `2025-10`) |
 
 ## KV Bindings
 
-| Binding  | Purpose                                                      |
-| -------- | ------------------------------------------------------------ |
-| `sofary` | Stores offline tokens, online tokens, and OAuth state nonces |
+| Binding | Purpose |
+|---------|---------|
+| `SESSION_KV` | Stores offline tokens, online tokens, and OAuth state nonces |

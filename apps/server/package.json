@@ -1,0 +1,57 @@
+{
+  "name": "@shamt/server",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "author": "i7eo",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "cf:type": "wrangler types ./typings/cloudflare-worker-configuration.d.ts",
+    "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev --port \"$BACKEND_PORT\" --env-file ../../.env.development --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\"",
+    "cf:build": "rimraf dist/isolate/cloudflare && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.isolate-cloudflare.config.ts",
+    "cf:deploy": "wrangler secret bulk ../../.env.production && wrangler deploy",
+    "node:dev": "tsx watch --env-file=../../.env.development ./src/app/runtime/process/index.ts",
+    "node:build": "rimraf dist/process && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.process.config.ts",
+    "node:deploy": "",
+    "build": "pnpm cf:build && pnpm node:build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:view": "open coverage/index.html",
+    "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
+    "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",
+    "clean": "run-p \"clean:**\"",
+    "clean:cache": "rimraf dist",
+    "clean:deps": "rimraf node_modules"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "@hono/zod-openapi": "^1.4.0",
+    "@hono/zod-validator": "^0.8.0",
+    "@logtape/file": "^2.1.2",
+    "@logtape/logtape": "^2.1.2",
+    "@scalar/hono-api-reference": "^0.10.20",
+    "@shamt/cache": "workspace:*",
+    "@shamt/envs": "workspace:*",
+    "@shamt/oh-my-fetch": "workspace:*",
+    "@shamt/utils": "workspace:*",
+    "@shopify/shopify-api": "^13.0.0",
+    "@shopify/shopify-app-session-storage-kv": "^6.0.0",
+    "@shopify/shopify-app-session-storage-memory": "^6.0.0",
+    "hono": "catalog:hono",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:cloudflare",
+    "@types/node": "catalog:",
+    "@unconfig/ts-config-latest": "catalog:dx",
+    "@vitest/coverage-v8": "catalog:test",
+    "rolldown": "catalog:dx",
+    "rolldown-plugin-dts": "catalog:dx",
+    "typescript": "catalog:",
+    "vitest": "catalog:test",
+    "wrangler": "catalog:cloudflare"
+  }
+}

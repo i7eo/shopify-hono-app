@@ -33,24 +33,24 @@ The app shell includes two script tags in the `<head>`:
 
 ### Common components
 
-| Component | Use for |
-|-----------|---------|
-| `<s-page>` | Top-level page layout with heading |
-| `<s-section>` | Content sections within a page |
-| `<s-box>` | Custom padding, background, border |
-| `<s-text>` | Inline text with type/color variants |
-| `<s-heading>` | Section headings (auto-sizes by nesting depth) |
-| `<s-banner>` | Alerts, errors, info messages |
-| `<s-button>` | Actions (`variant="primary"`, `"secondary"`, `"tertiary"`) |
-| `<s-spinner>` | Loading indicators |
-| `<s-table>` | Data tables |
-| `<s-unordered-list>` / `<s-ordered-list>` | Lists |
-| `<s-badge>` | Status indicators |
-| `<s-modal>` | Dialogs |
-| `<s-text-field>` | Text inputs |
-| `<s-select>` | Dropdowns |
-| `<s-stack>` | Flex layout (inline/block with gap) |
-| `<s-grid>` | Grid layout |
+| Component                                 | Use for                                                    |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `<s-page>`                                | Top-level page layout with heading                         |
+| `<s-section>`                             | Content sections within a page                             |
+| `<s-box>`                                 | Custom padding, background, border                         |
+| `<s-text>`                                | Inline text with type/color variants                       |
+| `<s-heading>`                             | Section headings (auto-sizes by nesting depth)             |
+| `<s-banner>`                              | Alerts, errors, info messages                              |
+| `<s-button>`                              | Actions (`variant="primary"`, `"secondary"`, `"tertiary"`) |
+| `<s-spinner>`                             | Loading indicators                                         |
+| `<s-table>`                               | Data tables                                                |
+| `<s-unordered-list>` / `<s-ordered-list>` | Lists                                                      |
+| `<s-badge>`                               | Status indicators                                          |
+| `<s-modal>`                               | Dialogs                                                    |
+| `<s-text-field>`                          | Text inputs                                                |
+| `<s-select>`                              | Dropdowns                                                  |
+| `<s-stack>`                               | Flex layout (inline/block with gap)                        |
+| `<s-grid>`                                | Grid layout                                                |
 
 ### Scale system
 
