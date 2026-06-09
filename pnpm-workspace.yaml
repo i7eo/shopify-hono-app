@@ -67,7 +67,7 @@ catalogs:
     "tailwindcss": "^4.3.0"
     "@tailwindcss/vite": "^4.3.0"
   "hono":
-    "hono": "^4.12.23"
+    "hono": "^4.12.24"
   "shopify":
     "@shopify/cli": "^4.1.0"
   "test":
@@ -75,7 +75,7 @@ catalogs:
     "@vitest/ui": "^4.1.8"
     "@vitest/coverage-v8": "^4.1.8"
   "cloudflare":
-    "@cloudflare/workers-types": "^4.20260607.1"
+    "@cloudflare/workers-types": "^4.20260608.1"
     "wrangler": "^4.98.0"
 
 minimumReleaseAgeExclude:

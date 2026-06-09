@@ -260,8 +260,8 @@ settings:
 catalogs:
   cloudflare:
     "@cloudflare/workers-types":
-      specifier: ^4.20260607.1
-      version: 4.20260607.1
+      specifier: ^4.20260608.1
+      version: 4.20260608.1
     wrangler:
       specifier: ^4.98.0
       version: 4.98.0
@@ -347,8 +347,8 @@ catalogs:
       version: 8.60.1
   hono:
     hono:
-      specifier: ^4.12.23
-      version: 4.12.23
+      specifier: ^4.12.24
+      version: 4.12.24
   react:
     "@types/react":
       specifier: ^19.2.17
@@ -459,7 +459,7 @@ importers:
         version: 6.0.3
       wrangler:
         specifier: catalog:cloudflare
-        version: 4.98.0(@cloudflare/workers-types@4.20260607.1)
+        version: 4.98.0(@cloudflare/workers-types@4.20260608.1)
 
   apps/document:
     dependencies:
@@ -499,22 +499,22 @@ importers:
     dependencies:
       "@hono/node-server":
         specifier: ^2.0.4
-        version: 2.0.4(hono@4.12.23)
+        version: 2.0.4(hono@4.12.24)
       "@hono/zod-openapi":
         specifier: ^1.4.0
-        version: 1.4.0(hono@4.12.23)(zod@4.4.3)
+        version: 1.4.0(hono@4.12.24)(zod@4.4.3)
       "@hono/zod-validator":
         specifier: ^0.8.0
-        version: 0.8.0(hono@4.12.23)(zod@4.4.3)
+        version: 0.8.0(hono@4.12.24)(zod@4.4.3)
       "@logtape/file":
-        specifier: ^2.1.1
-        version: 2.1.1(@logtape/logtape@2.1.1)
+        specifier: ^2.1.2
+        version: 2.1.2(@logtape/logtape@2.1.2)
       "@logtape/logtape":
-        specifier: ^2.1.1
-        version: 2.1.1
+        specifier: ^2.1.2
+        version: 2.1.2
       "@scalar/hono-api-reference":
         specifier: ^0.10.20
-        version: 0.10.20(hono@4.12.23)
+        version: 0.10.20(hono@4.12.24)
       "@shamt/cache":
         specifier: workspace:*
         version: link:../../packages/cache
@@ -538,14 +538,14 @@ importers:
         version: 6.0.0(@shopify/shopify-api@13.0.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.0.0))
       hono:
         specifier: catalog:hono
-        version: 4.12.23
+        version: 4.12.24
       zod:
         specifier: "catalog:"
         version: 4.4.3
     devDependencies:
       "@cloudflare/workers-types":
         specifier: catalog:cloudflare
-        version: 4.20260607.1
+        version: 4.20260608.1
       "@types/node":
         specifier: "catalog:"
         version: 25.9.2
@@ -569,7 +569,7 @@ importers:
         version: 4.1.8(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       wrangler:
         specifier: catalog:cloudflare
-        version: 4.98.0(@cloudflare/workers-types@4.20260607.1)
+        version: 4.98.0(@cloudflare/workers-types@4.20260608.1)
 
   apps/web:
     dependencies:
@@ -1295,10 +1295,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  "@cloudflare/workers-types@4.20260607.1":
+  "@cloudflare/workers-types@4.20260608.1":
     resolution:
       {
-        integrity: sha512-TSiusluJ8+5esTMYwxGFuT1SNU/PRzPmt9VMsmAlzjIK0mhc24Zsc1bbGEVH5qyMZ8hrdRtrAPdt2+T8Vph2+Q==,
+        integrity: sha512-Yz90KXPZBB9K/AhsnLaA321s5+i5ZpWZRFbcGx9dWjyknQJXPAS1pK5CJSFEedwY6zoEr1cf2SkpBATL1idsWA==,
       }
 
   "@commitlint/cli@21.0.2":
@@ -2694,18 +2694,18 @@ packages:
         integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==,
       }
 
-  "@logtape/file@2.1.1":
+  "@logtape/file@2.1.2":
     resolution:
       {
-        integrity: sha512-AlT69oM1MEe1TV04go9s50/orHxc9n4fPu9MW7P5sG+hH55EDHJALd6D9zTEIm0PP4znR+XgTeml2ANnY2bkNw==,
+        integrity: sha512-FugIatbskz5g5DQl1xkOfuUlGSxflGXMGgDdDB8iIKaQWqrbAiuyw1zYcGrxZZFGIsifpcWhEKJYNom8q0YkQA==,
       }
     peerDependencies:
-      "@logtape/logtape": ^2.1.1
+      "@logtape/logtape": ^2.1.2
 
-  "@logtape/logtape@2.1.1":
+  "@logtape/logtape@2.1.2":
     resolution:
       {
-        integrity: sha512-aULbCqUQGerfOsZ3CMvcKtueKzmdchluXYUd3bIHKmOIS93fx1ko0+hyRQ4flloGZ8EiyRPydZXiy8n1J/eAQA==,
+        integrity: sha512-Qx+WVzN8V8IUF+VzOFrX9C5vxocpiS8YoE63EZtv9vZViMY3cDASSzwerNqjl2xqJqUZnn9nrcCL5QroqEEqcg==,
       }
 
   "@manypkg/find-root@3.1.0":
@@ -4642,6 +4642,18 @@ packages:
       typescript:
         optional: true
 
+  cosmiconfig@9.0.2:
+    resolution:
+      {
+        integrity: sha512-gtTZxTDau1wL7Y7zifc2dd8jHSK/k6BTx/2Xp/BpdlAdnlYWFVt7qhJqgwi7637yRwRQ3qL4ZidbB4I8tA5VOg==,
+      }
+    engines: { node: ">=14" }
+    peerDependencies:
+      typescript: ">=4.9.5"
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   cross-spawn@7.0.6:
     resolution:
       {
@@ -5680,10 +5692,10 @@ packages:
         integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==,
       }
 
-  hono@4.12.23:
+  hono@4.12.24:
     resolution:
       {
-        integrity: sha512-eIaZ9qDgu7XV0pxOCrg7/WhnQ6Ivm22UcxhXx/A3dcbqbbYgBEkc6e/J/s7j2tS96zoB0S9VBdLwQNCWwUo4LA==,
+        integrity: sha512-I36D1s+HgQc55KbhEr4iybfxv/9o1zdpw+XEM6dJa91LqQD0HCoSGdxpRJCZE+aavs87j4V3Ls2OJzq8C/U4iw==,
       }
     engines: { node: ">=16.9.0" }
 
@@ -8569,7 +8581,7 @@ snapshots:
   "@cloudflare/workerd-windows-64@1.20260603.1":
     optional: true
 
-  "@cloudflare/workers-types@4.20260607.1": {}
+  "@cloudflare/workers-types@4.20260608.1": {}
 
   "@commitlint/cli@21.0.2(@types/node@25.9.2)(conventional-commits-parser@6.4.0)(typescript@6.0.3)":
     dependencies:
@@ -9061,21 +9073,21 @@ snapshots:
       "@eslint/core": 1.2.1
       levn: 0.4.1
 
-  "@hono/node-server@2.0.4(hono@4.12.23)":
+  "@hono/node-server@2.0.4(hono@4.12.24)":
     dependencies:
-      hono: 4.12.23
+      hono: 4.12.24
 
-  "@hono/zod-openapi@1.4.0(hono@4.12.23)(zod@4.4.3)":
+  "@hono/zod-openapi@1.4.0(hono@4.12.24)(zod@4.4.3)":
     dependencies:
       "@asteasolutions/zod-to-openapi": 8.5.0(zod@4.4.3)
-      "@hono/zod-validator": 0.8.0(hono@4.12.23)(zod@4.4.3)
-      hono: 4.12.23
+      "@hono/zod-validator": 0.8.0(hono@4.12.24)(zod@4.4.3)
+      hono: 4.12.24
       openapi3-ts: 4.6.0
       zod: 4.4.3
 
-  "@hono/zod-validator@0.8.0(hono@4.12.23)(zod@4.4.3)":
+  "@hono/zod-validator@0.8.0(hono@4.12.24)(zod@4.4.3)":
     dependencies:
-      hono: 4.12.23
+      hono: 4.12.24
       zod: 4.4.3
 
   "@humanfs/core@0.19.2":
@@ -9228,11 +9240,11 @@ snapshots:
 
   "@keyv/serialize@1.1.1": {}
 
-  "@logtape/file@2.1.1(@logtape/logtape@2.1.1)":
+  "@logtape/file@2.1.2(@logtape/logtape@2.1.2)":
     dependencies:
-      "@logtape/logtape": 2.1.1
+      "@logtape/logtape": 2.1.2
 
-  "@logtape/logtape@2.1.1": {}
+  "@logtape/logtape@2.1.2": {}
 
   "@manypkg/find-root@3.1.0":
     dependencies:
@@ -9479,10 +9491,10 @@ snapshots:
 
   "@scalar/helpers@0.8.1": {}
 
-  "@scalar/hono-api-reference@0.10.20(hono@4.12.23)":
+  "@scalar/hono-api-reference@0.10.20(hono@4.12.24)":
     dependencies:
       "@scalar/client-side-rendering": 0.1.13
-      hono: 4.12.23
+      hono: 4.12.24
 
   "@scalar/schemas@0.3.3":
     dependencies:
@@ -10349,6 +10361,15 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  cosmiconfig@9.0.2(typescript@6.0.3):
+    dependencies:
+      env-paths: 2.2.1
+      import-fresh: 3.3.1
+      js-yaml: 4.2.0
+      parse-json: 5.2.0
+    optionalDependencies:
+      typescript: 6.0.3
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -11062,7 +11083,7 @@ snapshots:
     dependencies:
       hermes-estree: 0.25.1
 
-  hono@4.12.23: {}
+  hono@4.12.24: {}
 
   hookable@5.5.3: {}
 
@@ -12258,7 +12279,7 @@ snapshots:
       "@dual-bundle/import-meta-resolve": 4.2.1
       balanced-match: 2.0.0
       colord: 2.9.3
-      cosmiconfig: 9.0.1(typescript@6.0.3)
+      cosmiconfig: 9.0.2(typescript@6.0.3)
       css-functions-list: 3.3.3
       css-tree: 3.2.1
       debug: 4.4.3
@@ -12596,7 +12617,7 @@ snapshots:
       "@cloudflare/workerd-linux-arm64": 1.20260603.1
       "@cloudflare/workerd-windows-64": 1.20260603.1
 
-  wrangler@4.98.0(@cloudflare/workers-types@4.20260607.1):
+  wrangler@4.98.0(@cloudflare/workers-types@4.20260608.1):
     dependencies:
       "@cloudflare/kv-asset-handler": 0.5.0
       "@cloudflare/unenv-preset": 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260603.1)
@@ -12607,7 +12628,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20260603.1
     optionalDependencies:
-      "@cloudflare/workers-types": 4.20260607.1
+      "@cloudflare/workers-types": 4.20260608.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil
