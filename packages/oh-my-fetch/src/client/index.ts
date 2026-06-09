@@ -1,85 +1,117 @@
-import { deserializeValue } from "@shamt/utils";
 import ky, { type Input, type KyInstance, type Options } from "ky";
-import {
-  normalizeHttpError,
-  redactHttpRequestConfig,
-  validateBusinessResult,
-} from "../errors";
-import {
-  appendTimestamp,
-  createSearchParams,
-  createUrlEncodedBody,
-  normalizeRequestData,
-} from "../utils";
-import { validateWithSchema } from "../validation";
+import { applyRequestBody, disableUnsafeBodyRetry } from "../core/body";
+import { mergeHeaders } from "../core/headers";
+import { appendTimestamp, createSearchParams } from "../core/query";
+import { createJsonParser, parseResponseBody } from "../core/response";
+import { normalizeHttpError, redactHttpRequestConfig } from "../errors";
+import { createAbortReason } from "../lifecycle/abort";
+import { createDedupeManager, type DedupeManager } from "../lifecycle/dedupe";
+import { RequestScope } from "../lifecycle/disposable";
+import { validationPlugin } from "../plugins";
 import {
   BODYLESS_METHODS,
   DEFAULT_BEHAVIOR,
   DEFAULT_RETRY,
   KY_HOOK_NAMES,
-  UNSAFE_JSON_KEYS,
 } from "./constants";
 import type {
-  DedupeOption,
   HttpClientOptions,
   HttpMethod,
+  HttpPlugin,
   HttpRequestConfig,
   InferSchemaOutput,
   ParsedHttpResponse,
+  RequestContext,
   UploadFileParams,
   ValidationSchema,
 } from "../utils/types";
 import type {
   BodyResponseConfig,
-  HeaderSource,
   KyHooks,
-  ParseJson,
-  PendingRequest,
   ResolvedRequestBehavior,
   ResponseConfig,
 } from "./types";
 
-type FetchBody = NonNullable<Options["body"]>;
-
 /**
- * Lightweight ky-based HTTP client with typed body, query, upload, parsing,
- * business wrapper validation, and request dedupe behavior.
+ * Generic ky-based HTTP client with plugin-driven policies and scoped cleanup.
+ *
+ * @example
+ * ```ts
+ * const client = new HttpClient({ prefix: "/api" });
+ * const user = await client.get<User>("users/current");
+ * ```
  */
 export class HttpClient {
   private readonly client: KyInstance;
   private readonly options: HttpClientOptions;
-  private readonly pendingRequests = new Map<string, AbortController>();
+  private readonly plugins: readonly HttpPlugin[];
+  private readonly dedupeManager: DedupeManager;
+  private disposed = false;
 
-  /** Create a client and apply ky defaults plus wrapper behavior defaults. */
+  /**
+   * Create a client with transport defaults, plugins, and dependency injection.
+   *
+   * @example
+   * ```ts
+   * const client = new HttpClient({
+   *   deps: { fetch: customFetch },
+   *   plugins: [requestFormatPlugin()],
+   * });
+   * ```
+   */
   constructor(options: HttpClientOptions = {}) {
-    const { defaults, hooks, kyHooks, ...kyOptions } = options;
-    const parseJson = kyOptions.parseJson ?? safeJsonParse;
+    const { defaults, hooks, kyHooks, plugins, deps, ...kyOptions } = options;
+    const behavior = {
+      ...DEFAULT_BEHAVIOR,
+      ...defaults,
+    };
+    const parseJson =
+      kyOptions.parseJson ?? createJsonParser(behavior.jsonSecurity);
+
     this.options = {
       ...options,
       parseJson,
-      defaults: {
-        ...DEFAULT_BEHAVIOR,
-        ...defaults,
-      },
+      defaults: behavior,
     };
+    this.plugins = [validationPlugin(), ...(plugins || [])];
+    this.dedupeManager = createDedupeManager();
     this.client = ky.create({
       ...kyOptions,
+      fetch: deps?.fetch ?? kyOptions.fetch,
       parseJson,
       retry: kyOptions.retry ?? DEFAULT_RETRY,
       hooks: kyHooks,
     });
   }
 
-  /** Expose the underlying ky instance for callers that need native ky APIs. */
+  /**
+   * Access the underlying ky instance for native ky APIs.
+   *
+   * @example
+   * ```ts
+   * const response = await client.ky("https://example.com");
+   * ```
+   */
   get ky(): KyInstance {
     return this.client;
   }
 
-  /** Create a new client by merging defaults, headers, and hooks. */
+  /**
+   * Create a child client by merging defaults, headers, hooks, and plugins.
+   *
+   * @example
+   * ```ts
+   * const adminApi = client.extend({ prefix: "/admin" });
+   * ```
+   */
   extend(options: HttpClientOptions): HttpClient {
     return new HttpClient({
       ...this.options,
       ...options,
+      deps: {
+        ...this.options.deps,
+        ...options.deps,
+      },
       headers: mergeHeaders(this.options.headers, options.headers),
       defaults: {
         ...this.options.defaults,
@@ -89,15 +121,50 @@ export class HttpClient {
         ...this.options.hooks,
         ...options.hooks,
       },
+      plugins: [...this.plugins, ...(options.plugins || [])],
       kyHooks: mergeKyHooks(this.options.kyHooks, options.kyHooks),
     });
   }
 
-  /** Send a GET request; URL parameters should be passed through `query`. */
+  /**
+   * Dispose client-owned resources and abort pending dedupe requests.
+   *
+   * @example
+   * ```ts
+   * const client = createHttpClient();
+   * client.dispose();
+   * ```
+   */
+  dispose(): void {
+    this.disposed = true;
+    this.dedupeManager.dispose();
+    this.plugins.forEach((plugin) => plugin.dispose?.());
+  }
+
+  /**
+   * Abort all currently pending dedupe-managed requests.
+   *
+   * @example
+   * ```ts
+   * client.abortAll("Route changed");
+   * ```
+   */
+  abortAll(reason?: string): void {
+    this.dedupeManager.abortAll(reason);
+  }
+
   get<TSchema extends ValidationSchema>(
     input: Input,
     config: ResponseConfig<TSchema>,
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Send a GET request with optional query, parsing, and validation config.
+   *
+   * @example
+   * ```ts
+   * const users = await client.get<User[]>("/users", { query: { page: 1 } });
+   * ```
+   */
   get<T = unknown>(
     input: Input,
     config?: Omit<HttpRequestConfig<unknown, T>, "body" | "method">,
@@ -112,12 +179,19 @@ export class HttpClient {
     } as HttpRequestConfig<unknown, T>);
   }
 
-  /** Send a POST request with JSON-like data, FormData, URLSearchParams, or Fetch body data. */
   post<TSchema extends ValidationSchema, TBody = unknown>(
     input: Input,
     body: TBody,
     config: BodyResponseConfig<TBody, TSchema>,
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Send a POST request with a JSON-like or Fetch-compatible body.
+   *
+   * @example
+   * ```ts
+   * const user = await client.post<User>("/users", { name: "Ada" });
+   * ```
+   */
   post<T = unknown, TBody = unknown>(
     input: Input,
     body?: TBody,
@@ -135,12 +209,19 @@ export class HttpClient {
     } as HttpRequestConfig<TBody, T>);
   }
 
-  /** Send a PUT request. */
   put<TSchema extends ValidationSchema, TBody = unknown>(
     input: Input,
     body: TBody,
     config: BodyResponseConfig<TBody, TSchema>,
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Send a PUT request with a JSON-like or Fetch-compatible body.
+   *
+   * @example
+   * ```ts
+   * await client.put("/users/1", { name: "Ada" });
+   * ```
+   */
   put<T = unknown, TBody = unknown>(
     input: Input,
     body?: TBody,
@@ -158,12 +239,19 @@ export class HttpClient {
     } as HttpRequestConfig<TBody, T>);
   }
 
-  /** Send a PATCH request. */
   patch<TSchema extends ValidationSchema, TBody = unknown>(
     input: Input,
     body: TBody,
     config: BodyResponseConfig<TBody, TSchema>,
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Send a PATCH request with a JSON-like or Fetch-compatible body.
+   *
+   * @example
+   * ```ts
+   * await client.patch("/users/1", { name: "Ada" });
+   * ```
+   */
   patch<T = unknown, TBody = unknown>(
     input: Input,
     body?: TBody,
@@ -181,11 +269,18 @@ export class HttpClient {
     } as HttpRequestConfig<TBody, T>);
   }
 
-  /** Send a DELETE request. */
   delete<TSchema extends ValidationSchema>(
     input: Input,
     config: ResponseConfig<TSchema>,
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Send a DELETE request.
+   *
+   * @example
+   * ```ts
+   * await client.delete("/users/1");
+   * ```
+   */
   delete<T = unknown>(
     input: Input,
     config?: Omit<HttpRequestConfig<unknown, T>, "body" | "method">,
@@ -200,15 +295,23 @@ export class HttpClient {
     } as HttpRequestConfig<unknown, T>);
   }
 
-  /**
-   * Upload a File or Blob with FormData.
-   * Do not set Content-Type manually because Fetch must generate the boundary.
-   */
   upload<TSchema extends ValidationSchema>(
     input: Input,
     params: UploadFileParams,
     config: BodyResponseConfig<FormData, TSchema>,
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Upload a Blob or File with FormData while leaving boundaries to Fetch.
+   *
+   * @example
+   * ```ts
+   * await client.upload("/assets", {
+   *   file,
+   *   fieldName: "image",
+   *   filename: "cover.png",
+   * });
+   * ```
+   */
   upload<T = unknown>(
     input: Input,
     params: UploadFileParams,
@@ -243,16 +346,20 @@ export class HttpClient {
     } as HttpRequestConfig<FormData, T>);
   }
 
-  /**
-   * Low-level request entry for uncommon methods or full option control.
-   * Prefer get/post/put/patch/delete/upload for regular calls.
-   */
   request<TSchema extends ValidationSchema, TBody = unknown>(
     input: Input,
     config: HttpRequestConfig<TBody, InferSchemaOutput<TSchema>> & {
       responseSchema: TSchema;
     },
   ): Promise<InferSchemaOutput<TSchema>>;
+  /**
+   * Send a low-level request when helper methods do not fit.
+   *
+   * @example
+   * ```ts
+   * const text = await client.request<string>("/health", { responseType: "text" });
+   * ```
+   */
   request<T = unknown, TBody = unknown>(
     input: Input,
     config?: HttpRequestConfig<TBody, T>,
@@ -261,86 +368,161 @@ export class HttpClient {
     input: Input,
     config: HttpRequestConfig<TBody, T> = {},
   ): Promise<T> {
+    const scope = new RequestScope();
     let requestConfig = this.resolveConfig(config);
-    const context = { input, config: requestConfig };
-    let pendingRequest: PendingRequest | undefined;
+    const context: RequestContext<TBody, T> = {
+      input,
+      config: requestConfig,
+      state: new Map(),
+    };
 
     try {
-      if (this.options.hooks?.beforeRequest) {
-        requestConfig =
-          (await this.options.hooks.beforeRequest(requestConfig, context)) ||
-          requestConfig;
-        context.config = requestConfig;
-      }
-
-      requestConfig = await this.validateRequestBody(requestConfig);
+      this.throwIfDisposed();
+      requestConfig = await this.runBeforeRequest(requestConfig, context);
       context.config = requestConfig;
+      this.throwIfDisposed();
 
       const behavior = this.resolveBehavior(requestConfig);
       const kyOptions = this.toKyOptions(requestConfig, behavior);
-      pendingRequest = this.registerPendingRequest(
-        input,
-        kyOptions,
-        behavior.dedupe,
-      );
+      this.dedupeManager.register(input, kyOptions, behavior.dedupe, scope);
 
       const response = await this.client(input, kyOptions);
-      this.clearPendingRequest(pendingRequest);
-      pendingRequest = undefined;
-
       let parsedResponse = await this.createParsedResponse<T>(
         response,
         requestConfig,
         behavior,
       );
 
-      if (this.options.hooks?.afterResponse) {
-        parsedResponse =
-          (await this.options.hooks.afterResponse(parsedResponse, context)) ||
-          parsedResponse;
-      }
+      parsedResponse = await this.runAfterResponse(parsedResponse, context);
 
       if (behavior.responseType === "response") {
         return parsedResponse as T;
       }
       return parsedResponse.data as T;
     } catch (error) {
-      this.clearPendingRequest(pendingRequest);
       const normalizedError = normalizeHttpError(error, requestConfig);
-      await this.notifyErrorMessage(normalizedError, context);
-
-      if (this.options.hooks?.beforeError) {
-        const nextError = await this.options.hooks.beforeError(
-          normalizedError,
-          context,
-        );
-        throw nextError || normalizedError;
-      }
-
-      throw normalizedError;
+      const nextError = await this.runBeforeError(normalizedError, context);
+      throw nextError || normalizedError;
+    } finally {
+      scope.dispose();
     }
   }
 
-  /** Validate the request body and use transformed schema output as the final body. */
-  private async validateRequestBody<TBody, TResponse>(
+  /**
+   * Throw an abort reason when a disposed client is used.
+   *
+   * @example
+   * ```ts
+   * client.dispose();
+   * // Subsequent requests fail before transport starts.
+   * ```
+   */
+  private throwIfDisposed(): void {
+    if (this.disposed) {
+      throw createAbortReason("HTTP client disposed");
+    }
+  }
+
+  /**
+   * Run beforeRequest hooks and plugins in deterministic order.
+   *
+   * @example
+   * ```ts
+   * await this.runBeforeRequest(config, context);
+   * ```
+   */
+  private async runBeforeRequest<TBody, TResponse>(
     config: HttpRequestConfig<TBody, TResponse>,
+    context: RequestContext<TBody, TResponse>,
   ): Promise<HttpRequestConfig<TBody, TResponse>> {
-    if (!config.bodySchema) {
-      return config;
+    let nextConfig = config;
+
+    if (this.options.hooks?.beforeRequest) {
+      nextConfig =
+        (await this.options.hooks.beforeRequest(nextConfig, context)) ||
+        nextConfig;
+      context.config = nextConfig;
     }
 
-    const body = await validateWithSchema(config.bodySchema, config.body, {
-      target: "request",
-      config,
-    });
+    for (const plugin of this.plugins) {
+      if (!plugin.beforeRequest) {
+        continue;
+      }
+      nextConfig =
+        (await plugin.beforeRequest(nextConfig, context)) || nextConfig;
+      context.config = nextConfig;
+    }
 
-    return {
-      ...config,
-      body: body as TBody,
-    };
+    return nextConfig;
   }
 
-  /** Normalize one request config so headers can be safely merged and edited. */
+  /**
+   * Run afterResponse plugins and hooks after the body has been parsed.
+   *
+   * @example
+   * ```ts
+   * const response = await this.runAfterResponse(parsed, context);
+   * ```
+   */
+  private async runAfterResponse<T>(
+    response: ParsedHttpResponse<T>,
+    context: RequestContext,
+  ): Promise<ParsedHttpResponse<T>> {
+    let nextResponse = response;
+
+    for (const plugin of this.plugins) {
+      if (!plugin.afterResponse) {
+        continue;
+      }
+      nextResponse =
+        (await plugin.afterResponse(nextResponse, context)) || nextResponse;
+    }
+
+    if (this.options.hooks?.afterResponse) {
+      nextResponse =
+        (await this.options.hooks.afterResponse(nextResponse, context)) ||
+        nextResponse;
+    }
+
+    return nextResponse;
+  }
+
+  /**
+   * Run error plugins and hooks before throwing the final error.
+   *
+   * @example
+   * ```ts
+   * const mapped = await this.runBeforeError(error, context);
+   * ```
+   */
+  private async runBeforeError(
+    error: Error,
+    context: RequestContext,
+  ): Promise<Error | void> {
+    let nextError = error;
+
+    for (const plugin of this.plugins) {
+      if (!plugin.beforeError) {
+        continue;
+      }
+      nextError = (await plugin.beforeError(nextError, context)) || nextError;
+    }
+
+    if (this.options.hooks?.beforeError) {
+      return this.options.hooks.beforeError(nextError, context);
+    }
+
+    return nextError;
+  }
+
+  /**
+   * Normalize one request config before plugins can inspect or mutate it.
+   *
+   * @example
+   * ```ts
+   * const config = this.resolveConfig({ headers: { accept: "application/json" } });
+   * ```
+   */
   private resolveConfig<TBody, TResponse>(
     config: HttpRequestConfig<TBody, TResponse>,
   ): HttpRequestConfig<TBody, TResponse> {
@@ -350,7 +532,14 @@ export class HttpClient {
     };
   }
 
-  /** Merge client defaults with request-level behavior. */
+  /**
+   * Merge per-request behavior with client defaults.
+   *
+   * @example
+   * ```ts
+   * const behavior = this.resolveBehavior({ responseType: "text" });
+   * ```
+   */
   private resolveBehavior(config: HttpRequestConfig): ResolvedRequestBehavior {
     const defaults = this.options.defaults || {};
 
@@ -359,24 +548,24 @@ export class HttpClient {
         config.responseType ??
         defaults.responseType ??
         DEFAULT_BEHAVIOR.responseType,
-      validateBusinessStatus:
-        config.validateBusinessStatus ??
-        defaults.validateBusinessStatus ??
-        DEFAULT_BEHAVIOR.validateBusinessStatus,
       timestamp:
         config.timestamp ?? defaults.timestamp ?? DEFAULT_BEHAVIOR.timestamp,
-      formatRequestData:
-        config.formatRequestData ??
-        defaults.formatRequestData ??
-        DEFAULT_BEHAVIOR.formatRequestData,
       dedupe: config.dedupe ?? defaults.dedupe ?? DEFAULT_BEHAVIOR.dedupe,
-      businessStatusValidator:
-        config.businessStatusValidator ?? defaults.businessStatusValidator,
-      onErrorMessage: config.onErrorMessage ?? defaults.onErrorMessage,
+      jsonSecurity:
+        config.jsonSecurity ??
+        defaults.jsonSecurity ??
+        DEFAULT_BEHAVIOR.jsonSecurity,
     };
   }
 
-  /** Convert wrapper config into ky options, including query, body, retry, and method. */
+  /**
+   * Convert public request config into ky options.
+   *
+   * @example
+   * ```ts
+   * const options = this.toKyOptions(config, behavior);
+   * ```
+   */
   private toKyOptions(
     config: HttpRequestConfig,
     behavior: ResolvedRequestBehavior,
@@ -385,15 +574,12 @@ export class HttpClient {
     const {
       body,
       dedupe,
-      formatRequestData,
       query,
       responseType,
       bodySchema,
       responseSchema,
-      businessStatusValidator,
-      onErrorMessage,
       timestamp,
-      validateBusinessStatus,
+      jsonSecurity,
       ...kyOptions
     } = config;
     const method = (kyOptions.method || "GET") as HttpMethod;
@@ -406,6 +592,10 @@ export class HttpClient {
       ...kyOptions,
       headers,
       method,
+      parseJson:
+        kyOptions.parseJson ??
+        this.options.parseJson ??
+        createJsonParser(behavior.jsonSecurity),
     };
 
     if (searchParams) {
@@ -413,379 +603,67 @@ export class HttpClient {
     }
 
     if (!BODYLESS_METHODS.has(method) && body !== undefined) {
-      const payload = this.applyBody(options, body, behavior, headers);
-      this.disableUnsafeBodyRetry(options, payload, hasExplicitRetry);
+      const payload = applyRequestBody(options, body, headers);
+      disableUnsafeBodyRetry(options, payload, hasExplicitRetry);
     }
 
     return options;
   }
 
-  /** Choose ky body or json mode based on the payload type. */
-  private applyBody(
-    options: Options,
-    body: unknown,
-    behavior: ResolvedRequestBehavior,
-    headers: Headers,
-  ): unknown {
-    const payload = behavior.formatRequestData
-      ? normalizeRequestData(body)
-      : body;
-
-    if (isBodyInit(payload)) {
-      options.body = payload;
-      // ky treats "undefined" as a deletion marker when merging Headers.
-      // This avoids a default JSON content-type breaking FormData boundaries.
-      if (isBoundaryManagedBody(payload) && !headers.has("content-type")) {
-        headers.set("content-type", "undefined");
-      }
-      return payload;
-    }
-
-    if (
-      headers.get("content-type")?.includes("application/x-www-form-urlencoded")
-    ) {
-      options.body = createUrlEncodedBody(payload);
-      return options.body;
-    }
-
-    options.json = payload;
-    return payload;
-  }
-
-  /** Disable inherited retries for streaming bodies and upload progress cases. */
-  private disableUnsafeBodyRetry(
-    options: Options,
-    payload: unknown,
-    hasExplicitRetry: boolean,
-  ) {
-    if (hasExplicitRetry || !shouldDisableInheritedRetry(payload, options)) {
-      return;
-    }
-
-    // ky copies request bodies for retries; streaming uploads should avoid that.
-    options.retry = { limit: 0 };
-  }
-
-  /** Parse the response, validate business wrappers, and apply response schema. */
+  /**
+   * Attach parsed data and redacted config to the Fetch Response object.
+   *
+   * @example
+   * ```ts
+   * const parsed = await this.createParsedResponse(response, config, behavior);
+   * parsed.config; // redacted request config
+   * ```
+   */
   private async createParsedResponse<T>(
     response: Response,
     config: HttpRequestConfig,
     behavior: ResolvedRequestBehavior,
   ): Promise<ParsedHttpResponse<T>> {
-    let data =
+    const data =
       behavior.responseType === "response"
         ? response
         : await parseResponseBody(
             response,
             behavior.responseType,
-            config.parseJson ?? this.options.parseJson ?? safeJsonParse,
+            config.parseJson ??
+              this.options.parseJson ??
+              createJsonParser(behavior.jsonSecurity),
             config.method,
           );
-
-    if (
-      behavior.validateBusinessStatus &&
-      behavior.responseType !== "response"
-    ) {
-      validateBusinessResult(
-        data,
-        response,
-        config,
-        behavior.businessStatusValidator,
-      );
-    }
-
-    if (config.responseSchema && behavior.responseType !== "response") {
-      data = await validateWithSchema(config.responseSchema, data, {
-        target: "response",
-        config,
-        response,
-      });
-    }
 
     return Object.assign(response, {
       data,
       config: redactHttpRequestConfig(config),
     }) as ParsedHttpResponse<T>;
   }
-
-  /** Register dedupe control and abort the previous request with the same key. */
-  private registerPendingRequest(
-    input: Input,
-    options: Options,
-    dedupe: DedupeOption | undefined,
-  ): PendingRequest | undefined {
-    if (!dedupe) {
-      return undefined;
-    }
-
-    const method = String(options.method || "GET").toUpperCase() as HttpMethod;
-    if (dedupe === true && !BODYLESS_METHODS.has(method)) {
-      return undefined;
-    }
-
-    const key =
-      typeof dedupe === "string" ? dedupe : createDedupeKey(input, options);
-    this.pendingRequests
-      .get(key)
-      ?.abort(createAbortReason("Duplicate request canceled"));
-
-    const controller = new AbortController();
-    options.signal = combineSignals([options.signal, controller.signal]);
-    this.pendingRequests.set(key, controller);
-    return { key, controller };
-  }
-
-  /** Clear this request's dedupe entry without deleting a newer controller. */
-  private clearPendingRequest(pendingRequest?: PendingRequest) {
-    if (!pendingRequest) {
-      return;
-    }
-    if (
-      this.pendingRequests.get(pendingRequest.key) === pendingRequest.controller
-    ) {
-      this.pendingRequests.delete(pendingRequest.key);
-    }
-  }
-
-  /** Notify application code about a normalized error message without masking the request error. */
-  private async notifyErrorMessage(
-    error: Error,
-    context: { input: Input; config: HttpRequestConfig },
-  ) {
-    const handler =
-      context.config.onErrorMessage ?? this.options.defaults?.onErrorMessage;
-    if (!handler || !error.message) {
-      return;
-    }
-
-    try {
-      await handler(error.message, { ...context, error });
-    } catch {
-      // UI notification failures must not replace the original request error.
-    }
-  }
 }
 
-/** Create an HttpClient with optional configuration. */
+/**
+ * Create an HttpClient with optional defaults, plugins, and dependencies.
+ *
+ * @example
+ * ```ts
+ * const client = createHttpClient({ prefix: "/api" });
+ * ```
+ */
 export function createHttpClient(options?: HttpClientOptions): HttpClient {
   return new HttpClient(options);
 }
 
-/** Read the response body by responseType and handle empty responses. */
-async function parseResponseBody(
-  response: Response,
-  responseType = "json",
-  parseJson: ParseJson = safeJsonParse,
-  method: HttpMethod = "GET",
-): Promise<unknown> {
-  if (response.status === 204) {
-    return null;
-  }
-
-  switch (responseType) {
-    case "arrayBuffer":
-      return response.arrayBuffer();
-    case "blob":
-      return response.blob();
-    case "formData":
-      return response.formData();
-    case "text":
-      return response.text();
-    case "json": {
-      const text = await response.text();
-      return text
-        ? parseJson(text, createJsonParseContext(response, method))
-        : null;
-    }
-    default:
-      return response;
-  }
-}
-
-/** Safely parse JSON and drop keys that can participate in prototype pollution. */
-function safeJsonParse(text: string): unknown {
-  const value = deserializeValue(text);
-  if (value === undefined) {
-    throw new SyntaxError("Invalid JSON response");
-  }
-  return sanitizeJsonValue(value);
-}
-
-/** Recursively remove unsafe JSON keys after shared JSON parsing. */
-function sanitizeJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sanitizeJsonValue);
-  }
-  if (!isPlainRecord(value)) {
-    return value;
-  }
-
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => !UNSAFE_JSON_KEYS.has(key))
-      .map(([key, item]) => [key, sanitizeJsonValue(item)]),
-  );
-}
-
-/** Create the context object passed to ky-compatible parseJson functions. */
-function createJsonParseContext(
-  response: Response,
-  method: HttpMethod,
-): Parameters<ParseJson>[1] {
-  return {
-    request: createSyntheticRequest(response, method),
-    response,
-  };
-}
-
-/** Create a lightweight Request for custom JSON parsers that need method and URL. */
-function createSyntheticRequest(
-  response: Response,
-  method: HttpMethod,
-): Request {
-  try {
-    return new Request(response.url || "http://localhost/", { method });
-  } catch {
-    return new Request("http://localhost/", { method });
-  }
-}
-
-/** Create a stable dedupe key from URL, method, baseUrl/prefix, and query. */
-function createDedupeKey(input: Input, options: Options): string {
-  const searchParams =
-    options.searchParams instanceof URLSearchParams
-      ? options.searchParams.toString()
-      : String(options.searchParams || "");
-  return [
-    options.method || "GET",
-    options.prefix || "",
-    options.baseUrl || "",
-    getInputKey(input),
-    searchParams,
-  ].join(" ");
-}
-
-/** Convert ky-supported input into a stable string key. */
-function getInputKey(input: Input): string {
-  if (input instanceof Request) {
-    return input.url;
-  }
-  if (input instanceof URL) {
-    return input.href;
-  }
-  return input;
-}
-
-/** Combine user and internal signals, preferring native AbortSignal.any. */
-function combineSignals(
-  signals: Array<AbortSignal | null | undefined>,
-): AbortSignal {
-  const validSignals = signals.filter(Boolean) as AbortSignal[];
-
-  if (validSignals.length === 1) {
-    return validSignals[0];
-  }
-  if (typeof AbortSignal.any === "function") {
-    // eslint-disable-next-line baseline-js/use-baseline
-    return AbortSignal.any(validSignals);
-  }
-
-  const controller = new AbortController();
-  validSignals.forEach((signal) => {
-    if (signal.aborted) {
-      controller.abort(signal.reason);
-      return;
-    }
-    signal.addEventListener("abort", () => controller.abort(signal.reason), {
-      once: true,
-    });
-  });
-  return controller.signal;
-}
-
-/** Create a cross-runtime AbortError reason. */
-function createAbortReason(message: string): Error {
-  if (typeof DOMException !== "undefined") {
-    return new DOMException(message, "AbortError");
-  }
-  const error = new Error(message);
-  error.name = "AbortError";
-  return error;
-}
-
-/** Merge ky-compatible headers while preserving the `undefined` deletion marker. */
-function mergeHeaders(
-  ...headersList: Array<HeaderSource | undefined>
-): Headers {
-  const headers = new Headers();
-
-  headersList.forEach((headersInit) => {
-    if (!headersInit) {
-      return;
-    }
-    if (!(headersInit instanceof Headers) && !Array.isArray(headersInit)) {
-      Object.entries(headersInit).forEach(([key, value]) => {
-        if (value === undefined || value === "undefined") {
-          headers.delete(key);
-          return;
-        }
-        headers.set(key, value);
-      });
-      return;
-    }
-    new Headers(headersInit).forEach((value, key) => headers.set(key, value));
-  });
-
-  return headers;
-}
-
-/** Check whether a value can be sent directly as a Fetch body. */
-function isBodyInit(value: unknown): value is FetchBody {
-  return (
-    typeof value === "string" ||
-    isBoundaryManagedBody(value) ||
-    value instanceof URLSearchParams ||
-    value instanceof ArrayBuffer ||
-    ArrayBuffer.isView(value) ||
-    isReadableStream(value)
-  );
-}
-
-/** Check whether Fetch should manage the body's Content-Type. */
-function isBoundaryManagedBody(value: unknown): value is FormData | Blob {
-  return (
-    (typeof FormData !== "undefined" && value instanceof FormData) ||
-    (typeof Blob !== "undefined" && value instanceof Blob)
-  );
-}
-
-/** Check whether a value is a plain object created from JSON data. */
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  if (Object.prototype.toString.call(value) !== "[object Object]") {
-    return false;
-  }
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-/** Detect streaming request bodies in runtimes that support ReadableStream. */
-function isReadableStream(value: unknown): value is ReadableStream {
-  return (
-    typeof ReadableStream !== "undefined" && value instanceof ReadableStream
-  );
-}
-
-/** Check whether the current body should not inherit the default retry policy. */
-function shouldDisableInheritedRetry(
-  payload: unknown,
-  options: Options,
-): boolean {
-  return (
-    isReadableStream(payload) || typeof options.onUploadProgress === "function"
-  );
-}
-
-/** Merge parent and child ky hooks while preserving execution order. */
+/**
+ * Merge parent and child ky hooks while preserving execution order.
+ *
+ * @example
+ * ```ts
+ * mergeKyHooks({ beforeRequest: [a] }, { beforeRequest: [b] });
+ * // beforeRequest runs a, then b.
+ * ```
+ */
 function mergeKyHooks(
   ...hooksList: Array<Options["hooks"] | undefined>
 ): Options["hooks"] | undefined {
@@ -806,3 +684,6 @@ function mergeKyHooks(
 
   return Object.keys(merged).length > 0 ? (merged as KyHooks) : undefined;
 }
+
+export type { HttpClientOptions } from "../utils/types";
+export type { HeaderSource } from "./types";

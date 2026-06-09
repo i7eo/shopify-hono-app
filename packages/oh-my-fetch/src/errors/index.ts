@@ -1,19 +1,23 @@
 import { isHTTPError, isNetworkError, isTimeoutError } from "ky";
+import { createSearchParams } from "../core/query";
+import { isAbortError } from "../lifecycle/abort";
 import { resolveStatusMessage } from "../status";
-import { createSearchParams } from "../utils";
 import { REDACTED, SENSITIVE_KEYS } from "./constants";
 import type {
-  ApiResult,
-  BusinessCode,
-  BusinessFailureResult,
-  BusinessStatusValidator,
   HttpRequestConfig,
   QueryParams,
   RedactedHttpRequestConfig,
 } from "../utils/types";
 import type { HttpRequestErrorKind, HttpRequestErrorOptions } from "./types";
 
-/** Unified request error with response metadata and redacted request config. */
+/**
+ * Unified request error with response metadata and redacted request config.
+ *
+ * @example
+ * ```ts
+ * throw new HttpRequestError("Network request failed", { kind: "network" });
+ * ```
+ */
 export class HttpRequestError extends Error {
   kind: HttpRequestErrorKind;
   code?: number | string;
@@ -23,7 +27,17 @@ export class HttpRequestError extends Error {
   config?: RedactedHttpRequestConfig;
   override cause?: unknown;
 
-  /** Create a normalized request error and redact config before storing it. */
+  /**
+   * Create a normalized request error and redact config before storing it.
+   *
+   * @example
+   * ```ts
+   * new HttpRequestError("Failed", {
+   *   config: { headers: { authorization: "secret" } },
+   * }).config?.headers?.get("authorization");
+   * // "[redacted]"
+   * ```
+   */
   constructor(message: string, options: HttpRequestErrorOptions = {}) {
     super(message);
     this.name = "HttpRequestError";
@@ -37,9 +51,37 @@ export class HttpRequestError extends Error {
       : undefined;
     this.cause = options.cause;
   }
+
+  /**
+   * Serialize only safe error fields for logs and telemetry.
+   *
+   * @example
+   * ```ts
+   * JSON.stringify(new HttpRequestError("Failed", { data: { secret: true } }));
+   * // Does not include raw data.
+   * ```
+   */
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      kind: this.kind,
+      code: this.code,
+      status: this.status,
+      config: this.config,
+    };
+  }
 }
 
-/** Create a redacted request config for logs and error reporting. */
+/**
+ * Create a redacted request config for logs and error reporting.
+ *
+ * @example
+ * ```ts
+ * redactHttpRequestConfig({ query: { token: "secret" } }).query;
+ * // URLSearchParams with token=[redacted]
+ * ```
+ */
 export function redactHttpRequestConfig(
   config: HttpRequestConfig,
 ): RedactedHttpRequestConfig {
@@ -51,9 +93,7 @@ export function redactHttpRequestConfig(
     totalTimeout: config.totalTimeout,
     retry: config.retry,
     responseType: config.responseType,
-    validateBusinessStatus: config.validateBusinessStatus,
     timestamp: config.timestamp,
-    formatRequestData: config.formatRequestData,
     dedupe: config.dedupe,
     headers: redactHeaders(config.headers),
     query: redactQuery(config.query),
@@ -61,7 +101,15 @@ export function redactHttpRequestConfig(
   };
 }
 
-/** Redact sensitive header values such as tokens, cookies, and authorization. */
+/**
+ * Redact sensitive header values such as tokens, cookies, and authorization.
+ *
+ * @example
+ * ```ts
+ * redactHeaders({ authorization: "secret", accept: "json" })?.get("authorization");
+ * // "[redacted]"
+ * ```
+ */
 function redactHeaders(
   headersInit: HttpRequestConfig["headers"],
 ): Headers | undefined {
@@ -86,7 +134,15 @@ function redactHeaders(
   return headers;
 }
 
-/** Redact sensitive query values such as tokens, passwords, and API keys. */
+/**
+ * Redact sensitive query values such as tokens, passwords, and API keys.
+ *
+ * @example
+ * ```ts
+ * redactQuery("api_key=secret&page=1")?.toString();
+ * // "api_key=%5Bredacted%5D&page=1"
+ * ```
+ */
 function redactQuery(query: QueryParams | undefined): QueryParams | undefined {
   const source = createSearchParams(query);
   if (!source) {
@@ -100,116 +156,35 @@ function redactQuery(query: QueryParams | undefined): QueryParams | undefined {
   return redacted;
 }
 
-/** Read a displayable message from common backend wrappers. */
+/**
+ * Read an upstream error message from common response wrapper shapes.
+ *
+ * @example
+ * ```ts
+ * readApiMessage({ message: "Not found" }); // "Not found"
+ * ```
+ */
 function readApiMessage(data: unknown): string {
   if (!data || typeof data !== "object") {
     return "";
   }
-  const result = data as ApiResult & { error?: { message?: string } };
+  const result = data as {
+    msg?: string;
+    message?: string;
+    error?: { message?: string };
+  };
   return result.error?.message || result.msg || result.message || "";
 }
 
-/** Read a custom business code from common backend wrappers. */
-function readApiCode(data: unknown): number | string | undefined {
-  if (!data || typeof data !== "object") {
-    return undefined;
-  }
-  return (data as ApiResult).code;
-}
-
-/** Default business wrapper strategy for `success=false` and `type=error`. */
-function defaultBusinessStatusValidator(
-  data: unknown,
-): BusinessFailureResult | false {
-  if (!data || typeof data !== "object") {
-    return false;
-  }
-
-  const result = data as ApiResult;
-  if (result.success === false || result.type === "error") {
-    return {
-      failed: true,
-      code: result.code,
-      data,
-    };
-  }
-
-  return false;
-}
-
-/** Run the business wrapper strategy and normalize boolean failures. */
-function resolveBusinessFailure(
-  data: unknown,
-  response: Response,
-  config: HttpRequestConfig,
-  validator: BusinessStatusValidator = defaultBusinessStatusValidator,
-): BusinessFailureResult | undefined {
-  const result = validator(data, response, config);
-  return normalizeBusinessFailureResult(result, data, readApiCode(data));
-}
-
-/** Normalize a boolean or structured business failure result. */
-function normalizeBusinessFailureResult(
-  result: boolean | BusinessFailureResult | null | undefined,
-  data: unknown,
-  code?: BusinessCode,
-): BusinessFailureResult | undefined {
-  if (result === true) {
-    return {
-      failed: true,
-      code,
-      data,
-    };
-  }
-  if (!result) {
-    return undefined;
-  }
-  return result.failed ? { ...result, code: result.code ?? code } : undefined;
-}
-
-/** Resolve the HTTP status used for message fallback and response mapping. */
-function resolveBusinessStatus(
-  response: Response,
-  explicitStatus?: number,
-): number {
-  if (explicitStatus) {
-    return explicitStatus;
-  }
-  return response.status;
-}
-
-/** Convert a business wrapper failure into a normalized request error. */
-export function validateBusinessResult(
-  data: unknown,
-  response: Response,
-  config: HttpRequestConfig,
-  validator?: BusinessStatusValidator,
-) {
-  const failure = resolveBusinessFailure(data, response, config, validator);
-  if (!failure) {
-    return;
-  }
-
-  const failureData = failure.data ?? data;
-  const code = failure.code ?? readApiCode(failureData);
-  const status = resolveBusinessStatus(response, failure.status);
-  throw new HttpRequestError(
-    resolveStatusMessage(
-      status,
-      failure.message ?? readApiMessage(failureData),
-    ),
-    {
-      kind: "business",
-      code,
-      status,
-      data: failureData,
-      response,
-      config,
-    },
-  );
-}
-
-/** Normalize ky, fetch, abort, and unknown errors into HttpRequestError. */
+/**
+ * Normalize ky, fetch, abort, and unknown errors into HttpRequestError.
+ *
+ * @example
+ * ```ts
+ * const error = normalizeHttpError(new Error("boom"), { method: "GET" });
+ * error.kind; // "unknown"
+ * ```
+ */
 export function normalizeHttpError(
   error: unknown,
   config: HttpRequestConfig,
@@ -276,16 +251,4 @@ export function normalizeHttpError(
     config,
     cause: error,
   });
-}
-
-/** Detect AbortController cancellation across browser-like and Node runtimes. */
-function isAbortError(error: unknown): boolean {
-  if (
-    typeof DOMException !== "undefined" &&
-    error instanceof DOMException &&
-    error.name === "AbortError"
-  ) {
-    return true;
-  }
-  return error instanceof Error && error.name === "AbortError";
 }

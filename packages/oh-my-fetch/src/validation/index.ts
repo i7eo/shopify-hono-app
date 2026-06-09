@@ -12,7 +12,18 @@ import type {
 } from "../utils/types";
 import type { ValidateWithSchemaOptions } from "./types";
 
-/** Validate data with a pluggable schema and normalize failures as HttpRequestError. */
+/**
+ * Validate data with a pluggable schema and normalize failures as HttpRequestError.
+ *
+ * @example
+ * ```ts
+ * await validateWithSchema((value) => String(value).trim(), " Ada ", {
+ *   target: "request",
+ *   config: {},
+ * });
+ * // "Ada"
+ * ```
+ */
 export async function validateWithSchema<T>(
   schema: ValidationSchema<T>,
   value: unknown,
@@ -41,7 +52,14 @@ export async function validateWithSchema<T>(
   );
 }
 
-/** Run validation in adapter, Standard Schema, Zod-like, function, and Yup-like order. */
+/**
+ * Run validation in adapter, Standard Schema, Zod-like, function, and Yup-like order.
+ *
+ * @example
+ * ```ts
+ * await runValidation({ safeParse: () => ({ success: true, data: 1 }) }, "1", options);
+ * ```
+ */
 async function runValidation<T>(
   schema: ValidationSchema<T>,
   value: unknown,
@@ -87,14 +105,30 @@ async function runValidation<T>(
   };
 }
 
-/** Check whether the schema is an explicit validation adapter. */
+/**
+ * Check whether the schema is an explicit validation adapter.
+ *
+ * @example
+ * ```ts
+ * isValidationAdapter({ validateSchema: () => ({ success: true, data: 1 }) });
+ * // true
+ * ```
+ */
 function isValidationAdapter<T>(
   schema: unknown,
 ): schema is ValidationAdapter<T> {
   return isRecord(schema) && typeof schema.validateSchema === "function";
 }
 
-/** Check whether the schema is Standard Schema compatible. */
+/**
+ * Check whether the schema is Standard Schema compatible.
+ *
+ * @example
+ * ```ts
+ * isStandardSchema({ "~standard": { validate: () => ({ value: 1 }) } });
+ * // true
+ * ```
+ */
 function isStandardSchema<T>(schema: unknown): schema is {
   "~standard": {
     validate: (
@@ -109,7 +143,15 @@ function isStandardSchema<T>(schema: unknown): schema is {
   );
 }
 
-/** Check whether the schema is a Zod-like safeParse schema. */
+/**
+ * Check whether the schema is a Zod-like safeParse schema.
+ *
+ * @example
+ * ```ts
+ * isSafeParseSchema({ safeParse: () => ({ success: true, data: 1 }) });
+ * // true
+ * ```
+ */
 function isSafeParseSchema<T>(schema: unknown): schema is {
   safeParseAsync?: (
     value: unknown,
@@ -123,19 +165,41 @@ function isSafeParseSchema<T>(schema: unknown): schema is {
   );
 }
 
-/** Check whether the schema is a function validator. */
+/**
+ * Check whether the schema is a function validator.
+ *
+ * @example
+ * ```ts
+ * isValidationFunction((value) => value); // true
+ * ```
+ */
 function isValidationFunction<T>(
   schema: unknown,
 ): schema is ValidationFunction<T> {
   return typeof schema === "function";
 }
 
-/** Check whether the schema is a Yup-like validate schema. */
+/**
+ * Check whether the schema is a Yup-like validate schema.
+ *
+ * @example
+ * ```ts
+ * isYupLikeSchema({ validate: async (value) => value }); // true
+ * ```
+ */
 function isYupLikeSchema<T>(schema: unknown): schema is YupLikeSchema<T> {
   return isRecord(schema) && typeof schema.validate === "function";
 }
 
-/** Normalize a Standard Schema result into the internal ValidationResult shape. */
+/**
+ * Normalize a Standard Schema result into the internal ValidationResult shape.
+ *
+ * @example
+ * ```ts
+ * normalizeStandardSchemaResult({ value: 1 });
+ * // { success: true, data: 1 }
+ * ```
+ */
 function normalizeStandardSchemaResult<T>(
   result: StandardSchemaResult<T>,
 ): ValidationResult<T> {
@@ -152,7 +216,15 @@ function normalizeStandardSchemaResult<T>(
   };
 }
 
-/** Normalize a Zod-like safeParse result into the internal ValidationResult shape. */
+/**
+ * Normalize a Zod-like safeParse result into the internal ValidationResult shape.
+ *
+ * @example
+ * ```ts
+ * normalizeSafeParseResult({ success: true, data: 1 });
+ * // { success: true, data: 1 }
+ * ```
+ */
 function normalizeSafeParseResult<T>(
   result: SafeParseResult<T>,
 ): ValidationResult<T> {
@@ -168,7 +240,15 @@ function normalizeSafeParseResult<T>(
   };
 }
 
-/** Normalize a function validator result into the internal ValidationResult shape. */
+/**
+ * Normalize a function validator result into the internal ValidationResult shape.
+ *
+ * @example
+ * ```ts
+ * normalizeValidationFunctionResult("ok");
+ * // { success: true, data: "ok" }
+ * ```
+ */
 function normalizeValidationFunctionResult<T>(
   result: T | ValidationResult<T>,
 ): ValidationResult<T> {
@@ -181,7 +261,14 @@ function normalizeValidationFunctionResult<T>(
   };
 }
 
-/** Check whether a value already uses the internal ValidationResult shape. */
+/**
+ * Check whether a value already uses the internal ValidationResult shape.
+ *
+ * @example
+ * ```ts
+ * isValidationResult({ success: false, message: "Invalid" }); // true
+ * ```
+ */
 function isValidationResult<T>(value: unknown): value is ValidationResult<T> {
   return (
     isRecord(value) &&
@@ -193,7 +280,15 @@ function isValidationResult<T>(value: unknown): value is ValidationResult<T> {
   );
 }
 
-/** Read issues or errors from third-party validation errors. */
+/**
+ * Read issues or errors from third-party validation errors.
+ *
+ * @example
+ * ```ts
+ * readValidationIssues({ issues: [{ message: "Invalid" }] });
+ * // [{ message: "Invalid" }]
+ * ```
+ */
 function readValidationIssues(error: unknown): unknown {
   if (!isRecord(error)) {
     return error;
@@ -207,7 +302,14 @@ function readValidationIssues(error: unknown): unknown {
   return error;
 }
 
-/** Read a message from third-party validation errors. */
+/**
+ * Read a message from third-party validation errors.
+ *
+ * @example
+ * ```ts
+ * readValidationMessage(new Error("Invalid")); // "Invalid"
+ * ```
+ */
 function readValidationMessage(error: unknown): string | undefined {
   if (isRecord(error) && typeof error.message === "string") {
     return error.message;
@@ -215,12 +317,27 @@ function readValidationMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-/** Format a validation failure into one compact message. */
+/**
+ * Format a validation failure into one compact message.
+ *
+ * @example
+ * ```ts
+ * formatValidationFailure({ success: false, message: "Invalid" });
+ * // "Invalid"
+ * ```
+ */
 function formatValidationFailure(error: ValidationFailure): string {
   return error.message || formatIssues(error.issues) || "Validation failed";
 }
 
-/** Format an issue list or a single issue-like object. */
+/**
+ * Format an issue list or a single issue-like object.
+ *
+ * @example
+ * ```ts
+ * formatIssues([{ message: "Required" }]); // "Required"
+ * ```
+ */
 function formatIssues(issues: unknown): string {
   if (Array.isArray(issues)) {
     return formatIssueList(issues);
@@ -234,12 +351,28 @@ function formatIssues(issues: unknown): string {
   return String(issues);
 }
 
-/** Join multiple issues in `path message` form. */
+/**
+ * Join multiple issues in `path message` form.
+ *
+ * @example
+ * ```ts
+ * formatIssueList([{ path: ["name"], message: "Required" }]);
+ * // "name Required"
+ * ```
+ */
 function formatIssueList(issues: readonly unknown[]): string {
   return issues.map(formatIssue).filter(Boolean).join("; ");
 }
 
-/** Format one Standard/Zod/Yup issue. */
+/**
+ * Format one Standard/Zod/Yup issue.
+ *
+ * @example
+ * ```ts
+ * formatIssue({ path: ["name"], message: "Required" });
+ * // "name Required"
+ * ```
+ */
 function formatIssue(issue: unknown): string {
   if (!isRecord(issue)) {
     return String(issue);
@@ -251,7 +384,15 @@ function formatIssue(issue: unknown): string {
   return path ? `${path} ${message}` : message;
 }
 
-/** Check whether a value is an object with readable fields. */
+/**
+ * Check whether a value is an object with readable fields.
+ *
+ * @example
+ * ```ts
+ * isRecord({ ok: true }); // true
+ * isRecord(null); // false
+ * ```
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

@@ -34,7 +34,10 @@ describe("infra providers", () => {
   });
 
   it("creates the HTTP client with APP_REQUEST_TIMEOUT from the env provider", async () => {
-    const createHttpClient = vi.fn((options) => ({ options }));
+    const createHttpClient = vi.fn((options) => ({
+      options,
+      dispose: vi.fn(),
+    }));
     vi.doMock("@shamt/oh-my-fetch", () => ({
       createHttpClient,
     }));
@@ -52,6 +55,7 @@ describe("infra providers", () => {
       options: expect.objectContaining({
         timeout: 1234,
       }),
+      dispose: expect.any(Function),
     });
     expect(createHttpClient).toHaveBeenCalledTimes(1);
     expect(createHttpClient).toHaveBeenCalledWith(
@@ -64,7 +68,10 @@ describe("infra providers", () => {
   });
 
   it("recreates the HTTP client when APP_REQUEST_TIMEOUT changes", async () => {
-    const createHttpClient = vi.fn((options) => ({ options }));
+    const createHttpClient = vi.fn((options) => ({
+      options,
+      dispose: vi.fn(),
+    }));
     vi.doMock("@shamt/oh-my-fetch", () => ({
       createHttpClient,
     }));
@@ -84,6 +91,8 @@ describe("infra providers", () => {
     const secondClient = getClientProvider(secondEnv);
 
     expect(firstClient).not.toBe(secondClient);
+    expect(firstClient.dispose).toHaveBeenCalledTimes(1);
+    expect(secondClient.dispose).not.toHaveBeenCalled();
     expect(createHttpClient).toHaveBeenCalledTimes(2);
     expect(createHttpClient).toHaveBeenNthCalledWith(
       1,

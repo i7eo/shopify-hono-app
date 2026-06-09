@@ -11,6 +11,9 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 export type ResponseBodyType = (typeof RESPONSE_BODY_TYPES)[number];
 
+export const JSON_SECURITY_MODES = ["strict", "shallow", "off"] as const;
+export type JsonSecurityMode = (typeof JSON_SECURITY_MODES)[number];
+
 export type QueryPrimitive =
   | string
   | number
@@ -64,26 +67,12 @@ export interface HttpTransportConfig extends PickKyOptions<
   | "onUploadProgress"
 > {}
 
-export interface BusinessFailureResult {
-  failed: true;
-  code?: number | string;
-  status?: number;
-  message?: string;
-  data?: unknown;
+export interface ErrorReporter {
+  report: (
+    error: Error,
+    context: RequestContext & { error: Error },
+  ) => MaybePromise<void>;
 }
-
-export type BusinessCode = number | string;
-
-export type BusinessStatusValidator = (
-  data: unknown,
-  response: Response,
-  config: HttpRequestConfig,
-) => boolean | BusinessFailureResult | null | undefined;
-
-export type ErrorMessageHandler = (
-  message: string,
-  context: RequestContext & { error: Error },
-) => MaybePromise<void>;
 
 export type ValidationTarget = "request" | "response";
 
@@ -170,18 +159,12 @@ export type InferSchemaOutput<TSchema extends ValidationSchema> =
 export interface RequestBehavior {
   /** Response body parsing mode. */
   responseType?: ResponseBodyType;
-  /** Treat common business wrappers such as `{ success: false }` as failures. */
-  validateBusinessStatus?: boolean;
-  /** Custom business wrapper failure check; true or failed results throw HttpRequestError. */
-  businessStatusValidator?: BusinessStatusValidator;
-  /** Receive normalized error messages so application code can show UI feedback. */
-  onErrorMessage?: ErrorMessageHandler;
   /** Append a current `_t` timestamp to GET requests to bypass caches. */
   timestamp?: boolean;
-  /** Trim strings and format Date/Day.js-like values before sending. */
-  formatRequestData?: boolean;
   /** Abort an in-flight request with the same key before starting a new one. */
   dedupe?: DedupeOption;
+  /** Prototype-pollution defense level for parsed JSON. */
+  jsonSecurity?: JsonSecurityMode;
 }
 
 /**
@@ -209,9 +192,7 @@ export type RedactedHttpRequestConfig = Pick<
   | "totalTimeout"
   | "retry"
   | "responseType"
-  | "validateBusinessStatus"
   | "timestamp"
-  | "formatRequestData"
   | "dedupe"
 > & {
   headers?: Headers;
@@ -222,17 +203,6 @@ export type RedactedHttpRequestConfig = Pick<
 export interface ParsedHttpResponse<T = unknown> extends Response {
   data: T;
   config: RedactedHttpRequestConfig;
-}
-
-/** Common backend response wrapper; concrete APIs may extend this shape. */
-export interface ApiResult<T = unknown> {
-  code?: number | string;
-  type?: "success" | "error" | "warning";
-  message?: string;
-  msg?: string;
-  result?: T;
-  data?: T;
-  success?: boolean;
 }
 
 export interface UploadFileParams {
@@ -247,6 +217,7 @@ export interface UploadFileParams {
 export interface RequestContext<TBody = unknown, TResponse = unknown> {
   input: Input;
   config: HttpRequestConfig<TBody, TResponse>;
+  state?: Map<PropertyKey, unknown>;
 }
 
 /**
@@ -268,11 +239,36 @@ export interface HttpClientHooks {
   ) => MaybePromise<Error | void>;
 }
 
+export interface HttpPlugin {
+  name?: string;
+  beforeRequest?: <TBody, TResponse>(
+    config: HttpRequestConfig<TBody, TResponse>,
+    context: RequestContext<TBody, TResponse>,
+  ) => MaybePromise<HttpRequestConfig<TBody, TResponse> | void>;
+  afterResponse?: <T>(
+    response: ParsedHttpResponse<T>,
+    context: RequestContext,
+  ) => MaybePromise<ParsedHttpResponse<T> | void>;
+  beforeError?: (
+    error: Error,
+    context: RequestContext,
+  ) => MaybePromise<Error | void>;
+  dispose?: () => void;
+}
+
+export interface HttpClientDependencies {
+  fetch?: typeof fetch;
+}
+
 export interface HttpClientOptions extends HttpTransportConfig {
   /** Global defaults for wrapper-level HTTP behavior. */
   defaults?: RequestBehavior;
   /** High-level hooks that operate on normalized config/response objects. */
   hooks?: HttpClientHooks;
+  /** DI-friendly lifecycle extensions. Prefer plugins over hooks for reusable behavior. */
+  plugins?: readonly HttpPlugin[];
+  /** Runtime dependencies for tests, telemetry, and host integration. */
+  deps?: HttpClientDependencies;
   /** Native ky hooks passed directly to ky.create(). */
   kyHooks?: Options["hooks"];
 }

@@ -7,8 +7,5 @@ export function createClient(config: ClientConfig) {
   return createHttpClient({
     timeout: config.APP_REQUEST_TIMEOUT,
     retry: { limit: 0 },
-    defaults: {
-      validateBusinessStatus: false,
-    },
   });
 }

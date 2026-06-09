@@ -1,117 +1,111 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHttpClient, HttpClient } from "../src/client";
 import { HttpRequestError } from "../src/errors";
+import type { HttpPlugin } from "../src";
 
 type FetchMock = ReturnType<typeof vi.fn<typeof fetch>>;
 
-function createJsonResponse(data: unknown, init?: ResponseInit) {
+function json(data: unknown, init?: ResponseInit) {
   return Response.json(data, {
     headers: { "content-type": "application/json" },
     ...init,
   });
 }
 
-function readRequest(fetchMock: FetchMock, index = 0): Request {
+function requestAt(fetchMock: FetchMock, index = 0): Request {
   const [input, init] = fetchMock.mock.calls[index] as Parameters<typeof fetch>;
   return input instanceof Request ? input : new Request(input, init);
 }
 
-describe("HttpClient", () => {
+describe("HttpClient core", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it("creates clients and exposes the underlying ky instance", () => {
+  it("creates a fetch client and exposes ky for escape-hatch usage", () => {
     const client = createHttpClient();
 
     expect(client).toBeInstanceOf(HttpClient);
     expect(client.ky).toBeTypeOf("function");
   });
 
-  it("sends GET requests with query params and timestamp behavior", async () => {
+  it("serializes query params and optional cache-busting timestamps", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_704_164_645_000);
-    const fetchMock = vi.fn<typeof fetch>(
-      async () => await createJsonResponse({ ok: true }),
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(json({ ok: true })),
     );
     const client = createHttpClient({ fetch: fetchMock });
 
     await expect(
       client.get("https://example.com/users", {
-        query: { page: 1 },
+        query: { page: 1, role: ["admin", "editor"] },
         timestamp: true,
       }),
     ).resolves.toEqual({ ok: true });
 
-    const request = readRequest(fetchMock);
-    expect(request.method).toBe("GET");
-    expect(new URL(request.url).searchParams.get("page")).toBe("1");
-    expect(new URL(request.url).searchParams.get("_t")).toBe("1704164645000");
+    const url = new URL(requestAt(fetchMock).url);
+    expect(url.searchParams.get("page")).toBe("1");
+    expect(url.searchParams.getAll("role[]")).toEqual(["admin", "editor"]);
+    expect(url.searchParams.get("_t")).toBe("1704164645000");
   });
 
-  it("sends body methods and normalizes JSON request data", async () => {
-    const requestBodies: string[] = [];
-    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const request =
-        input instanceof Request ? input : new Request(input, init);
-      requestBodies.push(await request.clone().text());
-      return createJsonResponse({ ok: true });
+  it("keeps request bodies untouched unless an explicit plugin changes them", async () => {
+    const bodies: string[] = [];
+    const source = {
+      name: " Ada ",
+      date: new Date(2024, 0, 2, 3, 4, 5),
+    };
+    const fetchMock = vi.fn<typeof fetch>(async () => {
+      bodies.push(await requestAt(fetchMock, bodies.length).clone().text());
+      return json({ ok: true });
     });
     const client = createHttpClient({ fetch: fetchMock });
 
-    await client.post("https://example.com/items", {
-      name: " Ada ",
-      date: new Date(2024, 0, 2, 3, 4, 5),
-    });
-    await client.put("https://example.com/items/1", { name: " Put " });
-    await client.patch("https://example.com/items/1", { name: " Patch " });
-    await client.delete("https://example.com/items/1");
+    await client.post("https://example.com/users", source);
+    await client.put("https://example.com/users/1", source);
+    await client.patch("https://example.com/users/1", source);
+    await client.delete("https://example.com/users/1");
 
-    const post = readRequest(fetchMock, 0);
-    expect(post.method).toBe("POST");
-    expect(JSON.parse(requestBodies[0])).toEqual({
-      name: "Ada",
-      date: "2024-01-02 03:04:05",
+    expect(JSON.parse(bodies[0]!)).toEqual({
+      name: " Ada ",
+      date: "2024-01-01T19:04:05.000Z",
     });
-    expect(readRequest(fetchMock, 1).method).toBe("PUT");
-    expect(readRequest(fetchMock, 2).method).toBe("PATCH");
-    expect(readRequest(fetchMock, 3).method).toBe("DELETE");
+    expect(source.name).toBe(" Ada ");
+    expect(requestAt(fetchMock, 1).method).toBe("PUT");
+    expect(requestAt(fetchMock, 2).method).toBe("PATCH");
+    expect(requestAt(fetchMock, 3).method).toBe("DELETE");
   });
 
-  it("supports urlencoded body, raw responses, text responses, and uploads", async () => {
-    const requestBodies: string[] = [];
+  it("supports urlencoded bodies, raw responses, text responses, and uploads", async () => {
+    const bodies: string[] = [];
     const uploadFields: Array<[string, FormDataEntryValue[]]> = [];
+    // @ts-ignore
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
       const request =
         input instanceof Request ? input : new Request(input, init);
-      const callIndex = requestBodies.length;
+      // @ts-ignore
+      const index = fetchMock.mock.calls.length - 1;
 
-      if (callIndex === 2) {
+      if (index === 2) {
         const formData = await request.clone().formData();
         uploadFields.push(
           ["tag", formData.getAll("tag")],
           ["labels[]", formData.getAll("labels[]")],
         );
-      } else {
-        requestBodies.push(await request.clone().text());
+        return json({ uploaded: true });
       }
 
-      if (callIndex === 1) {
-        return new Response("hello");
-      }
-      return createJsonResponse(
-        callIndex === 2 ? { uploaded: true } : { ok: true },
-      );
+      bodies.push(await request.clone().text());
+      return index === 1 ? new Response("hello") : json({ ok: true });
     });
     const client = createHttpClient({ fetch: fetchMock });
 
     await client.post(
       "https://example.com/form",
       { a: 1 },
-      {
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-      },
+      { headers: { "content-type": "application/x-www-form-urlencoded" } },
     );
     await expect(
       client.request("https://example.com/text", { responseType: "text" }),
@@ -122,8 +116,8 @@ describe("HttpClient", () => {
       data: { tag: "avatar", labels: ["a", "b"] },
     });
 
-    expect(requestBodies[0]).toBe("a=1");
-    expect(readRequest(fetchMock, 2).headers.get("content-type")).toContain(
+    expect(bodies[0]).toBe("a=1");
+    expect(requestAt(fetchMock, 2).headers.get("content-type")).toContain(
       "multipart/form-data; boundary=",
     );
     expect(uploadFields).toEqual([
@@ -132,13 +126,13 @@ describe("HttpClient", () => {
     ]);
   });
 
-  it("validates request and response schemas", async () => {
-    const requestBodies: string[] = [];
+  it("validates request and response schemas through the built-in validation plugin", async () => {
+    const bodies: string[] = [];
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
       const request =
         input instanceof Request ? input : new Request(input, init);
-      requestBodies.push(await request.clone().text());
-      return createJsonResponse({ id: "1" });
+      bodies.push(await request.clone().text());
+      return json({ id: "1" });
     });
     const client = createHttpClient({ fetch: fetchMock });
 
@@ -158,85 +152,94 @@ describe("HttpClient", () => {
         },
       ),
     ).resolves.toEqual({ id: "1", ok: true });
-
-    expect(JSON.parse(requestBodies[0])).toEqual({ id: 1 });
+    expect(JSON.parse(bodies[0]!)).toEqual({ id: 1 });
   });
 
-  it("returns parsed response objects when responseType is response", async () => {
-    const fetchMock = vi.fn<typeof fetch>(
-      async () => await createJsonResponse({ ok: true }),
-    );
-    const client = createHttpClient({ fetch: fetchMock });
-
-    const response = await client.get<Response>("https://example.com/raw", {
-      responseType: "response",
-    });
-
-    expect(response).toBeInstanceOf(Response);
-  });
-
-  it("supports high-level hooks, extension, and error message handlers", async () => {
+  it("runs hooks and plugins in a deterministic request lifecycle", async () => {
+    const events: string[] = [];
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(createJsonResponse({ ok: true }))
+      .mockResolvedValueOnce(json({ ok: true }))
       .mockRejectedValueOnce(new Error("Network down"));
-    const onErrorMessage = vi.fn();
-    const afterResponse = vi.fn((response) => response);
+    const plugin: HttpPlugin = {
+      beforeRequest: (config) => {
+        events.push("plugin:beforeRequest");
+        return config;
+      },
+      afterResponse: (response) => {
+        events.push("plugin:afterResponse");
+        return response;
+      },
+      beforeError: (error) => {
+        events.push(`plugin:beforeError:${error.message}`);
+        return error;
+      },
+    };
     const client = createHttpClient({
       fetch: fetchMock,
-      headers: { "x-base": "base" },
-      defaults: { onErrorMessage },
+      plugins: [plugin],
       hooks: {
-        beforeRequest: (config) => ({
-          ...config,
-          headers: {
-            ...Object.fromEntries(new Headers(config.headers as HeadersInit)),
-            "x-hook": "hook",
-          },
-        }),
-        afterResponse,
-        beforeError: (error) => new Error(`wrapped: ${error.message}`),
+        beforeRequest: (config) => {
+          events.push("hook:beforeRequest");
+          return config;
+        },
+        afterResponse: (response) => {
+          events.push("hook:afterResponse");
+          return response;
+        },
+        beforeError: (error) => {
+          events.push(`hook:beforeError:${error.message}`);
+          return new Error(`wrapped:${error.message}`);
+        },
       },
-    }).extend({
-      headers: { "x-extended": "extended" },
-      defaults: { timestamp: false },
     });
 
-    await expect(client.get("https://example.com/hook")).resolves.toEqual({
+    await expect(client.get("https://example.com/ok")).resolves.toEqual({
       ok: true,
     });
-    expect(readRequest(fetchMock).headers.get("x-hook")).toBe("hook");
-    expect(afterResponse).toHaveBeenCalledOnce();
-
-    await expect(client.get("https://example.com/error")).rejects.toThrow(
-      "wrapped: Network down",
+    await expect(client.get("https://example.com/fail")).rejects.toThrow(
+      "wrapped:Network down",
     );
-    expect(onErrorMessage).toHaveBeenCalledWith(
-      "Network down",
-      expect.objectContaining({ error: expect.any(HttpRequestError) }),
-    );
+    expect(events).toEqual([
+      "hook:beforeRequest",
+      "plugin:beforeRequest",
+      "plugin:afterResponse",
+      "hook:afterResponse",
+      "hook:beforeRequest",
+      "plugin:beforeRequest",
+      "plugin:beforeError:Network down",
+      "hook:beforeError:Network down",
+    ]);
   });
 
-  it("throws for business failures and invalid JSON", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        createJsonResponse({ success: false, message: "Nope" }),
-      )
-      .mockResolvedValueOnce(new Response("not-json"));
+  it("aborts and clears pending dedupe requests when disposed", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let start!: () => void;
+    const started = new Promise<void>((resolve) => {
+      start = resolve;
+    });
+    const fetchMock = vi.fn<typeof fetch>(
+      async (input, init) =>
+        await new Promise<Response>((_, reject) => {
+          const request =
+            input instanceof Request ? input : new Request(input, init);
+          capturedSignal = request.signal;
+          start();
+          request.signal.addEventListener("abort", () => {
+            reject(request.signal.reason);
+          });
+        }),
+    );
     const client = createHttpClient({ fetch: fetchMock });
 
+    const pending = client.get("https://example.com/slow", { dedupe: true });
+    await started;
+    client.dispose();
+
+    await expect(pending).rejects.toMatchObject({ kind: "abort" });
+    expect(capturedSignal?.aborted).toBe(true);
     await expect(
-      client.get("https://example.com/business"),
-    ).rejects.toMatchObject({
-      kind: "business",
-      message: "Nope",
-    });
-    await expect(
-      client.get("https://example.com/invalid"),
-    ).rejects.toMatchObject({
-      kind: "unknown",
-      message: "Invalid JSON response",
-    });
+      client.get("https://example.com/after-dispose"),
+    ).rejects.toBeInstanceOf(HttpRequestError);
   });
 });

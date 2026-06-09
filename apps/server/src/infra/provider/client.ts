@@ -20,12 +20,18 @@ export function getClientProvider(config?: RuntimeConfig): HttpClient {
 }
 
 export function resetClientProvider() {
+  const client = providers.get("client") as HttpClient | undefined;
+  client?.dispose();
   providers.delete("client");
   providerDisposers.delete("client");
   clientProviderSignature = undefined;
 }
 
 function setClientProvider(client: HttpClient, signature: string) {
+  const current = providers.get("client") as HttpClient | undefined;
+  if (current && current !== client) {
+    current.dispose();
+  }
   providers.set("client", client);
   clientProviderSignature = signature;
   providerDisposers.set("client", resetClientProvider);

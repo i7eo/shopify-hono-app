@@ -3,7 +3,6 @@ import {
   HttpRequestError,
   normalizeHttpError,
   redactHttpRequestConfig,
-  validateBusinessResult,
 } from "../src/errors";
 
 describe("HttpRequestError", () => {
@@ -58,47 +57,6 @@ describe("redactHttpRequestConfig", () => {
       "[redacted]",
     );
     expect(redacted.body).toBe("[redacted]");
-  });
-});
-
-describe("validateBusinessResult", () => {
-  it("throws business errors for default failed wrappers", () => {
-    const response = new Response("{}", { status: 200 });
-
-    expect(() =>
-      validateBusinessResult(
-        { success: false, code: "INVALID", message: "Nope" },
-        response,
-        { method: "GET" },
-      ),
-    ).toThrow(HttpRequestError);
-  });
-
-  it("supports custom business validators", () => {
-    const response = new Response("{}", { status: 200 });
-
-    expect(() =>
-      validateBusinessResult(
-        { ok: false },
-        response,
-        { method: "GET" },
-        () => ({
-          failed: true,
-          code: "CUSTOM",
-          status: 409,
-          message: "Custom failure",
-        }),
-      ),
-    ).toThrow("Custom failure");
-
-    expect(
-      validateBusinessResult(
-        { ok: true },
-        response,
-        { method: "GET" },
-        () => false,
-      ),
-    ).toBeUndefined();
   });
 });
 

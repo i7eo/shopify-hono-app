@@ -2,14 +2,11 @@ import { HTTP_STATUS_CODES } from "@shamt/envs";
 import type { HttpMethod, RequestBehavior } from "../utils/types";
 import type { RetryOptions } from "ky";
 
-export const DEFAULT_BEHAVIOR: Required<
-  Omit<RequestBehavior, "businessStatusValidator" | "onErrorMessage">
-> = {
+export const DEFAULT_BEHAVIOR: Required<RequestBehavior> = {
   responseType: "json",
-  validateBusinessStatus: true,
   timestamp: false,
-  formatRequestData: true,
   dedupe: false,
+  jsonSecurity: "strict",
 };
 
 export const BODYLESS_METHODS = new Set<HttpMethod>(["GET", "HEAD"]);
@@ -21,12 +18,6 @@ export const KY_HOOK_NAMES = [
   "beforeError",
   "afterResponse",
 ] as const;
-
-export const UNSAFE_JSON_KEYS = new Set([
-  "__proto__",
-  "constructor",
-  "prototype",
-]);
 
 export const DEFAULT_RETRY: RetryOptions = {
   limit: 2,

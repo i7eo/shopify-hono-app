@@ -2,69 +2,40 @@
 
 <p><a href="./README.zh-CN.md">中文</a> | <strong>English</strong></p>
 
-## Table of Contents
+`@shamt/oh-my-fetch` is a general-purpose Fetch client built on top of `ky`.
+It keeps the core small, safe, and runtime-neutral, then layers optional behavior
+through explicit plugins.
 
-- [Overview](#overview)
-- [Design and Architecture](#design-and-architecture)
-- [Inputs and Outputs](#inputs-and-outputs)
-- [Usage](#usage)
-- [Error Handling](#error-handling)
-- [Runtime Notes](#runtime-notes)
+## Design
 
-## Overview
+- `client`: `HttpClient`, helper methods, plugin orchestration, scoped cleanup.
+- `core`: body, query, headers, response parsing, and ky option conversion.
+- `lifecycle`: disposable request scopes, abort signal composition, dedupe maps.
+- `security`: safe JSON parsing and prototype-pollution sanitization.
+- `plugins`: opt-in policies such as business status, request formatting, and error reporting.
+- `errors`: `HttpRequestError`, redaction, and ky/fetch error normalization.
+- `validation`: pluggable schema validation for request and response data.
 
-`@shamt/oh-my-fetch` is the shared HTTP client package for the workspace. It wraps `ky` with a smaller project-facing API and adds common behavior for request bodies, query serialization, response parsing, retry, timeout, business wrapper checks, schema validation, dedupe, and normalized request errors.
+The core does not know about application UI, business response wrappers, logging
+providers, or framework-specific exceptions.
 
-The package is designed for application services that should read like a success path:
+## Defaults
 
-```ts
-const user = await api.get<User>("users/current");
-```
+- JSON responses are parsed with `jsonSecurity: "strict"`.
+- Business wrapper checks are not enabled by default.
+- Request body trimming/date formatting is not enabled by default.
+- Schema validation runs only when `bodySchema` or `responseSchema` is supplied.
+- Dedupe is disabled unless `dedupe` is set.
+- `HttpRequestError.toJSON()` omits raw response data and request body values.
 
-Transport failures, non-2xx responses, timeout errors, business wrapper failures, and validation failures are converted into `HttpRequestError` and can be handled by the application's global error layer.
-
-## Design and Architecture
-
-`@shamt/oh-my-fetch` follows these design principles:
-
-- Keep `ky` as the transport engine and expose only the options this workspace wants to standardize.
-- Use `query` for URL parameters and a single `body` field for request bodies instead of exposing `searchParams`, `json`, and `body` separately.
-- Keep the package framework-neutral. It does not import Hono, server exceptions, logger providers, or runtime env providers.
-- Normalize every request failure into `HttpRequestError` with a stable `kind` field.
-- Keep schema validation pluggable. Zod-like schemas, Standard Schema, Yup-like schemas, functions, and custom adapters are supported.
-- Keep `createHttpClient` as the single factory and express upstream/internal behavior through configuration.
-
-The package has three layers:
-
-- `client`: the `HttpClient` class, request helpers, body handling, dedupe, parsing, and the single client factory.
-- `errors`: `HttpRequestError`, redaction, business wrapper detection, and ky/fetch error normalization.
-- `validation`: schema adapters that turn request or response validation failures into `HttpRequestError`.
-
-## Inputs and Outputs
-
-Inputs:
-
-- URL inputs accepted by `ky`.
-- Request configuration such as `query`, `headers`, `timeout`, `retry`, `signal`, `responseType`, `bodySchema`, and `responseSchema`.
-- Request bodies such as JSON-like objects, strings, `FormData`, `URLSearchParams`, `Blob`, `ArrayBuffer`, and streams.
-- Optional business wrapper validators and lifecycle hooks.
-
-Outputs:
-
-- Parsed response data by default.
-- A response object with attached `data` and redacted `config` when `responseType: "response"` is used.
-- `HttpRequestError` for all normalized request failures.
-
-## Usage
-
-Create a general client:
+## Basic Usage
 
 ```ts
 import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const api = createHttpClient({
   prefix: "/api",
-  timeout: 1000 * 30,
+  timeout: 30 * 1000,
   headers: {
     accept: "application/json",
   },
@@ -78,174 +49,179 @@ type User = {
 const user = await api.get<User>("users/current");
 ```
 
-Use the same client factory for external services. Disable business wrapper
-validation when the upstream response does not use the workspace wrapper:
+## Query And Body
+
+Use `query` for URL parameters and `body` for request payloads. The client picks
+`json`, `body`, or urlencoded transport fields for ky.
 
 ```ts
-import { createHttpClient } from "@shamt/oh-my-fetch";
-
-const google = createHttpClient({
-  timeout: 1000 * 3,
-  retry: { limit: 0 },
-  defaults: {
-    validateBusinessStatus: false,
+await api.get<User[]>("users", {
+  query: {
+    page: 1,
+    roles: ["admin", "editor"],
   },
 });
 
-const response = await google.get<Response>(
-  "https://www.google.com/generate_204",
+await api.post("users", {
+  name: " Ada ",
+});
+```
+
+Bodies are not mutated or normalized by default. Add the request-format plugin
+when a service wants recursive string trimming and Date formatting.
+
+```ts
+import { createHttpClient, requestFormatPlugin } from "@shamt/oh-my-fetch";
+
+const formattedApi = createHttpClient({
+  plugins: [requestFormatPlugin()],
+});
+```
+
+## Response Types
+
+The default response type is `json`.
+
+```ts
+const text = await api.get<string>("health", {
+  responseType: "text",
+});
+
+const response = await api.get<Response>("download", {
+  responseType: "response",
+});
+```
+
+When `responseType: "response"` is used, the returned `Response` has `data` and
+a redacted `config` attached.
+
+## Validation
+
+Validation is built in but lazy. It runs only when schemas are supplied.
+Adapters, Standard Schema, Zod-like `safeParse`, Yup-like `validate`, and
+functions are supported.
+
+```ts
+const user = await api.post(
+  "users",
+  { id: "1" },
   {
-    responseType: "response",
+    bodySchema: (value) => ({
+      ...(value as Record<string, unknown>),
+      id: Number((value as { id: string }).id),
+    }),
+    responseSchema: (value) => value as User,
   },
 );
 ```
 
-Use the same factory for internal APIs. The default behavior treats
-`{ success: false }` as an error:
+Validation failures throw `HttpRequestError` with `kind` set to
+`request_validation` or `response_validation`.
+
+## Plugins
+
+Plugins are explicit lifecycle policies.
 
 ```ts
-import { createHttpClient } from "@shamt/oh-my-fetch";
+import {
+  businessStatusPlugin,
+  createHttpClient,
+  errorReporterPlugin,
+  requestFormatPlugin,
+} from "@shamt/oh-my-fetch";
 
-const internalApi = createHttpClient({
-  prefix: "/api",
-});
-
-const result = await internalApi.post("jobs", {
-  type: "sync-products",
+const api = createHttpClient({
+  plugins: [
+    requestFormatPlugin(),
+    businessStatusPlugin(),
+    errorReporterPlugin({
+      report: (error) => {
+        console.error(error);
+      },
+    }),
+  ],
 });
 ```
 
-Handle custom business codes with `businessStatusValidator`:
+### Business Status
+
+`businessStatusPlugin()` treats common wrappers like `{ success: false }` or
+`{ type: "error" }` as failures. A custom validator replaces the default.
 
 ```ts
-import { createHttpClient } from "@shamt/oh-my-fetch";
-
 const api = createHttpClient({
-  prefix: "/api",
+  plugins: [
+    businessStatusPlugin({
+      validator: (data) => {
+        const result = data as { ok?: boolean; code?: string };
+        if (result.ok === false) {
+          return {
+            failed: true,
+            code: result.code,
+            status: 409,
+            message: "Custom failure",
+            data,
+          };
+        }
+        return false;
+      },
+    }),
+  ],
+});
+```
+
+### Error Reporting
+
+Error reporting is a plugin, not a core callback.
+
+```ts
+const api = createHttpClient({
+  plugins: [
+    errorReporterPlugin({
+      report: (error, context) => {
+        console.error(error.message, context.config);
+      },
+    }),
+  ],
+});
+```
+
+## Dedupe And Disposal
+
+Set `dedupe: true` to abort an older equivalent in-flight GET/HEAD request.
+Use a string to dedupe any method by a custom key.
+
+```ts
+await api.get("users/current", { dedupe: true });
+await api.post("search", body, { dedupe: "search:current" });
+```
+
+Dispose the client to abort pending dedupe-managed requests and release plugin
+resources.
+
+```ts
+api.dispose();
+```
+
+## JSON Security
+
+`jsonSecurity` controls prototype-pollution sanitization:
+
+- `"strict"` recursively removes `__proto__`, `constructor`, and `prototype`.
+- `"shallow"` removes those keys only at the top level.
+- `"off"` leaves parsed JSON untouched.
+
+```ts
+const api = createHttpClient({
   defaults: {
-    businessStatusValidator: (data) => {
-      const result = data as {
-        code?: number | string;
-        message?: string;
-        success?: boolean;
-      };
-
-      if (result.code === "SHOP_LOCKED") {
-        return {
-          failed: true,
-          code: result.code,
-          status: 423,
-          message: "Shop is locked",
-          data,
-        };
-      }
-
-      if (result.code === 10001 || result.code === "10001") {
-        return {
-          failed: true,
-          code: result.code,
-          status: 409,
-          message: "Product sync is already running",
-          data,
-        };
-      }
-
-      if (result.success === false) {
-        return {
-          failed: true,
-          code: result.code,
-          message: result.message,
-          data,
-        };
-      }
-
-      return false;
-    },
+    jsonSecurity: "strict",
   },
-});
-
-await api.post("jobs", {
-  type: "sync-products",
-});
-```
-
-Use `onErrorMessage` when application code needs to show UI feedback:
-
-```ts
-const api = createHttpClient({
-  prefix: "/api",
-  defaults: {
-    onErrorMessage: (message, { error }) => {
-      if (error.name === "HttpRequestError") {
-        showToast(message);
-      }
-    },
-  },
-});
-```
-
-Use `hooks.beforeError` as the application-layer adapter entry when the app
-needs to map `HttpRequestError` into another error model:
-
-```ts
-const api = createHttpClient({
-  hooks: {
-    beforeError: (error) => {
-      if (error.name !== "HttpRequestError") {
-        return error;
-      }
-
-      return mapRequestErrorToAppError(error);
-    },
-  },
-});
-```
-
-`businessStatusValidator` is the single extension point for growing business
-code rules. It can return `true` to fail with the current response data, or
-return a `BusinessFailureResult` to provide a custom status, message, code, and
-data.
-
-Pass query parameters through `query`:
-
-```ts
-const users = await api.get<User[]>("users", {
-  query: {
-    page: 1,
-    pageSize: 20,
-    roles: ["admin", "editor"],
-  },
-});
-```
-
-Validate request and response data with any supported schema shape:
-
-```ts
-import { z } from "zod";
-
-const UserSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-});
-
-const user = await api.get("users/current", {
-  responseSchema: UserSchema,
-});
-```
-
-Upload files with `FormData`; do not set `Content-Type` manually because Fetch must generate the multipart boundary:
-
-```ts
-const result = await api.upload("assets", {
-  file,
-  fieldName: "image",
-  filename: "cover.png",
 });
 ```
 
 ## Error Handling
 
-All normalized failures are represented as `HttpRequestError`:
+All normalized failures use `HttpRequestError`.
 
 ```ts
 import { HttpRequestError } from "@shamt/oh-my-fetch";
@@ -259,25 +235,24 @@ try {
 }
 ```
 
-The `kind` field is stable and can be used by application-level adapters:
+Stable `kind` values:
 
-- `http_status`: upstream returned a non-2xx response.
-- `timeout`: the request timed out.
-- `network`: the request failed before receiving a response.
-- `abort`: the request was canceled.
-- `business`: the response wrapper was parsed as a business failure.
-- `request_validation`: the request body failed schema validation.
-- `response_validation`: the parsed response failed schema validation.
-- `unknown`: a fallback for unexpected errors.
+- `http_status`
+- `timeout`
+- `network`
+- `abort`
+- `business`
+- `request_validation`
+- `response_validation`
+- `unknown`
 
-`HttpRequestError.config` is redacted before it is stored. Sensitive headers and query values such as authorization, cookie, token, password, and api key values are replaced with `[redacted]`.
+Request config stored on errors is redacted. Sensitive headers and query values
+such as authorization, cookie, token, password, and API keys are replaced with
+`[redacted]`; request bodies are never stored raw in `config`.
 
 ## Runtime Notes
 
-`@shamt/oh-my-fetch` is runtime-neutral for process-style and isolate-style runtimes as long as the runtime provides Fetch-compatible APIs. It can be used in Node, Cloudflare Workers, Vercel-like serverless environments, and browsers.
-
-Some capabilities depend on the runtime:
-
-- `Blob`, `FormData`, `ReadableStream`, and `AbortController` are detected through globals.
-- Upload and download progress support follows `ky` and the underlying runtime.
-- JSON parsing uses a safe default parser that drops `__proto__`, `constructor`, and `prototype` keys. Override `parseJson` only when an upstream API truly requires those fields.
+The package works in runtimes with Fetch-compatible globals: browsers,
+Cloudflare Workers, Node, and serverless isolates. `Blob`, `FormData`,
+`ReadableStream`, `AbortController`, and upload/download progress support follow
+the host runtime and ky behavior.

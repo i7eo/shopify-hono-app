@@ -10,15 +10,7 @@ export type HeaderSource = Options["headers"];
 export type KyHooks = NonNullable<Options["hooks"]>;
 export type ParseJson = NonNullable<Options["parseJson"]>;
 
-export interface PendingRequest {
-  key: string;
-  controller: AbortController;
-}
-
-export type ResolvedRequestBehavior = Required<
-  Omit<RequestBehavior, "businessStatusValidator" | "onErrorMessage">
-> &
-  Pick<RequestBehavior, "businessStatusValidator" | "onErrorMessage">;
+export type ResolvedRequestBehavior = Required<RequestBehavior>;
 
 export type ResponseConfig<TSchema extends ValidationSchema> = Omit<
   HttpRequestConfig<unknown, InferSchemaOutput<TSchema>>,
