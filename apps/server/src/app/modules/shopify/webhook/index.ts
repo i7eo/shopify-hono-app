@@ -4,6 +4,9 @@ import { createResponse } from "@/shared/models";
 import { getShopifySessionStorage } from "../session-storage";
 import type { AppEnv } from "@/types";
 
+/**
+ * Creates verified Shopify webhook routes and handlers.
+ */
 export const createWebhookRoutes = () => {
   const webhookRoutes = new Hono<AppEnv>();
 
@@ -58,6 +61,9 @@ export const createWebhookRoutes = () => {
   return webhookRoutes;
 };
 
+/**
+ * Mounts Shopify webhook routes under the webhook prefix.
+ */
 export const registerWebhookRoutes = (app: Hono<AppEnv>) => {
   app.route("/webhooks", createWebhookRoutes());
 };

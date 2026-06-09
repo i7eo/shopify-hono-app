@@ -4,6 +4,9 @@ import { getShopifySessionStorage } from "./session-storage";
 import type { AppEnv } from "@/types";
 import type { Context } from "hono";
 
+/**
+ * Loads the active online session associated with the embedded request.
+ */
 export async function loadActiveShopifyOnlineSession(
   c: Context<AppEnv>,
 ): Promise<Session | undefined> {
@@ -26,6 +29,9 @@ export async function loadActiveShopifyOnlineSession(
   return undefined;
 }
 
+/**
+ * Exchanges the embedded session token for an online Admin API session.
+ */
 export async function exchangeShopifyOnlineSession(
   c: Context<AppEnv>,
 ): Promise<Session> {
@@ -55,6 +61,9 @@ export async function exchangeShopifyOnlineSession(
   return session;
 }
 
+/**
+ * Deletes the current online session and exchanges a fresh one.
+ */
 export async function refreshShopifyOnlineSession(
   c: Context<AppEnv>,
 ): Promise<Session> {
@@ -62,6 +71,9 @@ export async function refreshShopifyOnlineSession(
   return exchangeShopifyOnlineSession(c);
 }
 
+/**
+ * Stores the active Shopify session and access token on the Hono context.
+ */
 export function setShopifySessionContext(c: Context<AppEnv>, session: Session) {
   if (!session.accessToken) {
     throw new Error("Shopify session does not have an access token");
@@ -71,6 +83,9 @@ export function setShopifySessionContext(c: Context<AppEnv>, session: Session) {
   c.set("shopifyAccessToken", session.accessToken);
 }
 
+/**
+ * Deletes any stored online session IDs associated with the current request.
+ */
 async function deleteCurrentShopifyOnlineSession(c: Context<AppEnv>) {
   const sessionStorage = getShopifySessionStorage(c);
   const sessionIds = new Set<string>();

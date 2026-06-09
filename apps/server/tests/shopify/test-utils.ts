@@ -6,6 +6,7 @@ export const runtimeConfig = {
   APP_API_PREFIX: "api",
   APP__SERVER_PORT: 3000,
   APP__WEB_PORT: 3001,
+  SHOPIFY_APP_MODE: "embedded",
   SHOPIFY_APP_KEY: "test_app_key",
   SHOPIFY_APP_SECRET: "test_app_secret",
   SHOPIFY_APP_URL: "https://app.example.com",

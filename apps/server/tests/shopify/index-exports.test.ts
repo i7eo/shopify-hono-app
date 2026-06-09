@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 describe("Shopify runtime re-exports", () => {
   it("re-exports Shopify middleware functions", async () => {
@@ -9,19 +9,46 @@ describe("Shopify runtime re-exports", () => {
     expect(middleware.verifyWebhook).toBeTypeOf("function");
   });
 
-  it("re-exports Shopify module controllers", async () => {
-    const product = await import("@/app/modules/shopify/product");
-    const shop = await import("@/app/modules/shopify/shop");
+  it("exports Shopify-backed resource module controllers outside Shopify app flow", async () => {
+    const product = await import("@/app/modules/product");
+    const shop = await import("@/app/modules/shop");
 
     expect(product.registerProductController).toBeTypeOf("function");
     expect(shop.registerShopController).toBeTypeOf("function");
   });
 
-  it("exports Shopify route constants", async () => {
-    const constants = await import("@/app/modules/shopify/constants");
+  it("exports Shopify-backed resource route constants", async () => {
+    const productConstants = await import("@/app/modules/product/constants");
+    const shopConstants = await import("@/app/modules/shop/constants");
 
-    expect(constants.apiPath).toBe("/api/shopify");
-    expect(constants.tag).toBe("Api - Shopify");
-    expect(constants.tags).toEqual(["Api - Shopify"]);
+    expect(productConstants.apiPath).toBe("/api/product");
+    expect(productConstants.tag).toBe("Api - Product");
+    expect(productConstants.tags).toEqual(["Api - Product"]);
+    expect(shopConstants.apiPath).toBe("/api/shop");
+    expect(shopConstants.tag).toBe("Api - Shop");
+    expect(shopConstants.tags).toEqual(["Api - Shop"]);
+  });
+
+  it("supports resetting and disposing Shopify mode capabilities", async () => {
+    const mode = await import("@/app/modules/shopify/mode");
+    const embedded = mode.getShopifyModeCapabilities("embedded");
+    const standalone = mode.getShopifyModeCapabilities("standalone");
+    const dispose = vi.fn();
+
+    mode.setShopifyModeCapabilities("embedded", embedded, dispose);
+    mode.resetShopifyModeCapability("embedded");
+    expect(() => mode.getShopifyModeCapabilities("embedded")).toThrow(
+      "Shopify app mode is not registered: embedded",
+    );
+
+    mode.setShopifyModeCapabilities("embedded", embedded, dispose);
+    await mode.disposeShopifyModeCapabilities();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(() => mode.getShopifyModeCapabilities("embedded")).toThrow(
+      "Shopify app mode is not registered: embedded",
+    );
+
+    mode.setShopifyModeCapabilities("embedded", embedded);
+    mode.setShopifyModeCapabilities("standalone", standalone);
   });
 });

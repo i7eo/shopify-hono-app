@@ -1,18 +1,15 @@
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
+import type { ShopifyClient } from "@/infra/provider";
 import type { Cache } from "@shamt/cache";
-import type { DEFAULT_RUNTIMES_VALUES } from "@shamt/envs";
 import type { JwtPayload, Session } from "@shopify/shopify-api";
 
-export interface Bindings {
-  APP_RUNTIME?: DEFAULT_RUNTIMES_VALUES;
-  SHOPIFY_APP_KEY: string;
-  SHOPIFY_APP_SECRET: string;
-  SHOPIFY_APP_URL: string;
-  SCOPES: string;
-  SHOPIFY_API_VERSION: string;
-  sofary: Env["sofary"];
-}
+type RuntimeBindings<TRuntime extends RuntimeConfig["APP_RUNTIME"]> =
+  TRuntime extends RuntimeConfig["APP_RUNTIME"]
+    ? Partial<Extract<RuntimeConfig, { APP_RUNTIME: TRuntime }>> & {
+        APP_RUNTIME?: TRuntime;
+      }
+    : never;
 
 export interface Variables {
   requestId: string;
@@ -27,13 +24,28 @@ export interface Variables {
   // Set by token-exchange middleware
   shopifySession: Session;
   shopifyAccessToken: string;
+  // Set by shopify-admin middleware
+  shopifyAdminClient: ShopifyClient;
   // Set by verify-webhook middleware
   webhookTopic: string;
   webhookShop: string;
   webhookPayload: unknown;
 }
 
-export type AppEnv = {
-  Bindings: Bindings;
+export type RuntimeAppEnv<
+  TRuntime extends RuntimeConfig["APP_RUNTIME"] = RuntimeConfig["APP_RUNTIME"],
+> = {
+  /**
+   * Bindings are derived from the runtime config union so env fields stay tied
+   * to the Zod schemas. They remain partial because isolate bootstrap can read
+   * process.env before request-bound platform bindings are available.
+   */
+  Bindings: RuntimeBindings<TRuntime>;
   Variables: Variables;
 };
+
+/**
+ * Shared Hono env used by business modules. Runtime entries can narrow this
+ * with RuntimeAppEnv<"cloudflare"> or RuntimeAppEnv<"node"> at the boundary.
+ */
+export type AppEnv = RuntimeAppEnv;

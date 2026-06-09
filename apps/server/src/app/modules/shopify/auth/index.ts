@@ -1,11 +1,15 @@
 import { Hono } from "hono";
 import { getShopifyConfigProvider } from "@/infra/provider";
 import { badRequestError } from "@/shared/exceptions";
+import { getShopifyModeCapabilities } from "../mode";
 import { getShopifySessionStorage } from "../session-storage";
 import type { AppEnv } from "@/types";
 
 const SHOP_DOMAIN_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
 
+/**
+ * Creates Shopify OAuth routes for install, reauthorization, and callbacks.
+ */
 export const createAuthRoutes = () => {
   const authRoutes = new Hono<AppEnv>();
 
@@ -35,27 +39,17 @@ export const createAuthRoutes = () => {
 
     await getShopifySessionStorage(c).storeSession(session);
 
-    const responseHeaders = new Headers(headers);
-    const host = c.req.query("host");
-    if (host) {
-      responseHeaders.set("Location", shopify.auth.buildEmbeddedAppUrl(host));
-    } else {
-      responseHeaders.set(
-        "Location",
-        `${config.SHOPIFY_APP_URL}/app?shop=${session.shop}`,
-      );
-    }
-
-    return new Response(null, {
-      status: 302,
-      statusText: "Found",
-      headers: responseHeaders,
-    });
+    return getShopifyModeCapabilities(
+      config.SHOPIFY_APP_MODE,
+    ).buildAuthCallbackRedirect(c, shopify, session, new Headers(headers));
   });
 
   return authRoutes;
 };
 
+/**
+ * Mounts Shopify OAuth routes under the app-level auth prefix.
+ */
 export const registerAuthRoutes = (app: Hono<AppEnv>) => {
   app.route("/auth", createAuthRoutes());
 };

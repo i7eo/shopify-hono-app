@@ -5,22 +5,27 @@ import { parseWithSchema } from "./shared";
 
 export const cloudflareIsolateConfigSchema = configSchema.extend({
   APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.CLOUDFLARE),
-  sofary: z.custom<Env["sofary"]>(
-    (value) => {
-      if (!value || typeof value !== "object") return false;
-      const namespace = value as Partial<KVNamespace>;
-      return (
-        typeof namespace.get === "function" &&
-        typeof namespace.put === "function" &&
-        typeof namespace.delete === "function" &&
-        typeof namespace.list === "function"
-      );
-    },
-    {
-      message:
-        "Cloudflare KV namespace binding with get/put/delete/list is required",
-    },
-  ),
+  // Platform bindings are optional at config parse time because Cloudflare
+  // bootstrap can read process.env before request-bound env bindings exist.
+  // Runtime capabilities must require the binding at the actual usage point.
+  sofary: z
+    .custom<Env["sofary"]>(
+      (value) => {
+        if (!value || typeof value !== "object") return false;
+        const namespace = value as Partial<KVNamespace>;
+        return (
+          typeof namespace.get === "function" &&
+          typeof namespace.put === "function" &&
+          typeof namespace.delete === "function" &&
+          typeof namespace.list === "function"
+        );
+      },
+      {
+        message:
+          "Cloudflare KV namespace binding with get/put/delete/list is required",
+      },
+    )
+    .optional(),
 });
 export const vercelEdgeIsolateConfigSchema = configSchema.extend({
   APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.VERCEL_EDGE),
@@ -42,7 +47,7 @@ export type VercelEdgeIsolateConfig = z.infer<
 
 /**
  * Validate an isolate runtime config and dispatch by isolate platform.
- * Cloudflare configs include request-bound bindings such as KV namespaces.
+ * Cloudflare configs may include request-bound bindings such as KV namespaces.
  * Vercel Edge is intentionally separate so it can grow platform-specific bindings later.
  */
 export function parseIsolateConfig(

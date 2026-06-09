@@ -1,6 +1,6 @@
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerCloudflareIsolateRuntimeCapabilities } from "./capabilities";
-import type { AppEnv } from "@/types";
+import type { RuntimeAppEnv } from "@/types";
 
 registerCloudflareIsolateRuntimeCapabilities();
 
@@ -11,4 +11,4 @@ export default {
     const app = await cloudflareApp;
     return app.fetch(request, env, ctx);
   },
-} satisfies ExportedHandler<AppEnv["Bindings"]>;
+} satisfies ExportedHandler<RuntimeAppEnv<"cloudflare">["Bindings"]>;

@@ -34,7 +34,10 @@ export function parseRuntimeConfig(rawEnv: unknown): RuntimeConfig {
   const env = normalizeEnv(rawEnv);
   const runtimeResult = runtimeSchema.safeParse(env);
   if (!runtimeResult.success)
-    throwError("apps/server", formatZodError(runtimeResult.error));
+    throwError(
+      `runtime parse env entry error`,
+      formatZodError(runtimeResult.error),
+    );
 
   if (isIsolateRuntime(runtimeResult.data.APP_RUNTIME)) {
     return parseIsolateConfig(env);

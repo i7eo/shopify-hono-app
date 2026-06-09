@@ -1,99 +1,23 @@
+import { getShopifyModeCapabilities } from "../mode";
 import type { AppEnv } from "@/types";
 import type { Context, Hono } from "hono";
 
+/**
+ * Registers app shell routes that delegate rendering to the active Shopify app mode.
+ */
 export const registerAppShellRoutes = (app: Hono<AppEnv>) => {
   app.get("/app", renderAppShellResponse);
   app.get("/app/*", renderAppShellResponse);
   app.get("/", renderAppShellResponse);
 };
 
+/**
+ * Builds the app shell response for the current embedded or standalone mode.
+ */
 function renderAppShellResponse(c: Context<AppEnv>) {
-  return c.html(renderAppShell(c.get("runtimeEnv").SHOPIFY_APP_KEY));
-}
+  const config = c.get("runtimeEnv");
 
-export function renderAppShell(apiKey: string): string {
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <meta name="shopify-api-key" content="${apiKey}" />
-      <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-      <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
-      <title>My Shopify App</title>
-    </head>
-    <body>
-      <s-page heading="My Shopify App" inline-size="base">
-        <s-section heading="Shop Info">
-          <s-box id="shop-info">
-            <s-spinner size="base" accessibility-label="Loading shop info"></s-spinner>
-          </s-box>
-        </s-section>
-
-        <s-section heading="Products">
-          <s-box id="products-container">
-            <s-spinner size="base" accessibility-label="Loading products"></s-spinner>
-          </s-box>
-        </s-section>
-      </s-page>
-
-      <script>
-        // App Bridge auto-initializes from the meta tag above.
-        // It intercepts fetch() calls to our backend and automatically
-        // adds the Authorization: Bearer <session_token> header.
-
-        async function loadShopInfo() {
-          const container = document.getElementById('shop-info');
-          try {
-            const res = await fetch('/api/shopify/shop');
-            if (!res.ok) throw new Error('Failed to load shop info');
-            const data = await res.json();
-            const shop = data.data?.shop;
-            if (shop) {
-              container.innerHTML =
-                '<s-text type="strong">' + escapeHtml(shop.name) + '</s-text>' +
-                '<s-text color="subdued"> (' + escapeHtml(shop.myshopifyDomain) + ')</s-text>';
-            }
-          } catch (err) {
-            container.innerHTML = '<s-banner tone="critical">' + escapeHtml(err.message) + '</s-banner>';
-          }
-        }
-
-        async function loadProducts() {
-          const container = document.getElementById('products-container');
-          try {
-            const res = await fetch('/api/shopify/products');
-            if (!res.ok) throw new Error('Failed to load products');
-            const data = await res.json();
-            const products = data.data?.products?.edges || [];
-
-            if (products.length === 0) {
-              container.innerHTML = '<s-text color="subdued">No products found.</s-text>';
-              return;
-            }
-
-            container.innerHTML = '<s-unordered-list>' +
-              products.map(function(edge) {
-                return '<s-list-item>' + escapeHtml(edge.node.title) + '</s-list-item>';
-              }).join('') +
-              '</s-unordered-list>';
-          } catch (err) {
-            container.innerHTML = '<s-banner tone="critical">' + escapeHtml(err.message) + '</s-banner>';
-          }
-        }
-
-        function escapeHtml(str) {
-          var div = document.createElement('div');
-          div.appendChild(document.createTextNode(str));
-          return div.innerHTML;
-        }
-
-        // Load data once App Bridge is ready
-        loadShopInfo();
-        loadProducts();
-      </script>
-    </body>
-    </html>
-  `;
+  return getShopifyModeCapabilities(
+    config.SHOPIFY_APP_MODE,
+  ).buildAppShellResponse(c);
 }

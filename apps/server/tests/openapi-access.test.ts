@@ -59,8 +59,12 @@ describe("OpenAPI reference access control", () => {
   it("keeps OpenAPI routes absent when the app is created with OpenAPI disabled", async () => {
     const app = await bootstrapApp({ registerOpenApi: false });
 
-    const document = await app.request("/document");
-    const reference = await app.request("/reference");
+    const document = await app.request("/document", {}, runtimeConfig as never);
+    const reference = await app.request(
+      "/reference",
+      {},
+      runtimeConfig as never,
+    );
 
     expect(document.status).toBe(404);
     expect(reference.status).toBe(404);

@@ -5,9 +5,11 @@ import type { AppEnv } from "@/types";
 
 describe("Shopify app shell", () => {
   it("renders Polaris web component shell with Shopify scripts and API key", async () => {
-    const { renderAppShell } = await import("@/app/modules/shopify/app-shell");
+    const { getShopifyModeCapabilities } =
+      await import("@/app/modules/shopify/mode");
 
-    const html = renderAppShell("test_key");
+    const html =
+      getShopifyModeCapabilities("embedded").renderAppShell("test_key");
 
     expect(html).toContain(
       '<meta name="shopify-api-key" content="test_key" />',
@@ -19,6 +21,22 @@ describe("Shopify app shell", () => {
     expect(html).toContain("<s-page");
     expect(html).toContain('<s-section heading="Shop Info">');
     expect(html).toContain("escapeHtml");
+  });
+
+  it("renders standalone shell without App Bridge", async () => {
+    const { getShopifyModeCapabilities } =
+      await import("@/app/modules/shopify/mode");
+
+    const html =
+      getShopifyModeCapabilities("standalone").renderAppShell("test_key");
+
+    expect(html).toContain(
+      '<meta name="shopify-api-key" content="test_key" />',
+    );
+    expect(html).not.toContain(
+      "https://cdn.shopify.com/shopifycloud/app-bridge.js",
+    );
+    expect(html).toContain("https://cdn.shopify.com/shopifycloud/polaris.js");
   });
 
   it("registers app shell routes", async () => {
@@ -37,6 +55,28 @@ describe("Shopify app shell", () => {
       expect(response.status).toBe(200);
       expect(await response.text()).toContain("test_app_key");
     }
+  });
+
+  it("redirects standalone app shell launches with shop query to OAuth", async () => {
+    const { registerAppShellRoutes } =
+      await import("@/app/modules/shopify/app-shell");
+    const app = new Hono<AppEnv>();
+    app.use("*", async (c, next) => {
+      c.set("runtimeEnv", {
+        ...runtimeConfig,
+        SHOPIFY_APP_MODE: "standalone",
+      } as never);
+      await next();
+    });
+
+    registerAppShellRoutes(app as never);
+
+    const response = await app.request("/app?shop=test-shop.myshopify.com");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe(
+      "https://app.example.com/auth?shop=test-shop.myshopify.com",
+    );
   });
 });
 
@@ -142,6 +182,52 @@ describe("Shopify auth routes", () => {
     expect(storeSession).toHaveBeenCalledTimes(2);
   });
 
+  it("stores callback sessions and sets standalone app session cookies", async () => {
+    const callback = vi.fn().mockResolvedValue({
+      headers: { "Set-Cookie": "shopify=1" },
+      session: {
+        id: "offline_shop.myshopify.com",
+        shop: "shop.myshopify.com",
+        accessToken: "offline-token",
+      },
+    });
+    const storeSession = vi.fn();
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        auth: { callback },
+      })),
+    }));
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ storeSession })),
+    }));
+
+    const { createAuthRoutes } = await import("@/app/modules/shopify/auth");
+    const app = new Hono<AppEnv>();
+    app.use("*", async (c, next) => {
+      c.set("runtimeEnv", {
+        ...runtimeConfig,
+        SHOPIFY_APP_MODE: "standalone",
+      } as never);
+      await next();
+    });
+    app.route("/auth", createAuthRoutes());
+
+    const response = await app.request("/auth/callback");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe(
+      "https://app.example.com/app",
+    );
+    expect(response.headers.get("Set-Cookie")).toContain(
+      ":account_session_cookie=offline_shop.myshopify.com",
+    );
+    expect(storeSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessToken: "offline-token",
+      }),
+    );
+  });
+
   it("registers auth routes on an app", async () => {
     const { registerAuthRoutes } = await import("@/app/modules/shopify/auth");
     const app = { route: vi.fn() };
@@ -158,10 +244,10 @@ describe("Shopify route metadata and aggregate registration", () => {
   });
 
   it("defines shop and product route metadata and schemas", async () => {
-    const productMeta = await import("@/app/modules/shopify/product/meta");
-    const shopMeta = await import("@/app/modules/shopify/shop/meta");
+    const productMeta = await import("@/app/modules/product/meta");
+    const shopMeta = await import("@/app/modules/shop/meta");
 
-    expect(productMeta.getProductsRoute.path).toBe("/api/shopify/products");
+    expect(productMeta.getProductsRoute.path).toBe("/api/product");
     expect(productMeta.getProductsRoute.method).toBe("get");
     expect(productMeta.getProductsRoute.middleware).toHaveLength(2);
     expect(
@@ -180,7 +266,7 @@ describe("Shopify route metadata and aggregate registration", () => {
       }).success,
     ).toBe(true);
 
-    expect(shopMeta.getShopRoute.path).toBe("/api/shopify/shop");
+    expect(shopMeta.getShopRoute.path).toBe("/api/shop");
     expect(shopMeta.getShopRoute.method).toBe("get");
     expect(shopMeta.getShopRoute.middleware).toHaveLength(2);
     expect(
@@ -194,7 +280,7 @@ describe("Shopify route metadata and aggregate registration", () => {
     ).toBe(true);
   });
 
-  it("registers all Shopify routes", async () => {
+  it("registers Shopify app flow routes", async () => {
     const { registerShopifyRoutes } = await import("@/app/modules/shopify");
     const app = {
       get: vi.fn(),
@@ -207,6 +293,21 @@ describe("Shopify route metadata and aggregate registration", () => {
     expect(app.get).toHaveBeenCalledTimes(3);
     expect(app.route).toHaveBeenCalledWith("/auth", expect.any(Object));
     expect(app.route).toHaveBeenCalledWith("/webhooks", expect.any(Object));
-    expect(app.openapi).toHaveBeenCalledTimes(2);
+    expect(app.openapi).not.toHaveBeenCalled();
+  });
+
+  it("registers Shopify-backed resource routes from the app route aggregator", async () => {
+    const { registerRoutes } = await import("@/app/bootstrap/register-routes");
+    const app = {
+      get: vi.fn(),
+      route: vi.fn(),
+      openapi: vi.fn(),
+    };
+
+    registerRoutes(app as never);
+
+    const paths = app.openapi.mock.calls.map(([route]) => route.path);
+    expect(paths).toContain("/api/shop");
+    expect(paths).toContain("/api/product");
   });
 });

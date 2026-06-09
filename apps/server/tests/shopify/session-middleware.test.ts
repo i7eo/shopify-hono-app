@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockContext, expectAppError, runtimeConfig } from "./test-utils";
 
 describe("Shopify session storage", () => {
@@ -190,6 +190,36 @@ describe("verifySessionToken middleware", () => {
       return true;
     });
   });
+
+  it("wraps non-Error invalid session token failures", async () => {
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        session: {
+          decodeSessionToken: vi.fn(() => {
+            throw "bad token";
+          }),
+        },
+      })),
+    }));
+
+    const { verifySessionToken } =
+      await import("@/shared/middlewares/shopify/verify-session-token");
+
+    await expect(
+      verifySessionToken(
+        createMockContext({
+          headers: { Authorization: "Bearer bad" },
+        }) as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 401, "Invalid session token");
+      expect(error).toMatchObject({
+        details: { message: "bad token" },
+      });
+      return true;
+    });
+  });
 });
 
 describe("tokenExchange middleware", () => {
@@ -293,6 +323,467 @@ describe("tokenExchange middleware", () => {
           message: "Token exchange did not return an access token",
         },
       });
+      return true;
+    });
+  });
+
+  it("wraps non-Error token exchange failures", async () => {
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      loadActiveShopifyOnlineSession: vi.fn(() => undefined),
+      exchangeShopifyOnlineSession: vi.fn(() => {
+        throw "token exchange exploded";
+      }),
+      setShopifySessionContext: vi.fn(),
+    }));
+
+    const { tokenExchange } =
+      await import("@/shared/middlewares/shopify/token-exchange");
+
+    await expect(
+      tokenExchange(
+        createMockContext({
+          headers: { Authorization: "Bearer session-token" },
+          vars: { shopDomain: "shop.myshopify.com" },
+        }) as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 502, "Token exchange failed");
+      expect(error).toMatchObject({
+        details: {
+          message: "token exchange exploded",
+        },
+      });
+      return true;
+    });
+  });
+});
+
+describe("Shopify online session helpers", () => {
+  beforeEach(() => {
+    vi.doUnmock("@/app/modules/shopify/session");
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+    vi.doUnmock("@/infra/provider");
+    vi.doUnmock("@/app/modules/shopify/session-storage");
+  });
+
+  it("loads active online sessions from the current Shopify session ID", async () => {
+    const session = {
+      accessToken: "stored-token",
+      isActive: vi.fn(() => true),
+    };
+    const loadSession = vi.fn(() => session);
+    const getCurrentId = vi.fn(() => "online-session-id");
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ loadSession })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        config: { scopes: ["read_products"] },
+        session: { getCurrentId },
+      })),
+    }));
+
+    const { loadActiveShopifyOnlineSession } =
+      await import("@/app/modules/shopify/session");
+    const context = createMockContext();
+
+    await expect(
+      loadActiveShopifyOnlineSession(context as never),
+    ).resolves.toBe(session);
+    expect(getCurrentId).toHaveBeenCalledWith({
+      isOnline: true,
+      rawRequest: context.req.raw,
+    });
+    expect(loadSession).toHaveBeenCalledWith("online-session-id");
+    expect(session.isActive).toHaveBeenCalledWith(["read_products"]);
+  });
+
+  it("returns undefined when no active online session can be loaded", async () => {
+    const inactiveSession = {
+      accessToken: "stored-token",
+      isActive: vi.fn(() => false),
+    };
+    const loadSession = vi.fn(() => inactiveSession);
+    const getCurrentId = vi
+      .fn()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce("inactive-session-id");
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ loadSession })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        config: { scopes: ["read_products"] },
+        session: { getCurrentId },
+      })),
+    }));
+
+    const { loadActiveShopifyOnlineSession } =
+      await import("@/app/modules/shopify/session");
+    const context = createMockContext();
+
+    await expect(
+      loadActiveShopifyOnlineSession(context as never),
+    ).resolves.toBeUndefined();
+    expect(loadSession).not.toHaveBeenCalled();
+
+    await expect(
+      loadActiveShopifyOnlineSession(context as never),
+    ).resolves.toBeUndefined();
+    expect(loadSession).toHaveBeenCalledWith("inactive-session-id");
+    expect(inactiveSession.isActive).toHaveBeenCalledWith(["read_products"]);
+  });
+
+  it("exchanges session tokens, stores sessions, and exposes session context", async () => {
+    const session = {
+      id: "online-session-id",
+      shop: "shop.myshopify.com",
+      accessToken: "new-token",
+    };
+    const tokenExchange = vi.fn(() => ({ session }));
+    const storeSession = vi.fn();
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ storeSession })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        auth: { tokenExchange },
+      })),
+    }));
+
+    const { exchangeShopifyOnlineSession, setShopifySessionContext } =
+      await import("@/app/modules/shopify/session");
+    const context = createMockContext({
+      headers: { Authorization: "Bearer session-token" },
+      vars: { shopDomain: "shop.myshopify.com" },
+    });
+
+    await expect(exchangeShopifyOnlineSession(context as never)).resolves.toBe(
+      session,
+    );
+    expect(tokenExchange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shop: "shop.myshopify.com",
+        sessionToken: "session-token",
+      }),
+    );
+    expect(storeSession).toHaveBeenCalledWith(session);
+
+    setShopifySessionContext(context as never, session as never);
+    expect(context.var.shopifySession).toBe(session);
+    expect(context.var.shopifyAccessToken).toBe("new-token");
+  });
+
+  it("rejects malformed token exchange inputs and sessions without access tokens", async () => {
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        auth: { tokenExchange: vi.fn(() => ({ session: {} })) },
+      })),
+    }));
+
+    const { exchangeShopifyOnlineSession, setShopifySessionContext } =
+      await import("@/app/modules/shopify/session");
+
+    await expect(
+      exchangeShopifyOnlineSession(createMockContext() as never),
+    ).rejects.toThrow("Missing or malformed Authorization header");
+    await expect(
+      exchangeShopifyOnlineSession(
+        createMockContext({
+          headers: { Authorization: "Basic token" },
+        }) as never,
+      ),
+    ).rejects.toThrow("Missing or malformed Authorization header");
+    await expect(
+      exchangeShopifyOnlineSession(
+        createMockContext({
+          headers: { Authorization: "Bearer session-token" },
+          vars: { shopDomain: "shop.myshopify.com" },
+        }) as never,
+      ),
+    ).rejects.toThrow("Token exchange did not return an access token");
+    expect(() =>
+      setShopifySessionContext(createMockContext() as never, {} as never),
+    ).toThrow("Shopify session does not have an access token");
+  });
+
+  it("refreshes online sessions by deleting known session IDs before exchange", async () => {
+    const deleteSession = vi.fn();
+    const storeSession = vi.fn();
+    const getCurrentId = vi.fn(() => "current-session-id");
+    const freshSession = {
+      id: "fresh-session-id",
+      accessToken: "fresh-token",
+      shop: "shop.myshopify.com",
+    };
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({
+        deleteSession,
+        storeSession,
+      })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        session: { getCurrentId },
+        auth: { tokenExchange: vi.fn(() => ({ session: freshSession })) },
+      })),
+    }));
+
+    const { refreshShopifyOnlineSession } =
+      await import("@/app/modules/shopify/session");
+    const context = createMockContext({
+      headers: { Authorization: "Bearer session-token" },
+      vars: {
+        shopDomain: "shop.myshopify.com",
+        shopifySession: { id: "stored-session-id" },
+      },
+    });
+
+    await expect(refreshShopifyOnlineSession(context as never)).resolves.toBe(
+      freshSession,
+    );
+    expect(deleteSession).toHaveBeenCalledWith("stored-session-id");
+    expect(deleteSession).toHaveBeenCalledWith("current-session-id");
+    expect(storeSession).toHaveBeenCalledWith(freshSession);
+  });
+
+  it("refreshes online sessions without deleting when no session IDs are available", async () => {
+    const deleteSession = vi.fn();
+    const freshSession = {
+      id: "fresh-session-id",
+      accessToken: "fresh-token",
+      shop: "shop.myshopify.com",
+    };
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({
+        deleteSession,
+        storeSession: vi.fn(),
+      })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        session: { getCurrentId: vi.fn(() => undefined) },
+        auth: { tokenExchange: vi.fn(() => ({ session: freshSession })) },
+      })),
+    }));
+
+    const { refreshShopifyOnlineSession } =
+      await import("@/app/modules/shopify/session");
+
+    await expect(
+      refreshShopifyOnlineSession(
+        createMockContext({
+          headers: { Authorization: "Bearer session-token" },
+          vars: { shopDomain: "shop.myshopify.com" },
+        }) as never,
+      ),
+    ).resolves.toBe(freshSession);
+    expect(deleteSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("Shopify account session", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.doUnmock("@/infra/provider");
+    vi.doUnmock("@/app/modules/shopify/session-storage");
+  });
+
+  it("commits account session cookies from Shopify sessions", async () => {
+    const { DEFAULT_APP_ACCOUNT_SESSION_COOKIE } = await import("@/constants");
+    const {
+      commitShopifyAccountSession,
+      createShopifyAccountSession,
+      hasShopifyAccountSession,
+    } = await import("@/app/modules/shopify/account/session");
+    const context = createMockContext();
+    const httpContext = createMockContext({
+      vars: {
+        runtimeEnv: {
+          ...runtimeConfig,
+          SHOPIFY_APP_URL: "http://localhost:3000",
+        },
+      },
+    });
+    const accountContext = createMockContext({
+      headers: {
+        Cookie: `theme=light; ${DEFAULT_APP_ACCOUNT_SESSION_COOKIE}=offline_shop.myshopify.com`,
+      },
+    });
+    const accountSession = createShopifyAccountSession({
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+    } as never);
+
+    const cookie = commitShopifyAccountSession(
+      context as never,
+      accountSession,
+    );
+    const httpCookie = commitShopifyAccountSession(
+      httpContext as never,
+      accountSession,
+    );
+
+    expect(accountSession).toEqual({
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+      shopifySessionId: "offline_shop.myshopify.com",
+    });
+    expect(cookie).toContain(
+      ":account_session_cookie=offline_shop.myshopify.com",
+    );
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("; Secure");
+    expect(httpCookie).not.toContain("; Secure");
+    expect(hasShopifyAccountSession(createMockContext() as never)).toBe(false);
+    expect(
+      hasShopifyAccountSession(
+        createMockContext({
+          headers: { Cookie: "theme=light; other=value" },
+        }) as never,
+      ),
+    ).toBe(false);
+    expect(hasShopifyAccountSession(accountContext as never)).toBe(true);
+  });
+
+  it("encodes and decodes account session cookie values", async () => {
+    const { DEFAULT_APP_ACCOUNT_SESSION_COOKIE } = await import("@/constants");
+    const session = {
+      id: "offline/shop.myshopify.com",
+      shop: "shop.myshopify.com",
+      accessToken: "offline-token",
+      isActive: vi.fn(() => true),
+    };
+    const loadSession = vi.fn(() => session);
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ loadSession })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        config: { scopes: ["read_products"] },
+      })),
+    }));
+    const { commitShopifyAccountSession, loadShopifySessionForAccount } =
+      await import("@/app/modules/shopify/account/session");
+
+    const cookie = commitShopifyAccountSession(createMockContext() as never, {
+      id: "offline/shop.myshopify.com",
+      shop: "shop.myshopify.com",
+      shopifySessionId: "offline/shop.myshopify.com",
+    });
+    const cookieValue = cookie.match(
+      new RegExp(`${DEFAULT_APP_ACCOUNT_SESSION_COOKIE}=([^;]+)`),
+    )?.[1];
+
+    await expect(
+      loadShopifySessionForAccount(
+        createMockContext({
+          headers: {
+            Cookie: `${DEFAULT_APP_ACCOUNT_SESSION_COOKIE}=${cookieValue}`,
+          },
+        }) as never,
+      ),
+    ).resolves.toBe(session);
+    expect(loadSession).toHaveBeenCalledWith("offline/shop.myshopify.com");
+  });
+
+  it("loads active Shopify sessions through the account session cookie", async () => {
+    const { DEFAULT_APP_ACCOUNT_SESSION_COOKIE } = await import("@/constants");
+    const session = {
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+      accessToken: "offline-token",
+      isActive: vi.fn(() => true),
+    };
+    const loadSession = vi.fn(() => session);
+    const getShopifyConfigProvider = vi.fn(() => ({
+      config: { scopes: ["read_products"] },
+    }));
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ loadSession })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider,
+    }));
+
+    const { loadShopifySessionForAccount } =
+      await import("@/app/modules/shopify/account/session");
+    const context = createMockContext({
+      headers: {
+        Cookie: `${DEFAULT_APP_ACCOUNT_SESSION_COOKIE}=offline_shop.myshopify.com`,
+      },
+    });
+
+    await expect(loadShopifySessionForAccount(context as never)).resolves.toBe(
+      session,
+    );
+    expect(loadSession).toHaveBeenCalledWith("offline_shop.myshopify.com");
+    expect(session.isActive).toHaveBeenCalledWith(["read_products"]);
+  });
+
+  it("rejects requests without an account session cookie", async () => {
+    const { loadShopifySessionForAccount } =
+      await import("@/app/modules/shopify/account/session");
+
+    await expect(
+      loadShopifySessionForAccount(createMockContext() as never),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 401, "Missing app account session");
+      return true;
+    });
+  });
+
+  it("rejects missing, tokenless, and inactive Shopify sessions for account cookies", async () => {
+    const { DEFAULT_APP_ACCOUNT_SESSION_COOKIE } = await import("@/constants");
+    const loadSession = vi
+      .fn()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce({ id: "offline_shop.myshopify.com" })
+      .mockReturnValueOnce({
+        id: "offline_shop.myshopify.com",
+        accessToken: "offline-token",
+        isActive: vi.fn(() => false),
+      });
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ loadSession })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        config: { scopes: ["read_products"] },
+      })),
+    }));
+
+    const { loadShopifySessionForAccount } =
+      await import("@/app/modules/shopify/account/session");
+    const context = createMockContext({
+      headers: {
+        Cookie: `${DEFAULT_APP_ACCOUNT_SESSION_COOKIE}=offline_shop.myshopify.com`,
+      },
+    });
+
+    await expect(
+      loadShopifySessionForAccount(context as never),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 401, "Invalid app account session");
+      return true;
+    });
+    await expect(
+      loadShopifySessionForAccount(context as never),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 401, "Invalid app account session");
+      return true;
+    });
+    await expect(
+      loadShopifySessionForAccount(context as never),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 401, "Inactive app account session");
       return true;
     });
   });

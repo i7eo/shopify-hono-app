@@ -3,8 +3,7 @@ import { createMockContext, logger } from "./test-utils";
 
 describe("Shopify services", () => {
   it("fetches products, handles empty data, and wraps GraphQL errors", async () => {
-    const { getProducts } =
-      await import("@/app/modules/shopify/product/service");
+    const { getProducts } = await import("@/app/modules/product/service");
     const client = {
       request: vi
         .fn()
@@ -50,7 +49,7 @@ describe("Shopify services", () => {
   });
 
   it("fetches shop info, handles empty data, and wraps GraphQL errors", async () => {
-    const { getShopInfo } = await import("@/app/modules/shopify/shop/service");
+    const { getShopInfo } = await import("@/app/modules/shop/service");
     const client = {
       request: vi
         .fn()
@@ -89,8 +88,8 @@ describe("Shopify controllers", () => {
     vi.resetModules();
     vi.doUnmock("@/infra/provider");
     vi.doUnmock("@/app/modules/shopify/admin");
-    vi.doUnmock("@/app/modules/shopify/product/service");
-    vi.doUnmock("@/app/modules/shopify/shop/service");
+    vi.doUnmock("@/app/modules/product/service");
+    vi.doUnmock("@/app/modules/shop/service");
   });
 
   function createOpenApiContext() {
@@ -99,30 +98,26 @@ describe("Shopify controllers", () => {
         key === "requestId" ? "req_test" : undefined,
       ),
       json: vi.fn((body, status) => ({ body, status })),
+      var: { shopifyAdminClient: { id: "client" } },
     };
   }
 
   it("registers product controller success and error handlers", async () => {
     const { AppError } = await import("@/shared/models");
-    const runWithShopifyAdminClient = vi.fn((_c, operation) =>
-      operation({ id: "client" }),
-    );
-    vi.doMock("@/app/modules/shopify/admin", () => ({
-      runWithShopifyAdminClient,
-    }));
     const getProducts = vi
       .fn()
       .mockResolvedValueOnce({ products: { edges: [] } })
       .mockRejectedValueOnce(
         new AppError({ status: 502, message: "App failure" }),
       )
-      .mockRejectedValueOnce(new Error("boom"));
-    vi.doMock("@/app/modules/shopify/product/service", () => ({
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockRejectedValueOnce("string boom");
+    vi.doMock("@/app/modules/product/service", () => ({
       getProducts,
     }));
 
     const { registerProductController } =
-      await import("@/app/modules/shopify/product/controller");
+      await import("@/app/modules/product/controller");
     const app = { openapi: vi.fn() };
     registerProductController(app as never);
     const handler = app.openapi.mock.calls[0][1];
@@ -136,6 +131,7 @@ describe("Shopify controllers", () => {
         success: true,
       }),
     });
+    expect(getProducts).toHaveBeenNthCalledWith(1, { id: "client" });
     await expect(handler(createOpenApiContext())).rejects.toMatchObject({
       message: "App failure",
       status: 502,
@@ -145,16 +141,15 @@ describe("Shopify controllers", () => {
       status: 502,
       details: { message: "boom" },
     });
+    await expect(handler(createOpenApiContext())).rejects.toMatchObject({
+      message: "Failed to fetch products",
+      status: 502,
+      details: { message: "string boom" },
+    });
   });
 
   it("registers shop controller success and error handlers", async () => {
     const { AppError } = await import("@/shared/models");
-    const runWithShopifyAdminClient = vi.fn((_c, operation) =>
-      operation({ id: "client" }),
-    );
-    vi.doMock("@/app/modules/shopify/admin", () => ({
-      runWithShopifyAdminClient,
-    }));
     const getShopInfo = vi
       .fn()
       .mockResolvedValueOnce({
@@ -167,13 +162,14 @@ describe("Shopify controllers", () => {
       .mockRejectedValueOnce(
         new AppError({ status: 502, message: "App failure" }),
       )
-      .mockRejectedValueOnce("boom");
-    vi.doMock("@/app/modules/shopify/shop/service", () => ({
+      .mockRejectedValueOnce("boom")
+      .mockRejectedValueOnce(new Error("error boom"));
+    vi.doMock("@/app/modules/shop/service", () => ({
       getShopInfo,
     }));
 
     const { registerShopController } =
-      await import("@/app/modules/shopify/shop/controller");
+      await import("@/app/modules/shop/controller");
     const app = { openapi: vi.fn() };
     registerShopController(app as never);
     const handler = app.openapi.mock.calls[0][1];
@@ -193,6 +189,7 @@ describe("Shopify controllers", () => {
         success: true,
       }),
     });
+    expect(getShopInfo).toHaveBeenNthCalledWith(1, { id: "client" });
     await expect(handler(createOpenApiContext())).rejects.toMatchObject({
       message: "App failure",
       status: 502,
@@ -202,20 +199,34 @@ describe("Shopify controllers", () => {
       status: 502,
       details: { message: "boom" },
     });
+    await expect(handler(createOpenApiContext())).rejects.toMatchObject({
+      message: "Failed to fetch shop info",
+      status: 502,
+      details: { message: "error boom" },
+    });
   });
 });
 
-describe("Shopify Admin API client runner", () => {
+describe("Shopify Admin API client middleware", () => {
   afterEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.doUnmock("@/infra/provider");
+    vi.doUnmock("@/app/modules/shopify/mode");
     vi.doUnmock("@/app/modules/shopify/session");
   });
 
   it("refreshes the online session and retries once after Shopify returns 401", async () => {
-    const firstClient = { id: "first-client" };
-    const refreshedClient = { id: "refreshed-client" };
+    const firstClient = {
+      request: vi.fn().mockRejectedValueOnce(
+        Object.assign(new Error("Unauthorized"), {
+          response: { code: 401 },
+        }),
+      ),
+    };
+    const refreshedClient = {
+      request: vi.fn().mockResolvedValueOnce("ok"),
+    };
     const refreshedSession = {
       id: "refreshed-session",
       accessToken: "fresh-token",
@@ -231,37 +242,33 @@ describe("Shopify Admin API client runner", () => {
       ...(await importOriginal<typeof import("@/infra/provider")>()),
       getShopifyClientProvider,
     }));
+    vi.doMock("@/app/modules/shopify/mode", () => ({
+      getShopifyModeCapabilities: vi.fn(() => ({
+        refreshAdminSession: refreshShopifyOnlineSession,
+      })),
+    }));
     vi.doMock("@/app/modules/shopify/session", () => ({
-      refreshShopifyOnlineSession,
       setShopifySessionContext,
     }));
 
-    const { runWithShopifyAdminClient } =
+    const { createRetryableShopifyAdminClient } =
       await import("@/app/modules/shopify/admin");
-    const unauthorizedError = Object.assign(new Error("Unauthorized"), {
-      response: { code: 401 },
-    });
-    const operation = vi
-      .fn()
-      .mockRejectedValueOnce(unauthorizedError)
-      .mockResolvedValueOnce("ok");
     const context = createMockContext({
       vars: { shopDomain: "shop.myshopify.com" },
     });
+    const client = await createRetryableShopifyAdminClient(context as never);
 
-    await expect(
-      runWithShopifyAdminClient(context as never, operation),
-    ).resolves.toBe("ok");
+    await expect(client.request("query")).resolves.toBe("ok");
 
-    expect(operation).toHaveBeenNthCalledWith(1, firstClient);
-    expect(operation).toHaveBeenNthCalledWith(2, refreshedClient);
+    expect(firstClient.request).toHaveBeenCalledWith("query");
+    expect(refreshedClient.request).toHaveBeenCalledWith("query");
     expect(refreshShopifyOnlineSession).toHaveBeenCalledWith(context);
     expect(setShopifySessionContext).toHaveBeenCalledWith(
       context,
       refreshedSession,
     );
     expect(logger.warn).toHaveBeenCalledWith(
-      "Shopify Admin API returned 401 for shop.myshopify.com; refreshing online session and retrying once",
+      "Shopify Admin API returned 401 for shop.myshopify.com; refreshing session and retrying once",
     );
   });
 
@@ -269,27 +276,109 @@ describe("Shopify Admin API client runner", () => {
     const error = Object.assign(new Error("Forbidden"), {
       response: { code: 403 },
     });
-    const getShopifyClientProvider = vi.fn(() => ({ id: "client" }));
+    const getShopifyClientProvider = vi.fn(() => ({
+      request: vi.fn().mockRejectedValue(error),
+    }));
     const refreshShopifyOnlineSession = vi.fn();
 
     vi.doMock("@/infra/provider", async (importOriginal) => ({
       ...(await importOriginal<typeof import("@/infra/provider")>()),
       getShopifyClientProvider,
     }));
-    vi.doMock("@/app/modules/shopify/session", () => ({
-      refreshShopifyOnlineSession,
-      setShopifySessionContext: vi.fn(),
+    vi.doMock("@/app/modules/shopify/mode", () => ({
+      getShopifyModeCapabilities: vi.fn(() => ({
+        refreshAdminSession: refreshShopifyOnlineSession,
+      })),
     }));
 
-    const { runWithShopifyAdminClient } =
+    const { createRetryableShopifyAdminClient } =
       await import("@/app/modules/shopify/admin");
+    const client = await createRetryableShopifyAdminClient(
+      createMockContext() as never,
+    );
 
-    await expect(
-      runWithShopifyAdminClient(
-        createMockContext() as never,
-        vi.fn().mockRejectedValue(error),
-      ),
-    ).rejects.toBe(error);
+    await expect(client.request("query")).rejects.toBe(error);
     expect(refreshShopifyOnlineSession).not.toHaveBeenCalled();
+  });
+
+  it("proxies non-request client properties and refreshes for response status 401", async () => {
+    const firstClient = {
+      apiVersion: "2026-04",
+      request: vi.fn().mockRejectedValueOnce(
+        Object.assign(new Error("Unauthorized"), {
+          response: { status: 401 },
+        }),
+      ),
+    };
+    const refreshedClient = {
+      apiVersion: "2026-04",
+      request: vi.fn().mockResolvedValueOnce("ok"),
+    };
+    const refreshedSession = {
+      id: "refreshed-session",
+      accessToken: "fresh-token",
+    };
+    const getShopifyClientProvider = vi
+      .fn()
+      .mockResolvedValueOnce(firstClient)
+      .mockResolvedValueOnce(refreshedClient);
+    const refreshShopifyOnlineSession = vi.fn(() => refreshedSession);
+    const setShopifySessionContext = vi.fn();
+
+    vi.doMock("@/infra/provider", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getShopifyClientProvider,
+    }));
+    vi.doMock("@/app/modules/shopify/mode", () => ({
+      getShopifyModeCapabilities: vi.fn(() => ({
+        refreshAdminSession: refreshShopifyOnlineSession,
+      })),
+    }));
+    vi.doMock("@/app/modules/shopify/session", () => ({
+      setShopifySessionContext,
+    }));
+
+    const { createRetryableShopifyAdminClient } =
+      await import("@/app/modules/shopify/admin");
+    const client = await createRetryableShopifyAdminClient(
+      createMockContext({
+        vars: { shopDomain: "shop.myshopify.com" },
+      }) as never,
+    );
+
+    expect(client.apiVersion).toBe("2026-04");
+    await expect(client.request("query", { variables: {} })).resolves.toBe(
+      "ok",
+    );
+    expect(firstClient.request).toHaveBeenCalledWith("query", {
+      variables: {},
+    });
+    expect(refreshedClient.request).toHaveBeenCalledWith("query", {
+      variables: {},
+    });
+    expect(refreshShopifyOnlineSession).toHaveBeenCalledOnce();
+    expect(setShopifySessionContext).toHaveBeenCalledWith(
+      expect.any(Object),
+      refreshedSession,
+    );
+  });
+
+  it("injects retryable Shopify Admin clients before continuing middleware", async () => {
+    const adminClient = { request: vi.fn() };
+    const createRetryableShopifyAdminClient = vi.fn(() => adminClient);
+    vi.doMock("@/app/modules/shopify/admin/client", () => ({
+      createRetryableShopifyAdminClient,
+    }));
+
+    const { shopifyAdminClient } =
+      await import("@/app/modules/shopify/admin/middleware");
+    const context = createMockContext();
+    const next = vi.fn();
+
+    await shopifyAdminClient()(context as never, next);
+
+    expect(createRetryableShopifyAdminClient).toHaveBeenCalledWith(context);
+    expect(context.var.shopifyAdminClient).toBe(adminClient);
+    expect(next).toHaveBeenCalledOnce();
   });
 });

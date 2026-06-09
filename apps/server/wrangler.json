@@ -2,6 +2,7 @@
   "name": "shopify-hono-app",
   "main": "src/app/runtime/isolate/cloudflare/index.ts",
   "compatibility_date": "2026-06-05",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },

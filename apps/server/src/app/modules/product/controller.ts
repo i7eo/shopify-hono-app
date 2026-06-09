@@ -1,16 +1,15 @@
 import { badGatewayError } from "@/shared/exceptions";
 import { AppError, createResponse } from "@/shared/models";
-import { runWithShopifyAdminClient } from "../admin";
-import { getShopRoute } from "./meta";
-import { getShopInfo } from "./service";
+import { getProductsRoute } from "./meta";
+import { getProducts } from "./service";
 import type { AppOpenAPI } from "@/app/bootstrap/register-openapi";
 
-export function registerShopController(app: AppOpenAPI) {
-  app.openapi(getShopRoute, async (c) => {
+export function registerProductController(app: AppOpenAPI) {
+  app.openapi(getProductsRoute, async (c) => {
     try {
       return c.json(
         createResponse({
-          data: await runWithShopifyAdminClient(c, getShopInfo),
+          data: await getProducts(c.var.shopifyAdminClient),
           requestId: c.get("requestId"),
         }),
         200,
@@ -18,7 +17,7 @@ export function registerShopController(app: AppOpenAPI) {
     } catch (error) {
       if (error instanceof AppError) throw error;
 
-      throw badGatewayError("Failed to fetch shop info", {
+      throw badGatewayError("Failed to fetch products", {
         details: {
           cause: error,
           message: error instanceof Error ? error.message : String(error),

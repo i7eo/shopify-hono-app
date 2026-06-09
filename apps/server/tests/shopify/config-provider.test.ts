@@ -79,6 +79,23 @@ describe("Shopify config", () => {
     expect(logger.error).toHaveBeenCalledWith("error");
   });
 
+  it("creates non-embedded Shopify API config for standalone mode", async () => {
+    const { createShopifyConfig } =
+      await import("@/app/modules/shopify/config");
+
+    createShopifyConfig(
+      {
+        ...runtimeConfig,
+        SHOPIFY_APP_MODE: "standalone",
+      } as never,
+      logger as never,
+    );
+
+    expect(shopifyApi.mock.calls.at(-1)?.[0]).toMatchObject({
+      isEmbeddedApp: false,
+    });
+  });
+
   it("rejects unsupported Shopify API versions", async () => {
     const { createShopifyConfig } =
       await import("@/app/modules/shopify/config");
@@ -95,9 +112,11 @@ describe("Shopify config", () => {
 describe("Shopify provider and HTTP client", () => {
   afterEach(() => {
     vi.resetModules();
+    vi.unstubAllEnvs();
     vi.doUnmock("@/app/modules/shopify/config");
     vi.doUnmock("@/infra/provider/logger");
     vi.doUnmock("@/infra/provider");
+    vi.doUnmock("@/infra/http/shopify");
   });
 
   it("caches Shopify config by config signature and resets it", async () => {
@@ -105,7 +124,8 @@ describe("Shopify provider and HTTP client", () => {
     const createShopifyConfig = vi
       .fn()
       .mockReturnValueOnce({ id: "first" })
-      .mockReturnValueOnce({ id: "second" });
+      .mockReturnValueOnce({ id: "second" })
+      .mockReturnValueOnce({ id: "third" });
     vi.doMock("@/app/modules/shopify/config", () => ({
       createShopifyConfig,
     }));
@@ -124,12 +144,17 @@ describe("Shopify provider and HTTP client", () => {
       ...runtimeConfig,
       SCOPES: "read_products",
     } as never);
+    const third = await getShopifyConfigProvider({
+      ...runtimeConfig,
+      SCOPES: undefined,
+    } as never);
 
     expect(first).toEqual({ id: "first" });
     expect(cached).toBe(first);
     expect(second).toEqual({ id: "second" });
-    expect(createShopifyConfig).toHaveBeenCalledTimes(2);
-    expect(providers.get("shopifyConfig")).toBe(second);
+    expect(third).toEqual({ id: "third" });
+    expect(createShopifyConfig).toHaveBeenCalledTimes(3);
+    expect(providers.get("shopifyConfig")).toBe(third);
     expect(providerDisposers.get("shopifyConfig")).toBe(resetShopifyProvider);
 
     resetShopifyProvider();
@@ -161,5 +186,33 @@ describe("Shopify provider and HTTP client", () => {
     expect(getShopifyConfigProvider).toHaveBeenCalledWith(runtimeConfig);
     expect(graphqlConstructor).toHaveBeenCalledWith({ session });
     expect(client).toEqual({ args: { session } });
+  });
+
+  it("delegates Shopify client provider creation to the HTTP factory", async () => {
+    vi.resetModules();
+    const shopifyClient = { request: vi.fn() };
+    const createShopifyClient = vi.fn(() => shopifyClient);
+    vi.doMock("@/infra/http/shopify", () => ({
+      createShopifyClient,
+    }));
+
+    const { getShopifyClientProvider } =
+      await import("@/infra/provider/shopify");
+    const context = { id: "context" };
+
+    expect(getShopifyClientProvider(context as never)).toBe(shopifyClient);
+    expect(createShopifyClient).toHaveBeenCalledWith(context);
+  });
+
+  it("uses the configured app name in the account session cookie constant", async () => {
+    vi.resetModules();
+    vi.stubEnv("APP_NAME", "custom-app");
+
+    const { DEFAULT_APP_ACCOUNT_SESSION_COOKIE } =
+      await import("@/constants/shopify");
+
+    expect(DEFAULT_APP_ACCOUNT_SESSION_COOKIE).toBe(
+      "custom-app:account_session_cookie",
+    );
   });
 });

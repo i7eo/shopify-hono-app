@@ -39,6 +39,7 @@ export async function writeAppShopifyFile(envs: Map<string, string>) {
 
 export async function writeShopifyFile(envs: Map<string, string>) {
   const appUrl = getRequiredEnv(envs, "SHOPIFY_APP_URL");
+  const appMode = getShopifyAppMode(envs);
   const redirectUrls = shopifyRedirectPaths.map((redirectPath) => {
     return new URL(redirectPath, appUrl).toString();
   });
@@ -55,6 +56,11 @@ export async function writeShopifyFile(envs: Map<string, string>) {
     "application_url",
     formatTomlString(appUrl),
   );
+  toml = replaceOrInsertTopLevelValue(
+    toml,
+    "embedded",
+    String(appMode === "embedded"),
+  );
   toml = replaceOrInsertSectionValue(
     toml,
     "webhooks",
@@ -70,6 +76,18 @@ export async function writeShopifyFile(envs: Map<string, string>) {
   toml = replaceSectionArray(toml, "auth", "redirect_urls", redirectUrls);
 
   await writeTextFile(shopifyAppPath, toml);
+}
+
+function getShopifyAppMode(envs: Map<string, string>) {
+  const appMode = getRequiredEnv(envs, "SHOPIFY_APP_MODE");
+
+  if (appMode !== "embedded" && appMode !== "standalone") {
+    throw new Error(
+      `SHOPIFY_APP_MODE must be "embedded" or "standalone", received "${appMode}"`,
+    );
+  }
+
+  return appMode;
 }
 
 async function main() {

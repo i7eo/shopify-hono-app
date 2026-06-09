@@ -71,8 +71,9 @@ catalogs:
   "shopify":
     "@shopify/cli": "^4.1.0"
   "test":
-    "vitest": "^4.1.7"
-    "@vitest/ui": "^4.1.7"
+    "vitest": "^4.1.8"
+    "@vitest/ui": "^4.1.8"
+    "@vitest/coverage-v8": "^4.1.8"
   "cloudflare":
     "@cloudflare/workers-types": "^4.20260607.1"
     "wrangler": "^4.98.0"

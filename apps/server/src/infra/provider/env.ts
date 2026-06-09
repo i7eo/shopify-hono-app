@@ -1,4 +1,4 @@
-import { getSafeProcessEnv } from "@/app/runtime/process/utils";
+import { getSafeProcessEnv } from "@/app/runtime/process/utils/process";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { providerDisposers, providers } from "./constants";
 
@@ -62,6 +62,7 @@ function getEnvProviderSignature(config: Record<string, unknown>): string {
     config.APP__SERVER_PORT,
     config.APP__WEB_PORT,
     config.APP_REQUEST_TIMEOUT,
+    config.SHOPIFY_APP_MODE,
     config.SHOPIFY_APP_KEY,
     config.SHOPIFY_APP_URL,
     config.SHOPIFY_API_VERSION,

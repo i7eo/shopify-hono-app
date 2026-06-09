@@ -11,6 +11,7 @@ describe("reserved runtimes", () => {
     const { getRuntimeConfig } = await import("@/infra/env");
     const config = getRuntimeConfig({
       ...process.env,
+      ...runtimeConfig,
       APP_RUNTIME: DEFAULT_RUNTIMES.VERCEL_EDGE,
     });
 

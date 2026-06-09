@@ -10,7 +10,8 @@ export function parseWithSchema<TSchema extends z.ZodType>(
   env: Record<string, unknown>,
 ): z.infer<TSchema> {
   const result = schema.safeParse(env);
-  if (!result.success) throwError("apps/server", formatZodError(result.error));
+  if (!result.success)
+    throwError(`runtime parse env error`, formatZodError(result.error));
   return result.data;
 }
 
