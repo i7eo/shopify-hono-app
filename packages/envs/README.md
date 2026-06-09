@@ -6,6 +6,7 @@
 
 - [Overview](#overview)
 - [Design and Architecture](#design-and-architecture)
+- [Static Env and Runtime Settings](#static-env-and-runtime-settings)
 - [Inputs and Outputs](#inputs-and-outputs)
 - [Usage](#usage)
 - [Unit Conventions](#unit-conventions)
@@ -27,6 +28,22 @@ This package does not read `process.env` and does not decide the current deploym
 Schemas are responsible only for validation and defaults. They are not bound to Node, Cloudflare Workers, Vercel, or Bun. Each runtime can pass its own raw env object into a schema and receive a unified typed config.
 
 The package intentionally uses const objects instead of TypeScript `enum`, so runtime values and TypeScript literal types stay aligned.
+
+## Static Env and Runtime Settings
+
+`@shamt/envs` treats env as deployment-time configuration. Values such as `APP_ENV`, `APP_RUNTIME`, secrets, Shopify credentials, service endpoints, and platform bindings should be parsed at application startup or request bootstrap, then passed through the app as typed config.
+
+Do not use env as a full dynamic configuration system. Even when a platform lets you change variables from a dashboard, application code should assume env changes are operational changes that may require a new deployment, a new isolate, or a process restart before every request observes the same value.
+
+For values that must change without redeploying, create a separate runtime settings layer:
+
+- Store runtime settings in KV, D1, a database table, or a dedicated remote config service.
+- Validate the settings with an app-owned Zod schema before use.
+- Keep typed defaults in code, and use last-known-good values when the remote source is temporarily unavailable.
+- Cache runtime settings with a short TTL to avoid reading storage on every request.
+- Use feature flags or rollout systems for gradual release and emergency switches.
+
+Example: if `APP_LOG_INVOKER` needs to be changed immediately in production without redeploying, model it as a runtime setting such as `logInvoker`, not as a new env field. Env can still provide the storage binding or namespace name, while the setting value itself lives in the runtime settings source.
 
 ## Inputs and Outputs
 

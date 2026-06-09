@@ -51,7 +51,7 @@ export function registerHealthController(app: AppOpenAPI) {
   app.openapi(getNetworkHealthRoute, async (c) =>
     c.json(
       createResponse({
-        data: await checkNetworkHealth(),
+        data: await checkNetworkHealth(c.get("runtimeEnv")),
         requestId: c.get("requestId"),
       }),
       200,

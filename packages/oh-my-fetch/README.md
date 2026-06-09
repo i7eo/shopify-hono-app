@@ -64,7 +64,7 @@ import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const api = createHttpClient({
   prefix: "/api",
-  timeout: 30_000,
+  timeout: 1000 * 30,
   headers: {
     accept: "application/json",
   },
@@ -85,7 +85,7 @@ validation when the upstream response does not use the workspace wrapper:
 import { createHttpClient } from "@shamt/oh-my-fetch";
 
 const google = createHttpClient({
-  timeout: 3_000,
+  timeout: 1000 * 3,
   retry: { limit: 0 },
   defaults: {
     validateBusinessStatus: false,

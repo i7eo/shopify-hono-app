@@ -1,9 +1,11 @@
-import { DEFAULT_REQUEST_TIMEOUT } from "@shamt/envs";
 import { createHttpClient } from "@shamt/oh-my-fetch";
+import type { RuntimeConfig } from "@/infra/env";
 
-export function createClient() {
+type ClientConfig = Pick<RuntimeConfig, "APP_REQUEST_TIMEOUT">;
+
+export function createClient(config: ClientConfig) {
   return createHttpClient({
-    timeout: DEFAULT_REQUEST_TIMEOUT,
+    timeout: config.APP_REQUEST_TIMEOUT,
     retry: { limit: 0 },
     defaults: {
       validateBusinessStatus: false,

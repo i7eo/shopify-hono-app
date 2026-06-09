@@ -6,6 +6,7 @@
 
 - [介绍](#介绍)
 - [设计与架构](#设计与架构)
+- [静态 Env 与运行时设置](#静态-env-与运行时设置)
 - [输入与输出](#输入与输出)
 - [使用方式](#使用方式)
 - [单位约定](#单位约定)
@@ -27,6 +28,45 @@
 Schema 只负责验证和默认值，不绑定 Node、Cloudflare Workers、Vercel 或 Bun。不同 runtime 可以把自己的 raw env 对象传入 schema，再得到统一的 typed config。
 
 包内刻意使用 const object 而不是 TypeScript `enum`，这样运行时值与 TypeScript 字面量类型可以保持一致。
+
+## 静态 Env 与运行时设置分析
+
+`@shamt/envs` 将 env 视为部署期配置。像 `APP_ENV`、`APP_RUNTIME`、secrets、Shopify 凭据、服务 endpoint、平台 bindings 这类值，应该在应用启动或请求 bootstrap 阶段解析，然后以 typed config 的方式传递给应用使用。
+
+不要把 env 当成完整的动态配置系统。即使平台允许从控制台修改变量，应用代码也应该默认 env 变更属于运维变更，可能需要重新部署、新 isolate 或进程重启后，所有请求才能稳定读到同一个值。
+
+如果某个值必须在不重新部署的前提下修改，应该单独设计运行时设置层：
+
+- 将运行时设置存入 KV、D1、数据库表，或专门的远程配置服务。
+- 使用应用自己的 Zod schema 校验设置内容后再使用。
+- 在代码里保留 typed defaults；远程配置短暂不可用时，优先使用 last-known-good 值。
+- 给运行时设置加短 TTL 缓存，避免每个请求都读取存储。
+- 需要灰度发布或紧急开关时，使用 feature flags 或发布系统承载。
+
+### 参考
+
+#### Deploy-time env：随版本发布的配置
+
+这是 12-factor 里的经典 env：数据库地址、Shopify app key、canonical host、资源句柄、第三方凭证等。它们“不同 deploy 可以不同”，但一般不期望在同一个已运行版本里频繁动态变更。12-factor 的核心是配置和代码分离，env 是 per-deploy 配置，而不是实时配置中心。参考：The Twelve-Factor App Config。<https://www.12factor.net/config> Cloudflare Workers 也是这个模型偏多：Dashboard 里加变量后，需要点 Deploy 才实现变更；Wrangler 文档还提醒，如果下次用 Wrangler deploy，可能覆盖 Dashboard 改动。也就是说这更像“配置变更触发一次新 Worker version/deploy”，不是传统意义上进程内热更新。参考 Cloudflare env 文档。
+<https://developers.cloudflare.com/workers/configuration/environment-variables/>
+<https://developers.cloudflare.com/workers/wrangler/configuration/>
+
+#### Runtime config：不发版也要变的运行时配置
+
+比如日志开关、采样率、某个业务阈值、临时降级策略、开关某个调用方，这类更适合放在“运行时配置存储”里，而不是 env 里。在 Cloudflare 里常见选择是：
+KV：简单配置、允许最终一致性、读多写少。
+D1：需要结构化、审计、查询。
+R2：大配置或 JSON 文件。
+远程配置服务：比如自建 config service。
+Feature flag 服务：比如 OpenFeature/Unleash/LaunchDarkly/Statsig 等。
+这类配置一般会有 TTL 缓存、版本号、默认值、校验 schema、fallback。OpenFeature 这类体系也强调本地缓存、定期刷新或事件刷新，避免每次请求都打远程服务。参考 OpenFeature 关于 server-side SDK 架构。
+<https://openfeature.dev/blog/feature-flags-sdks-architectures>
+
+#### Feature flags：发布和上线解耦
+
+如果配置本质是“开/关某个功能”“对一部分店铺开启”“灰度比例”，它应该按 feature flag 管理，而不是 env。业内比较共识的是：feature flag 是动态的、面向运行时和用户/租户上下文；静态应用配置不要混进 flag 系统，否则后面会变成 flag 债。参考 Unleash / Octopus 的说明。
+<https://docs.getunleash.io/guides/feature-flag-best-practices>
+<https://octopus.com/devops/feature-flags/>
 
 ## 输入与输出
 

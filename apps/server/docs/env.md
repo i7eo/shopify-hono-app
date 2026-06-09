@@ -28,7 +28,7 @@ Node process 会在启动时调用它。Cloudflare isolate 的请求级 binding 
 进入请求后，`runtimeEnvMiddleware` 会通过 runtime capability 获取最新 env source：
 
 ```ts
-const runtimeEnv = getEnvProvider(envConfig, { merge: true });
+const runtimeEnv = getEnvProvider(envConfig);
 c.set("runtimeEnv", runtimeEnv);
 ```
 

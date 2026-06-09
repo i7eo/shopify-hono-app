@@ -6,13 +6,11 @@ import runtimeLogger, {
 import { providerDisposers, providers } from "./constants";
 import type { RuntimeConfig } from "@/infra/env";
 
-type LoggerProviderPhase = "bootstrap" | "runtime";
-
 type LoggerProviderOptions = {
   override?: boolean;
 };
 
-let loggerProviderPhase: LoggerProviderPhase | undefined;
+let loggerProviderSignature: string | undefined;
 
 /**
  * Get the logger provider for bootstrap or runtime phases.
@@ -31,15 +29,15 @@ export async function getLoggerProvider(
     return providers.get("logger") as typeof runtimeLogger;
   }
 
+  const signature = getLoggerProviderSignature(config);
   const shouldSetup =
     options.override ||
     !providers.has("logger") ||
-    loggerProviderPhase !== "runtime";
+    loggerProviderSignature !== signature;
 
   if (shouldSetup) {
     await setupLogger(config, { reset: true });
-
-    setLoggerProvider("runtime");
+    setLoggerProvider(signature);
   }
 
   return providers.get("logger") as typeof runtimeLogger;
@@ -52,18 +50,31 @@ export async function getLoggerProvider(
 export function resetLoggerProvider() {
   providers.delete("logger");
   providerDisposers.delete("logger");
-  loggerProviderPhase = undefined;
+  loggerProviderSignature = undefined;
 }
 
 /**
  * Store the shared logger facade and register the LogTape disposer.
  * The disposer also clears the provider map and logger phase.
  */
-function setLoggerProvider(phase: LoggerProviderPhase) {
+function setLoggerProvider(signature: string) {
   providers.set("logger", runtimeLogger);
+  loggerProviderSignature = signature;
   providerDisposers.set("logger", async () => {
     await dispose();
     resetLoggerProvider();
   });
-  loggerProviderPhase = phase;
+}
+
+function getLoggerProviderSignature(config: RuntimeConfig): string {
+  return [
+    config.APP_RUNTIME,
+    config.APP_ENV,
+    config.APP_LOGGER_DIR,
+    config.APP_LOGGER_LEVEL,
+    config.APP_LOGGER_EXPIRE,
+    config.APP_LOGGER_MAX_SIZE,
+  ]
+    .map((value) => String(value ?? ""))
+    .join(":");
 }

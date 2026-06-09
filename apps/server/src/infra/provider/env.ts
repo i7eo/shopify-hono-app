@@ -1,49 +1,43 @@
+import { getSafeProcessEnv } from "@/app/runtime/process/utils";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { providerDisposers, providers } from "./constants";
 
 type EnvProviderOptions = {
-  merge?: boolean;
   override?: boolean;
 };
 
-let envProviderRawEnv: Record<string, unknown> | undefined;
 let envProviderSignature: string | undefined;
 
 /**
  * Get the validated runtime env provider.
- * Bootstrap calls pass process.env, while route calls can merge latest bindings with { merge: true }.
+ * The passed rawEnv is merged over process.env by default, so route calls can
+ * pass the latest bindings; pass { override: true } to use rawEnv verbatim.
  */
 export function getEnvProvider(
   rawEnv: unknown,
   options: EnvProviderOptions = {},
 ): RuntimeConfig {
-  const nextRawEnv = rawEnv ?? ({} as any);
-  const nextMergedRawEnv = options.merge
-    ? { ...envProviderRawEnv, ...nextRawEnv }
-    : nextRawEnv;
-  const nextSignature = getEnvProviderSignature(nextMergedRawEnv);
-  const shouldSetup =
-    options.override ||
-    !providers.has("env") ||
-    envProviderSignature !== nextSignature;
+  const nextRawEnv = (rawEnv ?? {}) as Record<string, unknown>;
+  const effectiveRawEnv = options.override
+    ? nextRawEnv
+    : { ...getSafeProcessEnv(), ...nextRawEnv };
 
-  if (shouldSetup) {
-    envProviderRawEnv = nextMergedRawEnv;
-    envProviderSignature = nextSignature;
-    setEnvProvider(getRuntimeConfig(envProviderRawEnv));
+  const signature = getEnvProviderSignature(effectiveRawEnv);
+
+  if (!providers.has("env") || envProviderSignature !== signature) {
+    setEnvProvider(getRuntimeConfig(effectiveRawEnv), signature);
   }
 
   return providers.get("env") as RuntimeConfig;
 }
 
 /**
- * Remove the env provider and its raw env snapshot from the registry.
+ * Remove the env provider and its signature from the registry.
  * Use this when disposing providers or resetting tests.
  */
 export function resetEnvProvider() {
   providers.delete("env");
   providerDisposers.delete("env");
-  envProviderRawEnv = undefined;
   envProviderSignature = undefined;
 }
 
@@ -51,8 +45,9 @@ export function resetEnvProvider() {
  * Store a validated runtime env and register its disposer.
  * The disposer removes both the provider map entry and the disposer entry.
  */
-function setEnvProvider(config: RuntimeConfig) {
+function setEnvProvider(config: RuntimeConfig, signature: string) {
   providers.set("env", config);
+  envProviderSignature = signature;
   providerDisposers.set("env", () => {
     resetEnvProvider();
   });
@@ -62,6 +57,10 @@ function getEnvProviderSignature(config: Record<string, unknown>): string {
   return [
     config.APP_RUNTIME,
     config.APP_ENV,
+    config.APP_LOGGER_EXPIRE,
+    config.APP__SERVER_PORT,
+    config.APP__WEB_PORT,
+    config.APP_REQUEST_TIMEOUT,
     config.SHOPIFY_APP_KEY,
     config.SHOPIFY_APP_URL,
     config.SHOPIFY_API_VERSION,

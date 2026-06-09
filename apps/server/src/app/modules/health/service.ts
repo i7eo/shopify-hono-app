@@ -77,9 +77,11 @@ export function checkMemoryHealth(
   };
 }
 
-export async function checkNetworkHealth(): Promise<NetworkHealthData> {
+export async function checkNetworkHealth(
+  runtimeConfig: RuntimeConfig,
+): Promise<NetworkHealthData> {
   const start = performance.now();
-  const httpClient = getClientProvider();
+  const httpClient = getClientProvider(runtimeConfig);
   const response = await httpClient.get<Response>(NETWORK_HEALTH_URL, {
     responseType: "response",
   });
