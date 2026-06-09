@@ -13,13 +13,13 @@
 
 ## 文档导航
 
-| 文档                       | 内容边界                                                                |
-| -------------------------- | ----------------------------------------------------------------------- |
-| [runtime.md](./runtime.md) | Runtime 支持状态、入口、capability、构建产物、OpenAPI 注册策略          |
-| [env.md](./env.md)         | Env 来源、request binding 合并、schema 分发、provider 缓存              |
-| [logger.md](./logger.md)   | Bootstrap/runtime logger、process/isolate sink、错误日志入口            |
-| [error.md](./error.md)     | `AppError`、错误工厂、响应格式、生产环境暴露策略                        |
-| [shopify.md](./shopify.md) | Shopify App Shell、OAuth、session、Admin API、webhook、Shopify API 路由 |
+| 文档                            | 内容边界                                                                |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| [runtime.md](./docs/runtime.md) | Runtime 支持状态、入口、capability、构建产物、OpenAPI 注册策略          |
+| [env.md](./docs/env.md)         | Env 来源、request binding 合并、schema 分发、provider 缓存              |
+| [logger.md](./docs/logger.md)   | Bootstrap/runtime logger、process/isolate sink、错误日志入口            |
+| [error.md](./docs/error.md)     | `AppError`、错误工厂、响应格式、生产环境暴露策略                        |
+| [shopify.md](./docs/shopify.md) | Shopify App Shell、OAuth、session、Admin API、webhook、Shopify API 路由 |
 
 ## 常用命令
 
@@ -41,6 +41,6 @@ pnpm app:dev
 ## 维护原则
 
 1. 文档只记录当前代码事实，不保留过期设计草案。
-2. Shopify 业务链路写在 [shopify.md](./shopify.md)，runtime/build 细节写在 [runtime.md](./runtime.md)。
+2. Shopify 业务链路写在 [shopify.md](./docs/shopify.md)，runtime/build 细节写在 [runtime.md](./docs/runtime.md)。
 3. Env、Logger、Error 各自只说明自己的基础设施边界。
 4. 如果某个说明已经有专门文档，其他文档只简要介绍并链接过去。

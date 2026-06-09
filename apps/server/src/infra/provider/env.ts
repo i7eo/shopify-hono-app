@@ -10,11 +10,12 @@ let envProviderSignature: string | undefined;
 
 /**
  * Get the validated runtime env provider.
- * The passed rawEnv is merged over process.env by default, so route calls can
- * pass the latest bindings; pass { override: true } to use rawEnv verbatim.
+ * If rawEnv is omitted, process.env is used. Runtime middleware passes request
+ * bindings explicitly so isolate environments can refresh per request.
+ * Pass { override: true } to use rawEnv verbatim.
  */
 export function getEnvProvider(
-  rawEnv: unknown,
+  rawEnv?: unknown,
   options: EnvProviderOptions = {},
 ): RuntimeConfig {
   const nextRawEnv = (rawEnv ?? {}) as Record<string, unknown>;

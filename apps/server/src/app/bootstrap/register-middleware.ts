@@ -21,14 +21,14 @@ export function registerMiddleware(app: Hono<AppEnv>) {
   app.use("*", runtimeLoggerMiddleware());
   app.use(loggerMiddleware({ ignorePaths: ["/favicon.ico", "/public", "/"] }));
   // app.use(
-  //   `/${env.APP_GLOBAL_PREFIX}/*`,
+  //   `/${env.APP_API_PREFIX}/*`,
   //   cors({
   //     origin: `http://${hostIPList[0]}:${env.APP__LARK_PORT}`,
   //     credentials: true,
   //   }),
   // );
   // app.use(
-  //   `/${env.APP_GLOBAL_PREFIX}/*`,
+  //   `/${env.APP_API_PREFIX}/*`,
   //   timeout(env.APP_REQUEST_TIMEOUT, () => new timeoutError() as any),
   // );
   // app.use(compress()); // if nginx config this is not required

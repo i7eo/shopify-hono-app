@@ -1,6 +1,6 @@
 process.env.APP_RUNTIME ??= "node";
 process.env.APP_ENV ??= "test";
-process.env.APP_GLOBAL_PREFIX ??= "api";
+process.env.APP_API_PREFIX ??= "api";
 process.env.APP__SERVER_PORT ??= "3000";
 process.env.APP__WEB_PORT ??= "3001";
 process.env.SHOPIFY_APP_KEY ??= "test_app_key";

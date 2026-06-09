@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  DEFAULT_APP_GLOBAL_API_PREFIX,
+  DEFAULT_APP_API_PREFIX,
   DEFAULT_APP_LOCALE,
   DEFAULT_APP_NAME,
   DEFAULT_APP_USE_CLUSTER,
@@ -9,7 +9,7 @@ import {
 
 export const appConfigSchema = z.object({
   APP_NAME: z.string().trim().optional().default(DEFAULT_APP_NAME),
-  APP_GLOBAL_PREFIX: z.string().trim().default(DEFAULT_APP_GLOBAL_API_PREFIX),
+  APP_API_PREFIX: z.string().trim().optional().default(DEFAULT_APP_API_PREFIX),
   APP_REQUEST_TIMEOUT: z.coerce
     .number()
     .optional()

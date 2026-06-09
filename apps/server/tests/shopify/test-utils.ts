@@ -3,7 +3,7 @@ import { expect, vi } from "vitest";
 export const runtimeConfig = {
   APP_RUNTIME: "node",
   APP_ENV: "test",
-  APP_GLOBAL_PREFIX: "api",
+  APP_API_PREFIX: "api",
   APP__SERVER_PORT: 3000,
   APP__WEB_PORT: 3001,
   SHOPIFY_APP_KEY: "test_app_key",

@@ -8,7 +8,7 @@ import {
 } from "../constants";
 
 export const logConfigSchema = z.object({
-  APP_LOGGER_DIR: z.string().trim().default(DEFAULT_APP_LOGGER_DIR),
+  APP_LOGGER_DIR: z.string().trim().optional().default(DEFAULT_APP_LOGGER_DIR),
   APP_LOGGER_LEVEL: z.enum(DEFAULT_LOGGER_LEVELS).default(DEFAULT_LOG_LEVEL),
   APP_LOGGER_EXPIRE: z.coerce.number().optional(), // .default(DEFAULT_APP_LOGGER_EXPIRE),
   APP_LOGGER_MAX_SIZE: z.coerce.number().optional(), // .default(DEFAULT_APP_LOGGER_MAX_SIZE),

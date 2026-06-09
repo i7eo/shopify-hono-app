@@ -10,7 +10,7 @@ import { registerProcessRuntimeCapabilities } from "./capabilities";
 export async function bootstrap() {
   registerProcessRuntimeCapabilities();
 
-  const env = getEnvProvider(process.env);
+  const env = getEnvProvider();
   const app = await bootstrapApp({
     registerOpenApi: env.APP_ENV !== DEFAULT_ENVS.PRODUCTION,
   });

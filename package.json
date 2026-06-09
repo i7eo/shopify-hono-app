@@ -31,6 +31,7 @@
     "@commitlint/cli": "catalog:dx",
     "@commitlint/config-conventional": "catalog:dx",
     "@commitlint/types": "catalog:dx",
+    "@manypkg/get-packages": "catalog:dx",
     "@shopify/cli": "catalog:shopify",
     "@sxzz/eslint-config": "catalog:dx",
     "@types/node": "catalog:",

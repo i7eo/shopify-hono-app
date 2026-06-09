@@ -5,7 +5,7 @@ import { isDev } from "@/utils";
  * Register global exception handlers for uncaught errors
  */
 export async function registerProcessExceptions() {
-  const env = getEnvProvider(process.env);
+  const env = getEnvProvider();
   const logger = await getLoggerProvider();
 
   // Handle unhandled promise rejections

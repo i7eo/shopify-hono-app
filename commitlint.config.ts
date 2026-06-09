@@ -1,13 +1,30 @@
+import { getPackagesSync } from "./scripts/monorepo/index.ts";
 import type { UserConfig } from "@commitlint/types";
 
+const { packages } = getPackagesSync();
+
+const allowedScopes = [
+  ".github",
+  ".vscode",
+  ...packages.map((pkg) => pkg.packageJson.name),
+  "docs",
+  "scripts",
+  "repository-config", // 根目录工程化配置文件
+];
+
 const Configuration: UserConfig = {
-  ignores: [(commit: any) => commit.includes("init")],
   extends: ["@commitlint/config-conventional"],
+  ignores: [(commit: any) => commit.includes("init")],
   rules: {
     "body-leading-blank": [1, "always"],
     "footer-leading-blank": [1, "always"],
     "header-max-length": [2, "always", 256],
-    "scope-case": [2, "always", "lower-case"],
+    "scope-enum": [
+      2,
+      "always",
+      { scopes: [...allowedScopes], delimiters: [","] },
+    ],
+    "scope-case": [2, "always", { cases: ["lower-case"], delimiters: [","] }],
     "subject-case": [
       1,
       "never",
@@ -23,6 +40,7 @@ const Configuration: UserConfig = {
     useEmoji: true,
     enableMultipleScopes: true,
     scopeEnumSeparator: ",",
+    scopes: [...allowedScopes],
   },
 };
 

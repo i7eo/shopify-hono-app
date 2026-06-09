@@ -1,10 +1,9 @@
 import { createHttpClient } from "@shamt/oh-my-fetch";
 import type { RuntimeConfig } from "@/infra/env";
 
-type ClientConfig = Pick<RuntimeConfig, "APP_REQUEST_TIMEOUT">;
-
-export function createClient(config: ClientConfig) {
+export function createClient(config: RuntimeConfig) {
   return createHttpClient({
+    prefix: config.APP_API_PREFIX,
     timeout: config.APP_REQUEST_TIMEOUT,
     retry: { limit: 0 },
   });

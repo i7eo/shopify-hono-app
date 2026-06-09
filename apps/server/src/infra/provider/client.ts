@@ -1,4 +1,3 @@
-import { getSafeProcessEnv } from "@/app/runtime/process/utils";
 import { createClient } from "@/infra/http/client";
 import { providerDisposers, providers } from "./constants";
 import { getEnvProvider } from "./env";
@@ -42,7 +41,7 @@ function getCurrentEnvProvider(): RuntimeConfig {
 
   if (env) return env;
 
-  return getEnvProvider(getSafeProcessEnv());
+  return getEnvProvider();
 }
 
 function getClientProviderSignature(config: RuntimeConfig): string {

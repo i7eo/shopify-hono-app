@@ -1,8 +1,14 @@
 import { z } from "zod";
+import { DEFAULT_SHOPIFY_APP_MODE } from "@/constants";
 
 export const appConfigSchema = z.object({
   APP__SERVER_PORT: z.coerce.number(),
   APP__WEB_PORT: z.coerce.number(),
+  SHOPIFY_APP_MODE: z
+    .string()
+    .trim()
+    .optional()
+    .default(DEFAULT_SHOPIFY_APP_MODE),
   SHOPIFY_APP_KEY: z.string().trim(),
   SHOPIFY_APP_SECRET: z.string().trim(),
   SHOPIFY_APP_URL: z.url(),

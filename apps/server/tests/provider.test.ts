@@ -4,11 +4,21 @@ import { runtimeConfig } from "./shopify/test-utils";
 describe("infra providers", () => {
   afterEach(() => {
     vi.resetModules();
+    vi.unstubAllEnvs();
     vi.doUnmock("@/infra/env");
     vi.doUnmock("@shamt/oh-my-fetch");
   });
 
+  function stubRuntimeEnv(overrides: Record<string, unknown> = {}) {
+    Object.entries({ ...runtimeConfig, ...overrides }).forEach(
+      ([key, value]) => {
+        vi.stubEnv(key, String(value));
+      },
+    );
+  }
+
   it("reuses env provider while the effective env signature is unchanged", async () => {
+    stubRuntimeEnv();
     const getRuntimeConfig = vi.fn((rawEnv) => ({
       ...(rawEnv as Record<string, unknown>),
       parsedAt: getRuntimeConfig.mock.calls.length,
@@ -19,12 +29,10 @@ describe("infra providers", () => {
 
     const { getEnvProvider, resetEnvProvider } =
       await import("@/infra/provider/env");
-    const first = getEnvProvider(runtimeConfig);
-    const cached = getEnvProvider(runtimeConfig);
-    const changed = getEnvProvider({
-      ...runtimeConfig,
-      SCOPES: "read_products",
-    });
+    const first = getEnvProvider();
+    const cached = getEnvProvider();
+    vi.stubEnv("SCOPES", "read_products");
+    const changed = getEnvProvider();
 
     expect(cached).toBe(first);
     expect(changed).not.toBe(first);
@@ -34,6 +42,7 @@ describe("infra providers", () => {
   });
 
   it("creates the HTTP client with APP_REQUEST_TIMEOUT from the env provider", async () => {
+    stubRuntimeEnv({ APP_REQUEST_TIMEOUT: "1234" });
     const createHttpClient = vi.fn((options) => ({
       options,
       dispose: vi.fn(),
@@ -44,10 +53,7 @@ describe("infra providers", () => {
 
     const { getClientProvider, getEnvProvider, resetClientProvider } =
       await import("@/infra/provider");
-    const env = getEnvProvider({
-      ...runtimeConfig,
-      APP_REQUEST_TIMEOUT: "1234",
-    });
+    const env = getEnvProvider();
 
     const client = getClientProvider(env);
 
@@ -68,6 +74,7 @@ describe("infra providers", () => {
   });
 
   it("recreates the HTTP client when APP_REQUEST_TIMEOUT changes", async () => {
+    stubRuntimeEnv({ APP_REQUEST_TIMEOUT: "1000" });
     const createHttpClient = vi.fn((options) => ({
       options,
       dispose: vi.fn(),
@@ -78,14 +85,9 @@ describe("infra providers", () => {
 
     const { getClientProvider, getEnvProvider, resetClientProvider } =
       await import("@/infra/provider");
-    const firstEnv = getEnvProvider({
-      ...runtimeConfig,
-      APP_REQUEST_TIMEOUT: 1000,
-    });
-    const secondEnv = getEnvProvider({
-      ...runtimeConfig,
-      APP_REQUEST_TIMEOUT: 2000,
-    });
+    const firstEnv = getEnvProvider();
+    vi.stubEnv("APP_REQUEST_TIMEOUT", "2000");
+    const secondEnv = getEnvProvider();
 
     const firstClient = getClientProvider(firstEnv);
     const secondClient = getClientProvider(secondEnv);

@@ -297,6 +297,9 @@ catalogs:
     "@commitlint/types":
       specifier: ^21.0.1
       version: 21.0.1
+    "@manypkg/get-packages":
+      specifier: ^3.1.0
+      version: 3.1.0
     "@sxzz/eslint-config":
       specifier: ^8.1.0
       version: 8.1.0
@@ -403,6 +406,9 @@ importers:
       "@commitlint/types":
         specifier: catalog:dx
         version: 21.0.1
+      "@manypkg/get-packages":
+        specifier: catalog:dx
+        version: 3.1.0
       "@shopify/cli":
         specifier: catalog:shopify
         version: 4.1.0
@@ -2688,6 +2694,27 @@ packages:
       {
         integrity: sha512-aULbCqUQGerfOsZ3CMvcKtueKzmdchluXYUd3bIHKmOIS93fx1ko0+hyRQ4flloGZ8EiyRPydZXiy8n1J/eAQA==,
       }
+
+  "@manypkg/find-root@3.1.0":
+    resolution:
+      {
+        integrity: sha512-BcSqCyKhBVZ5YkSzOiheMCV41kqAFptW6xGqYSTjkVTl9XQpr+pqHhwgGCOHQtjDCv7Is6EFyA14Sm5GVbVABA==,
+      }
+    engines: { node: ">=20.0.0" }
+
+  "@manypkg/get-packages@3.1.0":
+    resolution:
+      {
+        integrity: sha512-0TbBVyvPrP7xGYBI/cP8UP+yl/z+HtbTttAD7FMAJgn/kXOTwh5/60TsqP9ZYY710forNfyV0N8P/IE/ujGZJg==,
+      }
+    engines: { node: ">=20.0.0" }
+
+  "@manypkg/tools@2.1.1":
+    resolution:
+      {
+        integrity: sha512-CEFCOGzhFdx5sIehISBRS9Ev5D1Zp+24YT1uyOkaEcY8uAKeK+kA58NChYfUwXmAFerm3zWZWYhQViUf8XhQcg==,
+      }
+    engines: { node: ">=20.0.0" }
 
   "@napi-rs/wasm-runtime@1.1.4":
     resolution:
@@ -5829,6 +5856,12 @@ packages:
         integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==,
       }
     hasBin: true
+
+  jju@1.4.0:
+    resolution:
+      {
+        integrity: sha512-8wb9Yw966OSxApiCt0K3yNJL8pnNeIv+OEq2YMidz4FKP6nonSRoOXc80iXY4JaN2FC11B9qsNmDsm+ZOfMROA==,
+      }
 
   jose@5.10.0:
     resolution:
@@ -9122,6 +9155,21 @@ snapshots:
 
   "@logtape/logtape@2.1.1": {}
 
+  "@manypkg/find-root@3.1.0":
+    dependencies:
+      "@manypkg/tools": 2.1.1
+
+  "@manypkg/get-packages@3.1.0":
+    dependencies:
+      "@manypkg/find-root": 3.1.0
+      "@manypkg/tools": 2.1.1
+
+  "@manypkg/tools@2.1.1":
+    dependencies:
+      jju: 1.4.0
+      js-yaml: 4.2.0
+      tinyglobby: 0.2.17
+
   "@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)":
     dependencies:
       "@emnapi/core": 1.10.0
@@ -10990,6 +11038,8 @@ snapshots:
   jiti@2.6.1: {}
 
   jiti@2.7.0: {}
+
+  jju@1.4.0: {}
 
   jose@5.10.0: {}
 
