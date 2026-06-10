@@ -3,7 +3,7 @@ import { createShopifyClient } from "@/infra/http/shopify";
 import { providerDisposers, providers } from "./constants";
 import { getLoggerProvider } from "./logger";
 import type { RuntimeConfig } from "@/infra/env";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Shopify } from "@shopify/shopify-api";
 import type { Context } from "hono";
 

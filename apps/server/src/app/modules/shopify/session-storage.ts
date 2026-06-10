@@ -1,5 +1,5 @@
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
 /**

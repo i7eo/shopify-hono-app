@@ -1,5 +1,5 @@
 import { name, version } from "../../../package.json";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { OpenAPIHono, RouteConfig, RouteHandler } from "@hono/zod-openapi";
 import type { Schema } from "hono";
 

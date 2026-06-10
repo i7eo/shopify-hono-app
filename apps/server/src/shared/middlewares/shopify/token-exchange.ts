@@ -5,7 +5,7 @@ import {
   setShopifySessionContext,
 } from "@/app/modules/shopify/session";
 import { badGatewayError } from "@/shared/exceptions";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 export const tokenExchange = createMiddleware<AppEnv>(async (c, next) => {
   try {

@@ -3,7 +3,7 @@ import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { getSafeProcessEnv } from "@/app/runtime/process/utils/process";
 import { getEnvProvider } from "@/infra/provider";
 import { internalServerError } from "@/shared/exceptions";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 export function runtimeEnvMiddleware() {
   return createMiddleware<AppEnv>(async (c, next) => {

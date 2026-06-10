@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerOpenAPI } from "@/app/bootstrap/register-openapi";
 import { runtimeConfig } from "./shopify/test-utils";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 function createOpenAPIApp(options: { enabled?: boolean } = {}) {
   const app = new OpenAPIHono<AppEnv>();

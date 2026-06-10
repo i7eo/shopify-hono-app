@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 export function emojiFaviconMiddleware(emoji: string) {
   return createMiddleware<AppEnv>(async (c, next) => {

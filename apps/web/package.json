@@ -20,26 +20,30 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
+    "@shamt/envs": "workspace:*",
+    "@shamt/oh-my-fetch": "workspace:*",
+    "@shamt/utils": "workspace:*",
+    "@tailwindcss/vite": "catalog:tailwindcss",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-query-devtools": "^5.101.0",
+    "@tanstack/react-router": "^1.170.15",
+    "@tanstack/react-router-devtools": "^1.167.0",
+    "@tanstack/router-plugin": "^1.168.18",
+    "immer": "catalog:react",
     "react": "catalog:react",
-    "react-dom": "catalog:react"
+    "react-dom": "catalog:react",
+    "tailwindcss": "catalog:tailwindcss",
+    "zod": "catalog:",
+    "zustand": "catalog:react"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@eslint/js": "^10.0.1",
-    "@rolldown/plugin-babel": "^0.2.3",
-    "@types/babel__core": "^7.20.5",
     "@types/node": "catalog:",
     "@types/react": "catalog:react",
     "@types/react-dom": "catalog:react",
     "@unconfig/ts-config-latest": "catalog:dx",
     "@vitejs/plugin-react": "catalog:react",
-    "babel-plugin-react-compiler": "catalog:react",
-    "eslint": "catalog:dx",
-    "eslint-plugin-react-hooks": "catalog:dx",
-    "eslint-plugin-react-refresh": "catalog:dx",
-    "globals": "^17.6.0",
+    "@vitest/coverage-v8": "catalog:test",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:dx",
     "vite": "catalog:",
     "vitest": "catalog:test"
   }

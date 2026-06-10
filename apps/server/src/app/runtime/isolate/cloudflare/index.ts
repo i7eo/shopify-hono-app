@@ -1,6 +1,6 @@
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerCloudflareIsolateRuntimeCapabilities } from "./capabilities";
-import type { RuntimeAppEnv } from "@/types";
+import type { RuntimeAppEnv } from "@/typings";
 
 registerCloudflareIsolateRuntimeCapabilities();
 

@@ -1,6 +1,6 @@
 import type { RuntimeConfig } from "@/infra/env";
 import type { LoggerSetupOptions } from "@/infra/logger/shared";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Session } from "@shopify/shopify-api";
 import type { Context } from "hono";
 

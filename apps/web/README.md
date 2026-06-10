@@ -1,98 +1,46 @@
-# React + TypeScript + Vite
+# TanStack Router - React Query File-Based Example
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An example combining file-based routing with TanStack Query integration.
 
-Currently, two official plugins are available:
+- [TanStack Router Docs](https://tanstack.com/router)
+- [TanStack Query Docs](https://tanstack.com/query)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Start a new project based on this example
 
-## React Compiler
+To start a new project based on this example, run:
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-
-// import js from "@eslint/js";
-// import reactHooks from "eslint-plugin-react-hooks";
-// import reactRefresh from "eslint-plugin-react-refresh";
-// import { defineConfig, globalIgnores } from "eslint/config";
-// import globals from "globals";
-// import tseslint from "typescript-eslint";
-
-// export default defineConfig([
-//   globalIgnores(["dist"]),
-//   {
-//     files: ["**/*.{ts,tsx}"],
-//     extends: [
-//       js.configs.recommended,
-//       tseslint.configs.recommended,
-//       reactHooks.configs.flat.recommended,
-//       reactRefresh.configs.vite,
-//     ],
-//     languageOptions: {
-//       globals: globals.browser,
-//     },
-//   },
-// ]);
+```sh
+npx gitpick TanStack/router/tree/main/examples/react/basic-react-query-file-based basic-react-query-file-based
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-import reactDom from "eslint-plugin-react-dom";
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
+Install dependencies:
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```sh
+pnpm install
 ```
+
+Start the development server:
+
+```sh
+pnpm dev
+```
+
+## Build
+
+Build for production:
+
+```sh
+pnpm build
+```
+
+## About This Example
+
+This example demonstrates:
+
+- File-based routing with TanStack Router
+- TanStack Query integration
+- Type-safe data fetching
+- Automatic route generation
+- Query-based data loading per route

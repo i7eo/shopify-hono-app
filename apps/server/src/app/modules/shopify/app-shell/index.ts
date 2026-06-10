@@ -1,5 +1,5 @@
 import { getShopifyModeCapabilities } from "../mode";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context, Hono } from "hono";
 
 /**

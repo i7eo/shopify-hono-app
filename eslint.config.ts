@@ -23,6 +23,16 @@ export default defineConfig([
       "node/prefer-global/process": "off",
       "no-useless-assignment": "off",
       "import/no-default-export": "off",
+      "unicorn/filename-case": [
+        "error",
+        {
+          cases: {
+            kebabCase: true,
+            camelCase: true,
+            pascalCase: true,
+          },
+        },
+      ],
     },
   },
   globalIgnores(["**/public/"]),

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { verifyWebhook } from "@/shared/middlewares";
 import { createResponse } from "@/shared/models";
 import { getShopifySessionStorage } from "../session-storage";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 /**
  * Creates verified Shopify webhook routes and handlers.

@@ -2,7 +2,7 @@ import { deserializeValue } from "@shamt/utils";
 import { createMiddleware } from "hono/factory";
 import { getShopifyConfigProvider } from "@/infra/provider";
 import { unauthorizedError } from "@/shared/exceptions";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
   const rawBody = await c.req.raw.clone().text();

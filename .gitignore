@@ -2,6 +2,7 @@
 out
 *.tgz
 dist/
+dist-ssr/
 **/*.tsbuildinfo
 
 # package manager
@@ -20,6 +21,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .vercel/
 .wrangler/
 .shopify/
+.nitro/
+.tanstack/
+.output/
+.vinxi/
+.astro/
 
 # Testing
 coverage/
@@ -46,7 +52,3 @@ coverage/
 *.launch
 .settings
 *.sublime-workspace
-
-# Frameworks
-.astro/
-.tanstack/

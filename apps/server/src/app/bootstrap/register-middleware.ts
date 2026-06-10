@@ -9,7 +9,7 @@ import {
 // import { compress } from "hono/compress";
 // import { cors } from "hono/cors";
 // import { timeout } from "hono/timeout";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Hono } from "hono";
 
 /**

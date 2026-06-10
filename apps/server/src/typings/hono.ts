@@ -1,7 +1,6 @@
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 import type { ShopifyClient } from "@/infra/provider";
-import type { Cache } from "@shamt/cache";
 import type { JwtPayload, Session } from "@shopify/shopify-api";
 
 type RuntimeBindings<TRuntime extends RuntimeConfig["APP_RUNTIME"]> =
@@ -15,7 +14,6 @@ export interface Variables {
   requestId: string;
   runtimeEnv: RuntimeConfig;
   runtimeLogger: Logger;
-  cache: Cache;
 
   // Set by verify-session-token middleware
   shopifySessionToken: JwtPayload;

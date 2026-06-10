@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { logger } from "./test-utils";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 describe("Shopify webhook routes", () => {
   afterEach(() => {

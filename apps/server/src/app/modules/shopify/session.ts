@@ -1,7 +1,7 @@
 import { RequestedTokenType, type Session } from "@shopify/shopify-api";
 import { getShopifyConfigProvider } from "@/infra/provider";
 import { getShopifySessionStorage } from "./session-storage";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
 /**

@@ -9,7 +9,7 @@ import {
 import { renderStandaloneAppShell } from "../app-shell/templates";
 import { setShopifySessionContext } from "../session";
 import type { ShopifyModeCapabilities } from "./capabilities";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 /**
  * Defines the Shopify app-mode behavior for standalone browser requests.

@@ -6,7 +6,7 @@ import {
 import { renderEmbeddedAppShell } from "../app-shell/templates";
 import { refreshShopifyOnlineSession } from "../session";
 import type { ShopifyModeCapabilities } from "./capabilities";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 /**
  * Defines the Shopify app-mode behavior for embedded Admin iframe requests.

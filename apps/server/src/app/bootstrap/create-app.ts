@@ -3,7 +3,7 @@ import { onAppError } from "../lifecycle/error";
 import { onAppNotFound } from "../lifecycle/not-found";
 import { registerMiddleware } from "./register-middleware";
 import { registerRoutes } from "./register-routes";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 /**
  * Central Hono app factory.

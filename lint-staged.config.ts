@@ -1,5 +1,6 @@
 const ignoredFiles = new Set([
   "apps/server/typings/cloudflare-worker-configuration.d.ts",
+  "apps/web/src/routeTree.gen.ts",
 ]);
 
 function createTasks(commands: string[]) {
