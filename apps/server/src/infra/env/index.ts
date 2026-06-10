@@ -1,4 +1,4 @@
-import { envConfigSchema } from "@shamt/envs";
+import { envConfigSchema } from "@shamt/app-env";
 import { throwError } from "@shamt/utils";
 import { formatZodError, isIsolateRuntime } from "@/utils";
 import {

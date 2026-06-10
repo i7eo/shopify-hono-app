@@ -3,7 +3,7 @@ import {
   RESPONSE_SUCCESS_CODE,
   RESPONSE_SUCCESS_MESSAGE,
   RESPONSE_SUCCESS_OK,
-} from "@shamt/envs";
+} from "@shamt/app-env";
 
 export type AppResponseOptions<T = unknown> = {
   message?: string;

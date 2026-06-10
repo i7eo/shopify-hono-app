@@ -33,7 +33,7 @@
     "@logtape/file": "^2.1.2",
     "@logtape/logtape": "^2.1.2",
     "@scalar/hono-api-reference": "^0.10.20",
-    "@shamt/envs": "workspace:*",
+    "@shamt/app-env": "workspace:*",
     "@shamt/oh-my-fetch": "workspace:*",
     "@shamt/utils": "workspace:*",
     "@shopify/shopify-api": "^13.0.0",

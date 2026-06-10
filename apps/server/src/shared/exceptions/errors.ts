@@ -1,4 +1,4 @@
-import { HTTP_STATUS_CODES } from "@shamt/envs";
+import { HTTP_STATUS_CODES } from "@shamt/app-env";
 import { AppError, type AppErrorOptions } from "@/shared/models";
 
 type ErrorOptions = Omit<AppErrorOptions, "message" | "status">;

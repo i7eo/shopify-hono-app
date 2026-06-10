@@ -1,4 +1,3 @@
-# frontend 开发完后开启删除 frontend
 roles = ["frontend", "backend"]
 port = 10001
 

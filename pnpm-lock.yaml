@@ -406,6 +406,9 @@ importers:
       "@manypkg/get-packages":
         specifier: catalog:dx
         version: 3.1.0
+      "@shamt/app-env":
+        specifier: workspace:*
+        version: link:packages/app-env
       "@shopify/cli":
         specifier: catalog:shopify
         version: 4.1.0
@@ -509,9 +512,9 @@ importers:
       "@scalar/hono-api-reference":
         specifier: ^0.10.20
         version: 0.10.20(hono@4.12.24)
-      "@shamt/envs":
+      "@shamt/app-env":
         specifier: workspace:*
-        version: link:../../packages/envs
+        version: link:../../packages/app-env
       "@shamt/oh-my-fetch":
         specifier: workspace:*
         version: link:../../packages/oh-my-fetch
@@ -637,6 +640,31 @@ importers:
       vitest:
         specifier: catalog:test
         version: 4.1.8(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/app-env:
+    dependencies:
+      "@shamt/envs":
+        specifier: workspace:*
+        version: link:../envs
+      zod:
+        specifier: "catalog:"
+        version: 4.4.3
+    devDependencies:
+      "@types/node":
+        specifier: "catalog:"
+        version: 25.9.2
+      "@unconfig/ts-config-latest":
+        specifier: catalog:dx
+        version: 0.0.1
+      rolldown:
+        specifier: catalog:dx
+        version: 1.1.0
+      rolldown-plugin-dts:
+        specifier: catalog:dx
+        version: 0.25.2(rolldown@1.1.0)(typescript@6.0.3)
+      typescript:
+        specifier: "catalog:"
+        version: 6.0.3
 
   packages/cache:
     dependencies:

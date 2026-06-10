@@ -7,7 +7,7 @@ import {
   logConfigSchema,
   redisSchema,
 } from "@shamt/envs";
-import { appConfigSchema as $appConfigSchema } from "./app";
+import { appEnvConfigSchema as $appConfigSchema } from "./app";
 import type { z } from "zod";
 
 export const configSchema = extendConfigSchema(

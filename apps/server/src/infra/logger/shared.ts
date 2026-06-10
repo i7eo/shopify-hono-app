@@ -7,7 +7,7 @@ import {
 import {
   DEFAULT_LOGGER_LEVELS,
   type DEFAULT_LOGGER_LEVELS_VALUES,
-} from "@shamt/envs";
+} from "@shamt/app-env";
 import { name } from "../../../package.json";
 
 export type LoggerSetupOptions = {

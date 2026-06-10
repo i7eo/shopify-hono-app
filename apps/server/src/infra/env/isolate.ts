@@ -1,6 +1,5 @@
-import { DEFAULT_RUNTIMES } from "@shamt/envs";
+import { configSchema, DEFAULT_RUNTIMES } from "@shamt/app-env";
 import { z } from "zod";
-import { configSchema } from "@/configs";
 import { parseWithSchema } from "./shared";
 
 export const cloudflareIsolateConfigSchema = configSchema.extend({

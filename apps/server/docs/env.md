@@ -130,7 +130,7 @@ SHOPIFY_APP_MODE=standalone
 ${APP_NAME}:account_session_cookie
 ```
 
-默认值来自 `@shamt/envs` 的 `DEFAULT_APP_NAME`。如果修改 `APP_NAME`，已有浏览器 cookie 名也会变化，需要重新建立 standalone account session。
+默认值来自 `@shamt/app-env` 的 `DEFAULT_APP_NAME`。如果修改 `APP_NAME`，已有浏览器 cookie 名也会变化，需要重新建立 standalone account session。
 
 ## normalizeEnv
 

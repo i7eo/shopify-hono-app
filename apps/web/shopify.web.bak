@@ -1,6 +1,0 @@
-roles = ["frontend"]
-port = 10002
-
-[commands]
-dev = "pnpm dev"
-build = "pnpm build"

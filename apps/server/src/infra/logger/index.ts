@@ -1,5 +1,5 @@
 import { getLogger } from "@logtape/logtape";
-import { DEFAULT_LOG_LEVEL } from "@shamt/envs";
+import { DEFAULT_LOG_LEVEL } from "@shamt/app-env";
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { name } from "../../../package.json";
 import { setupConsoleLogger } from "./shared";

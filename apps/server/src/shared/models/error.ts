@@ -3,7 +3,7 @@ import {
   RESPONSE_ERROR_CODE,
   RESPONSE_ERROR_MESSAGE,
   RESPONSE_ERROR_OK,
-} from "@shamt/envs";
+} from "@shamt/app-env";
 
 export type ErrorDetails = Record<string, unknown>;
 

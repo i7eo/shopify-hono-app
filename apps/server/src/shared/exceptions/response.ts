@@ -1,4 +1,4 @@
-import { DEFAULT_ENVS, HTTP_STATUS_CODES } from "@shamt/envs";
+import { DEFAULT_ENVS, HTTP_STATUS_CODES } from "@shamt/app-env";
 import {
   createError,
   type AppError,
