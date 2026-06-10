@@ -7,7 +7,7 @@
     "emitDeclarationOnly": true,
     "outDir": "./dist"
   },
-  "include": ["**/*.config.ts", "./package.json"],
+  "include": ["./scripts/**/*", "**/*.config.ts", "./package.json"],
   "exclude": [
     "**/__tests__/**",
     "**/tests/**",

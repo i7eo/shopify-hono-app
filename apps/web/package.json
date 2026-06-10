@@ -44,12 +44,14 @@
     "zustand": "catalog:react"
   },
   "devDependencies": {
+    "@testing-library/react": "catalog:test",
     "@types/node": "catalog:",
     "@types/react": "catalog:react",
     "@types/react-dom": "catalog:react",
     "@unconfig/ts-config-latest": "catalog:dx",
     "@vitejs/plugin-react": "catalog:react",
     "@vitest/coverage-v8": "catalog:test",
+    "jsdom": "catalog:test",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:test"

@@ -74,6 +74,8 @@ catalogs:
     "vitest": "^4.1.8"
     "@vitest/ui": "^4.1.8"
     "@vitest/coverage-v8": "^4.1.8"
+    "@testing-library/react": "^16.3.2"
+    "jsdom": "^29.1.1"
   "cloudflare":
     "@cloudflare/workers-types": "^4.20260609.1"
     "wrangler": "^4.98.0"

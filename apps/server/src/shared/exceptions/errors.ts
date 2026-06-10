@@ -104,6 +104,20 @@ export function conflictError(
 }
 
 /**
+ * Use when the request payload exceeds the allowed size.
+ * Example: throw uploadPayloadTooLargeError("Upload payload too large", { details });
+ */
+export function uploadPayloadTooLargeError(
+  message: string = HTTP_STATUS_CODES.REQUEST_TOO_LONG.phrase,
+  options?: ErrorOptions,
+) {
+  return createHttpError(HTTP_STATUS_CODES.REQUEST_TOO_LONG.code, message, {
+    ...options,
+    expose: options?.expose ?? true,
+  });
+}
+
+/**
  * Use when parsed input fails validation, including Zod validation errors.
  * Example: throw unprocessableEntityError("Validation failed", { details });
  */
