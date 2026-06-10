@@ -1,5 +1,7 @@
+import { serializeValue } from "@shamt/utils";
+
 export function formatTomlString(value: string) {
-  return JSON.stringify(value);
+  return serializeValue(value);
 }
 
 export function replaceOrInsertTopLevelValue(

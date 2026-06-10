@@ -23,6 +23,24 @@ node --env-file=../../.env.production --import tsx/esm ./node_modules/vite/bin/v
 
 `tsx/esm` 只解决 Vite config 在本地直接加载 workspace TS 源码的问题，不代表所有 Node 入口都能自动解析扩展名不完整的 ESM import。
 
+## Package Scripts
+
+`apps/web` 的脚本都在 web workspace 内执行；本地 Shopify 联调通常由根目录
+`pnpm dev` 或 `pnpm dev:tunnel` 间接启动。
+
+| Script               | Purpose                                                      |
+| -------------------- | ------------------------------------------------------------ |
+| `dev`                | 读取 `../../.env.development`，用 Vite 启动前端 dev server。 |
+| `build`              | 读取 `../../.env.production`，构建生产静态产物到 `dist`。    |
+| `test`               | 运行 Vitest。                                                |
+| `test:coverage`      | 运行 Vitest coverage。                                       |
+| `test:coverage:view` | 打开 coverage HTML 报告。                                    |
+| `format`             | 格式化 web workspace 内的 JS/TS/React/Markdown/JSON 文件。   |
+| `lint`               | 修复 web workspace 内的 ESLint 问题。                        |
+| `clean`              | 并行运行 web workspace 清理任务。                            |
+| `clean:cache`        | 删除 `dist`。                                                |
+| `clean:deps`         | 删除 `node_modules`。                                        |
+
 ## Env 分层
 
 Node/Vite 侧配置集中在 [`configs/env.ts`](./configs/env.ts)。它使用 `@shamt/app-env` 的 `configSchema` 校验 `process.env`，并导出校验后的 `env` 给 `vite.config.ts` 和 Vite plugins 使用。

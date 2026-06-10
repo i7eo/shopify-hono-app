@@ -1,9 +1,15 @@
 import path from "node:path";
 import { DEFAULT_ENVS, type ConfigSchema } from "@shamt/app-env";
+import { throwError } from "@shamt/utils";
+import { findMonorepoRoot } from "../monorepo";
 
 export type ShopifyFileConfig = ConfigSchema;
 
-export const root = process.cwd();
+export const root = findMonorepoRoot();
+
+if (!root) {
+  throwError("write-shopify-file", "Cannot find monorepo root");
+}
 
 export const serverShopifyWebPath = path.resolve(
   root,

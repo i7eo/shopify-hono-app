@@ -117,6 +117,20 @@ sofary?: KVNamespace
 
 其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`。
 
+## 部署期 Env
+
+下面两个字段不属于运行时 config schema，只由
+`apps/server/scripts/deploy/node.ts` 在 Node 部署阶段读取：
+
+| 字段                       | 默认值                                          | 说明                              |
+| -------------------------- | ----------------------------------------------- | --------------------------------- |
+| `DEPLOY_WEB_ROOT`          | `/var/www/<deployment-name>/web`                | Nginx 读取 `apps/web/dist` 的目录 |
+| `DEPLOY_NGINX_CONF_TARGET` | `/etc/nginx/conf.d/<SHOPIFY_APP_URL host>.conf` | 生成的 Nginx 配置复制到的目标路径 |
+
+`deployment-name` 由根 `package.json` 的 `name` 派生，例如
+`@shamt/repository` 会生成 `shamt-repository-server`。这些字段适合放在
+`.env.production` 中覆盖机器路径，但不会被浏览器 public env 注入。
+
 ## Hono AppEnv 类型
 
 Hono env 类型从 `RuntimeConfig` union 推导 bindings，避免新增普通 env 时重复维护手写 `Bindings`：

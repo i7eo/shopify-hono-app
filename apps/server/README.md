@@ -29,22 +29,64 @@
 
 ## 常用命令
 
-```bash
-pnpm --dir apps/server test
-pnpm --dir apps/server run test:coverage
-pnpm --dir apps/server run node:build
-pnpm --dir apps/server run cf:build
-pnpm --dir apps/server run cf:dev
-pnpm --dir apps/server run cf:type
-```
+`apps/server` 的脚本按 runtime 分为 Node process 与 Cloudflare Workers 两组。
+本地 Shopify 联调通常由根目录 `pnpm dev` 或 `pnpm dev:tunnel` 间接启动。
+
+| Script               | Purpose                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `cf:type`            | 生成 Cloudflare Worker binding 类型到 `typings/cloudflare-worker-configuration.d.ts`。 |
+| `cf:dev`             | 读取 development env，用 Wrangler dev 启动 Cloudflare Worker runtime。                 |
+| `cf:build`           | 读取 production env，构建 Cloudflare isolate 产物到 `dist/isolate/cloudflare`。        |
+| `cf:deploy`          | 准备 Cloudflare 静态资源配置，批量写入 Wrangler secrets，然后执行 `wrangler deploy`。  |
+| `node:dev`           | 读取 development env，用 `tsx watch` 启动 Node process runtime。                       |
+| `node:build`         | 读取 production env，构建 Node process 产物到 `dist/process`。                         |
+| `node:deploy`        | 运行 Node 部署脚本，生成 Compose/Nginx 并部署 Docker + PM2 runtime。                   |
+| `build`              | 依次运行 `cf:build` 和 `node:build`。                                                  |
+| `test`               | 运行 Vitest。                                                                          |
+| `test:coverage`      | 运行 Vitest coverage。                                                                 |
+| `test:coverage:view` | 打开 coverage HTML 报告。                                                              |
+| `format`             | 格式化 server workspace 内的 JS/TS/Markdown/JSON 文件。                                |
+| `lint`               | 修复 server workspace 内的 ESLint 问题。                                               |
+| `clean`              | 并行运行 server workspace 清理任务。                                                   |
+| `clean:cache`        | 删除 `dist`。                                                                          |
+| `clean:deps`         | 删除 `node_modules`。                                                                  |
+
+`shopify app dev` 会为 server web target 注入 `BACKEND_PORT`、`APP_URL`、`HOST`
+等运行期值。`cf:dev` 把 `BACKEND_PORT` 传给 Wrangler 的 `--port`，并通过
+`--var "SHOPIFY_APP_URL:${APP_URL:-$HOST}"` 把本次 dev tunnel URL 传入
+Worker。`node:dev` 通过前置 env 赋值把 `BACKEND_PORT` 映射为
+`APP__SERVER_PORT`，并把 `APP_URL`/`HOST` 映射为 `SHOPIFY_APP_URL`，保证 Node
+runtime 和 Cloudflare runtime 使用同一套 Shopify CLI 注入语义。
 
 本地 Shopify 开发入口仍以根目录脚本为准：
 
 ```bash
-pnpm app:dev
+pnpm dev
 ```
 
-该命令会先生成 Shopify 配置文件，再由 Shopify CLI 启动开发流程。
+该命令会先生成 Shopify 配置文件，再由 Shopify CLI 启动开发流程。根目录的
+`pnpm app:dev` 只是原始 Shopify CLI 启动命令，通常不要绕过 `pnpm dev`
+直接执行。
+
+生产部署也以根目录脚本为准：
+
+```bash
+pnpm deploy
+```
+
+`pnpm deploy` 会先写入 Shopify TOML，再按 `.env.production` 中的
+`APP_RUNTIME` 分发到 server workspace：
+
+```bash
+pnpm --dir apps/server run cf:deploy
+pnpm --dir apps/server run node:deploy
+```
+
+`cf:deploy` 先运行 `scripts/deploy/cloudflare.ts` 写入 Worker assets 配置，
+再执行 `wrangler secret bulk ../../.env.production && wrangler deploy`。
+`node:deploy` 运行 `scripts/deploy/node.ts`，构建 web/server 产物，生成
+`docker-compose.yml` 与 `nginx.conf`，然后通过 Docker、PM2 runtime 和
+同机 Nginx 完成部署。
 
 ## 维护原则
 

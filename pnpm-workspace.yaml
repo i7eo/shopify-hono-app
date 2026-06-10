@@ -41,7 +41,7 @@ catalogs:
     "@commitlint/types": "^21.0.1"
     "czg": "^1.13.1"
     "lint-staged": "^17.0.7"
-    "prettier": "^3.8.3"
+    "prettier": "^3.8.4"
     "prettier-plugin-tailwindcss": "^0.8.0"
     "simple-git-hooks": "^2.13.1"
     "@unconfig/stylelint-config": "^0.1.10"
@@ -78,7 +78,7 @@ catalogs:
     "jsdom": "^29.1.1"
   "cloudflare":
     "@cloudflare/workers-types": "^4.20260609.1"
-    "wrangler": "^4.98.0"
+    "wrangler": "^4.99.0"
 
 minimumReleaseAgeExclude:
   - hono@4.12.23

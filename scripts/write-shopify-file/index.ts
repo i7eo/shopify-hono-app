@@ -6,6 +6,7 @@ import {
   DEFAULT_SHOPIFY_APP_MODES,
   SHOPIFY_APP_FRONTEND_TARGETS,
 } from "@shamt/app-env";
+import { isObject, throwError } from "@shamt/utils";
 import {
   getShopifyAppPath,
   root,
@@ -149,7 +150,8 @@ async function writeShopifyFile(config: ShopifyFileConfig) {
  */
 function getServerCommand(runtime: ShopifyFileConfig["APP_RUNTIME"]) {
   if (!isServerCommandRuntime(runtime)) {
-    throw new Error(
+    throwError(
+      "write-shopify-file",
       `APP_RUNTIME=${runtime} is not supported by Shopify web TOML generation`,
     );
   }
@@ -176,9 +178,10 @@ async function readRequiredFile(filePath: string) {
     return await readFile(filePath, "utf8");
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
-      throw new Error(`${path.relative(root, filePath)} does not exist`, {
-        cause: error,
-      });
+      throwError(
+        "write-shopify-file",
+        `${path.relative(root, filePath)} does not exist`,
+      );
     }
 
     throw error;
@@ -204,7 +207,7 @@ async function removeFileIfExists(filePath: string) {
  * Narrows unknown errors to Node filesystem-style errors.
  */
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
+  return error instanceof Error && isObject(error) && "code" in error;
 }
 
 /**

@@ -1,4 +1,4 @@
-const keys = [
+const envKeys = [
   "APP_ENV",
   "APP_RUNTIME",
   "APP_LOGGER_EXPIRE",
@@ -17,22 +17,26 @@ const keys = [
   "SHOPIFY_APP_URL",
   "SHOPIFY_API_VERSION",
   "SCOPES",
-];
+] as const;
 
 const isRealWranglerCli = process.argv[1]?.includes("wrangler-dist/cli.js");
 
 if (isRealWranglerCli) {
+  // eslint-disable-next-line no-console
   console.log("[wrangler process env]", {
     pid: process.pid,
     cwd: process.cwd(),
     argv: process.argv,
     env: Object.fromEntries(
-      keys.map((key) => [key, formatEnvValue(key, process.env[key])]),
+      envKeys.map((key) => [key, formatEnvValue(key, process.env[key])]),
     ),
   });
 }
 
-function formatEnvValue(key, value) {
+/**
+ * Redact secret values while preserving whether they were provided.
+ */
+function formatEnvValue(key: string, value: string | undefined) {
   if (value === undefined) return "<missing>";
   if (key.includes("SECRET")) return `<set:${value.length}>`;
   return value;
