@@ -4,10 +4,11 @@
 
 ## 当前项目状态
 
-- Runtime: Node process 和 Cloudflare Workers。
+- Runtime: Node process 和 Cloudflare Workers，通过 `APP_RUNTIME` 选择。
 - Framework: Hono + TypeScript。
 - Shopify: 使用 `@shopify/shopify-api` 官方包处理 OAuth、session token、token exchange、webhook 校验和 Admin GraphQL client。
 - Shopify app mode: `SHOPIFY_APP_MODE=embedded|standalone` 必须显式配置；embedded 使用 App Bridge session token，standalone 使用 app account session cookie。
+- Shopify frontend target: `SHOPIFY_APP_FRONTEND_TARGET=backend|frontend` 决定 app shell 由 server 还是 web 承载。
 - Session storage: Cloudflare 使用 KV；Node development 使用 memory；Node production 不允许 memory session。
 - Resource APIs: `shop`、`product` 已作为独立业务模块注册，复用 Shopify Admin middleware，不再放在 Shopify app-flow 模块下。
 - OpenAPI: 非 production Node 可注册 `/document` 和 `/reference`；生产和 Cloudflare isolate 默认不注册。
@@ -33,6 +34,7 @@ pnpm --dir apps/server test
 pnpm --dir apps/server run test:coverage
 pnpm --dir apps/server run node:build
 pnpm --dir apps/server run cf:build
+pnpm --dir apps/server run cf:dev
 pnpm --dir apps/server run cf:type
 ```
 

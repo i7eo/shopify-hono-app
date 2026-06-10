@@ -5,6 +5,17 @@
   "private": true,
   "author": "i7eo",
   "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./constants": {
+      "types": "./src/constants/index.ts",
+      "import": "./src/constants/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "files": [
@@ -16,8 +27,14 @@
     "types": "./dist/esm/index.d.mts",
     "exports": {
       ".": {
+        "types": "./dist/esm/index.d.mts",
         "import": "./dist/esm/index.mjs",
         "require": "./dist/cjs/index.cjs"
+      },
+      "./constants": {
+        "types": "./dist/esm/constants/index.d.mts",
+        "import": "./dist/esm/constants/index.mjs",
+        "require": "./dist/cjs/constants/index.cjs"
       },
       "./package.json": "./package.json"
     }

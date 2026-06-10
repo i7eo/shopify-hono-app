@@ -1,65 +1,42 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { escape as escapeHTML } from "@shamt/utils";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig } from "vite";
+import { env } from "./configs/env";
 import { name } from "./package.json";
+import { htmlPlugin } from "./scripts/vite/plugins/html";
+import { imageOptimizerPlugin } from "./scripts/vite/plugins/image-optimizer";
+import { publicEnvPlugin } from "./scripts/vite/plugins/public-env";
+import { createViteServer } from "./scripts/vite/server";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  resolve: {
-    alias: {
-      "@": resolve(__dirname, "src"),
-    },
-  },
-  plugins: [
-    shopifyHtmlEnvPlugin(mode),
-    tailwindcss(),
-    tanstackRouter({ target: "react", autoCodeSplitting: true }),
-    react(),
-  ],
-}));
-
-function shopifyHtmlEnvPlugin(mode: string): Plugin {
-  const env = {
-    ...loadEnv(mode, resolve(__dirname, "../.."), ""),
-    ...process.env,
-  };
-
-  const shopifyApiKey = env.SHOPIFY_API_KEY ?? env.SHOPIFY_APP_KEY;
-
+/**
+ * Configures the web app build around injected Shopify env and Vite plugins.
+ */
+export default defineConfig(({ command }) => {
   return {
-    name: "shopify-html-env",
-    enforce: "pre",
-    transformIndexHtml(html) {
-      if (!shopifyApiKey) {
-        throw new Error(
-          "SHOPIFY_API_KEY or SHOPIFY_APP_KEY is required to render apps/web/index.html",
-        );
-      }
-
-      return html
-        .replaceAll("%SHOPIFY_APP_FRONTEND_NAME%", escapeHTML(name))
-        .replaceAll(
-          "%SHOPIFY_APP_FRONTEND_HEAD%",
-          renderShopifyHead(shopifyApiKey),
-        );
+    resolve: {
+      alias: {
+        "@": resolve(__dirname, "src"),
+      },
     },
+    server: createViteServer({ env }),
+    plugins: [
+      publicEnvPlugin({
+        env,
+      }),
+      htmlPlugin({
+        env,
+        appName: name,
+      }),
+      tailwindcss(),
+      tanstackRouter({ target: "react", autoCodeSplitting: true }),
+      react(),
+      ...(command === "build" ? [imageOptimizerPlugin()] : []),
+    ],
   };
-}
-
-function renderShopifyHead(shopifyApiKey: string | undefined) {
-  if (!shopifyApiKey) {
-    return " ";
-  }
-
-  return [
-    `<meta name="shopify-api-key" content="${escapeHTML(shopifyApiKey)}" />`,
-    `<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`,
-    `<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>`,
-  ].join("\n    ");
-}
+});

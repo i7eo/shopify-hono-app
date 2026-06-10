@@ -9,7 +9,21 @@ const isDev = process.env.APP_ENV === "development";
 const sourcemap = !isDev;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = "src";
-const input = resolve(__dirname, "src/index.ts");
+// Keep public subpath entries explicit so package exports do not drift.
+const input = [
+  "src/index.ts",
+  "src/client/index.ts",
+  "src/errors/index.ts",
+  "src/status/index.ts",
+  "src/validation/index.ts",
+  "src/security/json.ts",
+  "src/lifecycle/dedupe.ts",
+  "src/plugins/business-status.ts",
+  "src/plugins/error-reporter.ts",
+  "src/plugins/request-format.ts",
+  "src/plugins/validation.ts",
+  "src/utils/index.ts",
+].map((entry) => resolve(__dirname, entry));
 const outputDir = resolve(__dirname, "dist");
 
 const common = defineConfig({
@@ -18,6 +32,9 @@ const common = defineConfig({
   external: Object.keys(dependencies),
 });
 
+/**
+ * Builds ESM, CJS, and declaration outputs for every public entrypoint.
+ */
 export default defineConfig([
   {
     ...common,

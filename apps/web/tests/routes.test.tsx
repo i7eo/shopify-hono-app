@@ -5,6 +5,8 @@ import { PostNotFoundError } from "../src/apis/posts";
 
 const routerInvalidateMock = vi.hoisted(() => vi.fn());
 const queryBoundaryResetMock = vi.hoisted(() => vi.fn());
+const fetchProductsMock = vi.hoisted(() => vi.fn());
+const fetchShopInfoMock = vi.hoisted(() => vi.fn());
 const useSuspenseQueryMock = vi.hoisted(() => vi.fn());
 const routeParams = vi.hoisted(() => ({ postId: "1" }));
 
@@ -71,9 +73,23 @@ vi.mock("@tanstack/react-router", () => {
   };
 });
 
+vi.mock("@/apis/shopify", () => ({
+  fetchProducts: fetchProductsMock,
+  fetchShopInfo: fetchShopInfoMock,
+  ShopifyAuthRedirectError: class ShopifyAuthRedirectError extends Error {
+    override name = "ShopifyAuthRedirectError";
+  },
+}));
+
 describe("route components", () => {
   beforeEach(() => {
     routeParams.postId = "1";
+    fetchProductsMock.mockReset();
+    fetchShopInfoMock.mockReset();
+    fetchProductsMock.mockResolvedValue({ data: { products: { edges: [] } } });
+    fetchShopInfoMock.mockResolvedValue({
+      data: { shop: { myshopifyDomain: "shop.myshopify.com", name: "Shop" } },
+    });
     useSuspenseQueryMock.mockReset();
     queryBoundaryResetMock.mockClear();
     routerInvalidateMock.mockClear();
@@ -96,12 +112,12 @@ describe("route components", () => {
     expect(
       screen.getByRole("link", { name: "This Route Does Not Exist" }),
     ).toBeTruthy();
-    expect(screen.getByTestId("react-query-devtools").dataset.position).toBe(
-      "bottom-left",
-    );
-    expect(screen.getByTestId("router-devtools").dataset.position).toBe(
-      "bottom-right",
-    );
+    expect(
+      (await screen.findByTestId("react-query-devtools")).dataset.position,
+    ).toBe("bottom-left");
+    expect(
+      (await screen.findByTestId("router-devtools")).dataset.position,
+    ).toBe("bottom-right");
     unmount();
 
     render(<NotFound />);
@@ -123,7 +139,9 @@ describe("route components", () => {
     const { unmount } = render(
       React.createElement(home.Route.options.component as React.ComponentType),
     );
-    expect(screen.getByText("Welcome Home!")).toBeTruthy();
+    expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+      "My Shopify App",
+    );
     unmount();
 
     render(

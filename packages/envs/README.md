@@ -7,15 +7,16 @@
 - [Overview](#overview)
 - [Design and Architecture](#design-and-architecture)
 - [Static Env and Runtime Settings](#static-env-and-runtime-settings)
+- [Relation to @shamt/app-env](#relation-to-shamtapp-env)
 - [Inputs and Outputs](#inputs-and-outputs)
 - [Usage](#usage)
 - [Unit Conventions](#unit-conventions)
 
 ## Overview
 
-`@shamt/envs` is the workspace package for shared environment constants and Zod configuration schemas. It centralizes reusable defaults, environment names, runtime names, HTTP status codes, response defaults, logger configuration, cache configuration, database configuration, Redis configuration, and related types.
+`@shamt/envs` is the workspace package for base environment constants and Zod configuration schemas. It centralizes reusable defaults, environment names, runtime names, HTTP status codes, response defaults, logger configuration, cache configuration, database configuration, Redis configuration, request limits, and related types.
 
-This package does not read `process.env` and does not decide the current deployment platform. It only provides reusable constants, types, and schemas. Applications should parse actual raw env values in their own bootstrap flow, runtime env provider, or middleware.
+This package does not read `process.env`, does not decide the current deployment platform, and does not contain Shopify-specific app schema. It only provides reusable constants, types, and schemas. Applications should parse actual raw env values in their own bootstrap flow, runtime env provider, or middleware.
 
 ## Design and Architecture
 
@@ -45,6 +46,22 @@ For values that must change without redeploying, create a separate runtime setti
 
 Example: if `APP_LOG_INVOKER` needs to be changed immediately in production without redeploying, model it as a runtime setting such as `logInvoker`, not as a new env field. Env can still provide the storage binding or namespace name, while the setting value itself lives in the runtime settings source.
 
+## Relation to @shamt/app-env
+
+Use `@shamt/envs` for runtime-neutral building blocks. Use
+`@shamt/app-env` when an app needs the composed project schema that includes
+Shopify fields such as `SHOPIFY_APP_MODE`,
+`SHOPIFY_APP_FRONTEND_TARGET`, `SHOPIFY_APP_KEY`, and `SCOPES`.
+
+```ts
+import { configSchema } from "@shamt/app-env";
+
+const config = configSchema.parse(process.env);
+```
+
+This split keeps shared constants reusable while allowing app-specific env
+contracts to evolve without making the base package depend on Shopify.
+
 ## Inputs and Outputs
 
 Inputs:
@@ -56,7 +73,7 @@ Outputs:
 
 - Zod schemas for app, cache, database, env, logger, and Redis configuration.
 - TypeScript inferred types such as `AppConfigSchema`, `EnvConfigSchema`, and `LogConfigSchema`.
-- Shared constants for HTTP status codes, response defaults, content types, runtime names, env names, timeouts, and size limits.
+- Shared constants for HTTP status codes, response defaults, content types, runtime names, env names, request limits, timeouts, and size limits.
 
 ## Usage
 
@@ -74,7 +91,7 @@ config.APP_ENV; // "development"
 config.APP_RUNTIME; // "cloudflare"
 ```
 
-Compose a project-specific config schema:
+Compose a generic config schema:
 
 ```ts
 import {
@@ -87,7 +104,7 @@ import { z } from "zod";
 const serverSchema = extendConfigSchema(
   extendConfigSchema(envConfigSchema, appConfigSchema),
   z.object({
-    SHOPIFY_APP_KEY: z.string().min(1),
+    SERVICE_NAME: z.string().min(1),
   }),
 );
 

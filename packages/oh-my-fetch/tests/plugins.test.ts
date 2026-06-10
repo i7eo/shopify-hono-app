@@ -1,10 +1,9 @@
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
+import { HttpRequestError } from "@shamt/oh-my-fetch/errors";
+import { businessStatusPlugin } from "@shamt/oh-my-fetch/plugins/business-status";
+import { errorReporterPlugin } from "@shamt/oh-my-fetch/plugins/error-reporter";
+import { requestFormatPlugin } from "@shamt/oh-my-fetch/plugins/request-format";
 import { describe, expect, it, vi } from "vitest";
-import { createHttpClient, HttpRequestError } from "../src";
-import {
-  businessStatusPlugin,
-  errorReporterPlugin,
-  requestFormatPlugin,
-} from "../src/plugins";
 
 function json(data: unknown, init?: ResponseInit) {
   return Response.json(data, {

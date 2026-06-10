@@ -57,12 +57,14 @@ Cloudflare 下 `envConfig` 来自 `c.env`，其中包含 request-bound 平台 bi
 
 `getEnvProvider()` 内部保存两份状态：
 
-- raw env 快照：用于 bootstrap env 与 request env 合并。
+- 已校验的 `RuntimeConfig`：用于复用同一份基础配置。
 - env signature：用于判断有效配置是否变化。
 
 如果签名没有变化，provider 会直接返回上一次解析好的 `RuntimeConfig`，不会每个请求都重新跑 schema parse。
 
-签名只包含关键配置字段和平台 binding 是否存在，不会把 binding 对象整体 stringify。
+签名只包含关键配置字段和平台 binding 是否存在，不会把 binding 对象整体 stringify。`APP_RUNTIME`、`SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、端口、Shopify app key、app URL、API version、scopes 等字段变化时都会触发重新解析。
+
+`SHOPIFY_APP_FRONTEND_TARGET` 属于签名字段，因为它会改变 server app shell route 和 OAuth callback fallback URL。切换 frontend target 后，provider 必须重新解析配置，不能复用旧的 `runtimeEnv`。
 
 ## Runtime Schema
 

@@ -1,4 +1,6 @@
+import { SHOPIFY_APP_FRONTEND_TARGETS } from "@shamt/app-env";
 import { getShopifyModeCapabilities } from "../mode";
+import { getShopifyAppShellUrl } from "./urls";
 import type { AppEnv } from "@/typings";
 import type { Context, Hono } from "hono";
 
@@ -16,6 +18,12 @@ export const registerAppShellRoutes = (app: Hono<AppEnv>) => {
  */
 function renderAppShellResponse(c: Context<AppEnv>) {
   const config = c.get("runtimeEnv");
+
+  if (
+    config.SHOPIFY_APP_FRONTEND_TARGET === SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND
+  ) {
+    return c.redirect(getShopifyAppShellUrl(config));
+  }
 
   return getShopifyModeCapabilities(
     config.SHOPIFY_APP_MODE,

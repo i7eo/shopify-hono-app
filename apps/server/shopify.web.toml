@@ -1,4 +1,4 @@
-roles = ["frontend", "backend"]
+roles = ["backend"]
 port = 10001
 
 [commands]

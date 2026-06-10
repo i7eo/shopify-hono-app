@@ -49,6 +49,7 @@
     "@vitest/coverage-v8": "catalog:test",
     "rolldown": "catalog:dx",
     "rolldown-plugin-dts": "catalog:dx",
+    "tsx": "catalog:dx",
     "typescript": "catalog:",
     "vitest": "catalog:test",
     "wrangler": "catalog:cloudflare"

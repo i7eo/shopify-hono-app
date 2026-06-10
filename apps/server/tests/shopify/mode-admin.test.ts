@@ -196,7 +196,7 @@ describe("Shopify app mode capabilities", () => {
     expect((await redirectResponse).headers.get("Location")).toBe(
       "https://app.example.com/auth?shop=shop.myshopify.com",
     );
-    expect((await htmlResponse).text()).toContain("test_app_key");
+    expect(await (await htmlResponse).text()).toContain("test_app_key");
     expect(authContext.var.shopDomain).toBe("shop.myshopify.com");
     expect(authContext.var.shopifySession).toBe(session);
     expect(authContext.var.shopifyAccessToken).toBe("offline-token");

@@ -1,4 +1,4 @@
-import type { HTTP_STATUS_CODES } from "@shamt/envs";
+import type { HTTP_STATUS_CODES } from "@shamt/envs/constants";
 
 export type KnownStatusCode =
   | typeof HTTP_STATUS_CODES.BAD_REQUEST.code

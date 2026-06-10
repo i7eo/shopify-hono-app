@@ -4,7 +4,7 @@ import {
   configSchema,
   DEFAULT_RUNTIMES,
   DEFAULT_SHOPIFY_APP_MODES,
-  DEFAULT_SHOPIFY_WEB_ROLES,
+  SHOPIFY_APP_FRONTEND_TARGETS,
 } from "@shamt/app-env";
 import {
   getShopifyAppPath,
@@ -45,6 +45,9 @@ const serverCommandsByRuntime = {
 
 type ServerCommandRuntime = keyof typeof serverCommandsByRuntime;
 
+/**
+ * Renders a shopify.web.toml file from roles, port, and command settings.
+ */
 function renderShopifyWebToml({ roles, port, command }: ShopifyWebTomlInput) {
   return `roles = [${roles.map(formatTomlString).join(", ")}]
 port = ${port}
@@ -55,6 +58,9 @@ build = ${formatTomlString(command.build)}
 `;
 }
 
+/**
+ * Regenerates Shopify web role files from the active frontend target.
+ */
 async function writeShopifyWebFiles(config: ShopifyFileConfig) {
   await Promise.all([
     removeFileIfExists(serverShopifyWebPath),
@@ -62,9 +68,9 @@ async function writeShopifyWebFiles(config: ShopifyFileConfig) {
   ]);
 
   const isBackendFrontendTarget =
-    config.SHOPIFY_APP_FRONTEND_TARGET === DEFAULT_SHOPIFY_WEB_ROLES.BACKEND;
-  const backendRole = DEFAULT_SHOPIFY_WEB_ROLES.BACKEND;
-  const frontendRole = DEFAULT_SHOPIFY_WEB_ROLES.FRONTEND;
+    config.SHOPIFY_APP_FRONTEND_TARGET === SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
+  const backendRole = SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
+  const frontendRole = SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
   const serverToml = renderShopifyWebToml({
     roles: isBackendFrontendTarget
       ? [frontendRole, backendRole]
@@ -94,6 +100,9 @@ async function writeShopifyWebFiles(config: ShopifyFileConfig) {
   ]);
 }
 
+/**
+ * Updates shopify.app.toml while preserving unrelated TOML sections.
+ */
 async function writeShopifyFile(config: ShopifyFileConfig) {
   const shopifyAppPath = getShopifyAppPath(config.APP_ENV);
   const appUrl = config.SHOPIFY_APP_URL;
@@ -135,6 +144,9 @@ async function writeShopifyFile(config: ShopifyFileConfig) {
   await writeFile(shopifyAppPath, toml);
 }
 
+/**
+ * Resolves server lifecycle commands for runtimes supported by Shopify CLI.
+ */
 function getServerCommand(runtime: ShopifyFileConfig["APP_RUNTIME"]) {
   if (!isServerCommandRuntime(runtime)) {
     throw new Error(
@@ -147,12 +159,18 @@ function getServerCommand(runtime: ShopifyFileConfig["APP_RUNTIME"]) {
   return command;
 }
 
+/**
+ * Narrows runtime values to the command table keys.
+ */
 function isServerCommandRuntime(
   runtime: ShopifyFileConfig["APP_RUNTIME"],
 ): runtime is ServerCommandRuntime {
   return Reflect.has(serverCommandsByRuntime, runtime);
 }
 
+/**
+ * Reads a required file and reports missing paths relative to the repo root.
+ */
 async function readRequiredFile(filePath: string) {
   try {
     return await readFile(filePath, "utf8");
@@ -167,6 +185,9 @@ async function readRequiredFile(filePath: string) {
   }
 }
 
+/**
+ * Removes generated files when present so each run starts from env state.
+ */
 async function removeFileIfExists(filePath: string) {
   try {
     await unlink(filePath);
@@ -179,10 +200,16 @@ async function removeFileIfExists(filePath: string) {
   }
 }
 
+/**
+ * Narrows unknown errors to Node filesystem-style errors.
+ */
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
 }
 
+/**
+ * Validates env and regenerates all Shopify config files.
+ */
 async function main() {
   const config = configSchema.parse(process.env);
 

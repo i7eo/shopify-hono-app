@@ -105,9 +105,9 @@ export function conflictError(
 
 /**
  * Use when the request payload exceeds the allowed size.
- * Example: throw uploadPayloadTooLargeError("Upload payload too large", { details });
+ * Example: throw payloadTooLargeError("Request payload too large", { details });
  */
-export function uploadPayloadTooLargeError(
+export function payloadTooLargeError(
   message: string = HTTP_STATUS_CODES.REQUEST_TOO_LONG.phrase,
   options?: ErrorOptions,
 ) {
@@ -116,6 +116,12 @@ export function uploadPayloadTooLargeError(
     expose: options?.expose ?? true,
   });
 }
+
+/**
+ * Use for upload-specific payload size failures.
+ * Example: throw uploadPayloadTooLargeError("Upload payload too large", { details });
+ */
+export const uploadPayloadTooLargeError = payloadTooLargeError;
 
 /**
  * Use when parsed input fails validation, including Zod validation errors.

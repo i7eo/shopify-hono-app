@@ -46,7 +46,7 @@ runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [
 - Node development + embedded
 - Node development + standalone
 
-常见项目容易把部署平台和 Shopify app flow 混在一起。本项目把它们拆成两个 capability 系统，降低组合复杂度。
+常见项目容易把部署平台和 Shopify app flow 混在一起。本项目用 runtime capability、Shopify mode capability 和 frontend target 配置分别承载三类差异，降低组合复杂度。
 
 ## 统一 Env 模型
 

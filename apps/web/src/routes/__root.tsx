@@ -1,11 +1,29 @@
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   createRootRouteWithContext,
   Link,
   Outlet,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { lazy, Suspense } from "react";
 import type { QueryClient } from "@tanstack/react-query";
+
+const Devtools = import.meta.env.DEV
+  ? lazy(async () => {
+      const [{ ReactQueryDevtools }, { TanStackRouterDevtools }] =
+        await Promise.all([
+          import("@tanstack/react-query-devtools"),
+          import("@tanstack/react-router-devtools"),
+        ]);
+
+      return {
+        default: () => (
+          <>
+            <ReactQueryDevtools buttonPosition="bottom-left" />
+            <TanStackRouterDevtools position="bottom-right" />
+          </>
+        ),
+      };
+    })
+  : undefined;
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -62,8 +80,11 @@ function RootComponent() {
       </div>
       <hr />
       <Outlet />
-      <ReactQueryDevtools buttonPosition="bottom-left" />
-      <TanStackRouterDevtools position="bottom-right" />
+      {Devtools ? (
+        <Suspense fallback={null}>
+          <Devtools />
+        </Suspense>
+      ) : null}
     </>
   );
 }

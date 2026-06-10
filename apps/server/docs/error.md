@@ -74,6 +74,7 @@ throw badGatewayError("Token exchange failed", {
 - `unprocessableEntityError`
 - `timeoutError`
 - `conflictError`
+- `payloadTooLargeError`
 - `rateLimitError`
 - `badGatewayError`
 - `serviceUnavailableError`

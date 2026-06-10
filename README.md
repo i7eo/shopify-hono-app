@@ -1,8 +1,9 @@
 # Shopify Hono App
 
-This repository contains a Shopify embedded app built for Cloudflare Workers
-with Hono, Shopify CLI, Wrangler, and a small set of shared TypeScript
-packages.
+This repository contains a Shopify app built with Hono, Shopify CLI, Wrangler,
+React, Vite, and a small set of shared TypeScript packages. The app supports
+both Shopify `embedded` and `standalone` modes, and can run the server through
+either a Node process or Cloudflare Workers.
 
 It is organized as a pnpm monorepo. The app code lives under `apps/`, reusable
 runtime libraries live under `packages/`, and root scripts coordinate Shopify
@@ -15,11 +16,11 @@ deployment.
 
 These packages are private application entry points.
 
-| Package                              | Version | Description                                                                             |
-| ------------------------------------ | ------- | --------------------------------------------------------------------------------------- |
-| [`@shamt/server`](./apps/server)     | `0.0.0` | Hono app for Shopify auth, embedded admin UI, API routes, webhooks, and Worker runtime. |
-| [`@shamt/web`](./apps/web#readme)    | `0.0.0` | Optional React and Vite frontend workspace.                                             |
-| [`@shamt/document`](./apps/document) | `0.0.0` | VitePress documentation app.                                                            |
+| Package                                     | Version | Description                                                                                |
+| ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------ |
+| [`@shamt/server`](./apps/server#readme)     | `0.0.0` | Hono app for Shopify auth, app shell fallback, API routes, webhooks, and runtime adapters. |
+| [`@shamt/web`](./apps/web#readme)           | `0.0.0` | React and Vite frontend target for Shopify app shell UI.                                   |
+| [`@shamt/document`](./apps/document#readme) | `0.0.0` | VitePress documentation app workspace.                                                     |
 
 ### Shared Runtime Packages
 
@@ -28,9 +29,10 @@ These packages provide reusable framework-neutral building blocks for the apps.
 | Package                                               | Version | Description                                                                |
 | ----------------------------------------------------- | ------- | -------------------------------------------------------------------------- |
 | [`@shamt/utils`](./packages/utils#readme)             | `0.0.0` | Shared utility functions for JSON, dates, guards, cookies, trees, and ids. |
-| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Shared constants and Zod schemas for environment and runtime config.       |
+| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Base constants and Zod schemas for runtime-neutral environment config.     |
+| [`@shamt/app-env`](./packages/app-env#readme)         | `0.0.0` | App-specific env schema that composes `@shamt/envs` with Shopify fields.   |
 | [`@shamt/cache`](./packages/cache#readme)             | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.          |
-| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with retries, validation, and errors.  |
+| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with explicit subpath entrypoints.     |
 
 ## Architecture
 
@@ -39,50 +41,60 @@ The dependency direction is intentionally one-way:
 ```text
 @shamt/utils
   -> @shamt/envs
-  -> @shamt/cache / @shamt/oh-my-fetch
-  -> apps/server
-  -> Shopify Admin API / Cloudflare Workers
+  -> @shamt/app-env / @shamt/cache / @shamt/oh-my-fetch
+  -> apps/server / apps/web
+  -> Shopify Admin API / Shopify App Bridge / Cloudflare Workers
 ```
 
 `@shamt/utils` is the lowest-level shared layer. It exposes small helpers and
 selected external utilities without depending on the rest of the workspace.
 
-`@shamt/envs` centralizes constants and Zod schemas, but it does not read from
-`process.env` or Cloudflare bindings directly. Apps choose the runtime source of
-environment values.
+`@shamt/envs` centralizes base constants and Zod schemas, but it does not read
+from `process.env` or Cloudflare bindings directly. `@shamt/app-env` composes
+those base schemas with Shopify app fields such as `SHOPIFY_APP_MODE` and
+`SHOPIFY_APP_FRONTEND_TARGET`.
 
 `@shamt/cache` defines the shared cache contract and default memory driver.
 Runtime-specific stores, such as Cloudflare KV backed Shopify session storage,
 stay in the app layer.
 
 `@shamt/oh-my-fetch` wraps `ky` for consistent HTTP behavior across services:
-query serialization, body handling, timeout, retry, response parsing, business
-status validation, schema validation, and normalized request errors.
+query serialization, body handling, timeout, retry, response parsing, schema
+validation, normalized request errors, and optional plugins imported from
+explicit subpath entrypoints.
 
 `apps/server` composes the shared packages with Hono, Shopify API libraries,
-Cloudflare Workers bindings, LogTape logging, and Shopify embedded app routes.
-It has two runtime entries:
+Cloudflare Workers bindings, LogTape logging, and Shopify app routes. It has two
+runtime entries:
 
 | Runtime            | Entry                                                                                                                  |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Cloudflare Workers | [`apps/server/src/app/runtime/isolate/cloudflare/index.ts`](./apps/server/src/app/runtime/isolate/cloudflare/index.ts) |
 | Node process       | [`apps/server/src/app/runtime/process/index.ts`](./apps/server/src/app/runtime/process/index.ts)                       |
 
-## Server App
+## App Runtime
 
-The server app is the primary product surface. It provides:
+The server app provides:
 
 - Shopify OAuth and callback handling.
-- Shopify embedded app shell.
-- Session-token verification and token exchange middleware.
+- Shopify app shell rendering or redirect fallback.
+- Embedded session-token verification and token exchange middleware.
+- Standalone account-session cookie handling.
 - Admin GraphQL-backed shop and product API routes.
 - Shopify webhook endpoints.
 - Cloudflare KV session storage integration.
 - Health checks and OpenAPI route registration.
 - Cloudflare Worker and Node process runtime adapters.
 
-The Shopify admin UI served by the app shell uses Shopify Polaris web
-components. The app shell loads:
+The frontend target is controlled by `SHOPIFY_APP_FRONTEND_TARGET`:
+
+| Target     | Behavior                                                                  |
+| ---------- | ------------------------------------------------------------------------- |
+| `backend`  | `apps/server` owns the Shopify `frontend` and `backend` web roles.        |
+| `frontend` | `apps/web` owns the Shopify `frontend` role; server keeps backend routes. |
+
+The Shopify admin UI uses Shopify Polaris web components. Embedded app shells
+load App Bridge and Polaris; standalone shells load Polaris only:
 
 ```html
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
@@ -122,6 +134,8 @@ APP_RUNTIME=node
 APP__SERVER_PORT=10001
 APP__WEB_PORT=10002
 
+SHOPIFY_APP_MODE=embedded
+SHOPIFY_APP_FRONTEND_TARGET=frontend
 SHOPIFY_APP_KEY=...
 SHOPIFY_APP_SECRET=...
 SHOPIFY_APP_URL=https://sofary-app-dev-server.i7eo.com
@@ -137,8 +151,10 @@ pnpm dev:prepare
 pnpm deploy:prepare
 ```
 
-`apps/web/shopify.web.toml` is optional. If it does not exist, the prepare
-script skips that web target and continues with the server and app config.
+`scripts/write-shopify-file` regenerates `shopify.app.toml` plus the Shopify
+web role files on every prepare run. It deletes existing `shopify.web.toml`
+files first, then writes `apps/server/shopify.web.toml` and, when
+`SHOPIFY_APP_FRONTEND_TARGET=frontend`, `apps/web/shopify.web.toml`.
 
 ### Switching Server Runtime
 
@@ -196,10 +212,11 @@ http://[::1]:10101
 
 The local port split is:
 
-| Port    | Owner              | Purpose                               |
-| ------- | ------------------ | ------------------------------------- |
-| `10101` | Shopify CLI        | Local proxy for the custom tunnel URL |
-| `10001` | Wrangler / workerd | Cloudflare Worker development server  |
+| Port    | Owner       | Purpose                               |
+| ------- | ----------- | ------------------------------------- |
+| `10101` | Shopify CLI | Local proxy for the custom tunnel URL |
+| `10001` | apps/server | Node or Wrangler development server   |
+| `10002` | apps/web    | Vite development server when enabled  |
 
 Start the tunnel and the app in separate terminals:
 
@@ -234,7 +251,7 @@ Shopify CLI proxy. Verify that `10101` is listening locally.
 
 ### Common Commands
 
-Run the embedded app locally:
+Run the Shopify app locally:
 
 ```bash
 pnpm dev
@@ -317,6 +334,7 @@ wrangler deploy
 | [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)                   | Workspace globs, catalogs, Node version, and pnpm policy.    |
 | [`shopify.app.toml`](./shopify.app.toml)                         | Shopify app client id, app URL, scopes, and redirects.       |
 | [`apps/server/shopify.web.toml`](./apps/server/shopify.web.toml) | Shopify CLI web target for the server app.                   |
+| [`apps/web/shopify.web.toml`](./apps/web/shopify.web.toml)       | Shopify CLI web target for the Vite frontend when generated. |
 | [`apps/server/wrangler.json`](./apps/server/wrangler.json)       | Cloudflare Worker entry, compatibility date, and KV binding. |
 | [`scripts/write-shopify-file`](./scripts/write-shopify-file)     | Env-driven writer for Shopify app and web TOML files.        |
 

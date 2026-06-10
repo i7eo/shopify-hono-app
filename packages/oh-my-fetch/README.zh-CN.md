@@ -28,7 +28,7 @@
 ## 基础用法
 
 ```ts
-import { createHttpClient } from "@shamt/oh-my-fetch";
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
 
 const api = createHttpClient({
   prefix: "/api",
@@ -45,6 +45,25 @@ type User = {
 
 const user = await api.get<User>("users/current");
 ```
+
+## 入口
+
+根入口只导出 core client、错误类和共享类型。插件与专项 helper 需要从显式子入口引入。
+
+| 入口                                         | 用途                                    |
+| -------------------------------------------- | --------------------------------------- |
+| `@shamt/oh-my-fetch`                         | core client、`HttpRequestError`、类型   |
+| `@shamt/oh-my-fetch/client`                  | `createHttpClient`、`HttpClient`        |
+| `@shamt/oh-my-fetch/errors`                  | `HttpRequestError` 与错误类型           |
+| `@shamt/oh-my-fetch/status`                  | HTTP status message helper              |
+| `@shamt/oh-my-fetch/validation`              | schema validation helper                |
+| `@shamt/oh-my-fetch/json`                    | 安全 JSON parse helper                  |
+| `@shamt/oh-my-fetch/dedupe`                  | request dedupe lifecycle helper         |
+| `@shamt/oh-my-fetch/plugins/business-status` | business wrapper failure 插件           |
+| `@shamt/oh-my-fetch/plugins/error-reporter`  | error reporting 插件                    |
+| `@shamt/oh-my-fetch/plugins/request-format`  | request body formatting 插件            |
+| `@shamt/oh-my-fetch/plugins/validation`      | request/response schema validation 插件 |
+| `@shamt/oh-my-fetch/utils`                   | 更底层的共享 utility types/helper       |
 
 ## Query 与 Body
 
@@ -66,7 +85,8 @@ await api.post("users", {
 请求体默认不会被修改。如果某个服务需要递归 trim 字符串和格式化 Date，请显式安装 request-format 插件。
 
 ```ts
-import { createHttpClient, requestFormatPlugin } from "@shamt/oh-my-fetch";
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
+import { requestFormatPlugin } from "@shamt/oh-my-fetch/plugins/request-format";
 
 const formattedApi = createHttpClient({
   plugins: [requestFormatPlugin()],
@@ -114,15 +134,15 @@ const user = await api.post(
 插件是显式的生命周期策略。
 
 ```ts
-import {
-  businessStatusPlugin,
-  createHttpClient,
-  errorReporterPlugin,
-  requestFormatPlugin,
-} from "@shamt/oh-my-fetch";
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
+import { businessStatusPlugin } from "@shamt/oh-my-fetch/plugins/business-status";
+import { errorReporterPlugin } from "@shamt/oh-my-fetch/plugins/error-reporter";
+import { requestFormatPlugin } from "@shamt/oh-my-fetch/plugins/request-format";
+import { validationPlugin } from "@shamt/oh-my-fetch/plugins/validation";
 
 const api = createHttpClient({
   plugins: [
+    validationPlugin(),
     requestFormatPlugin(),
     businessStatusPlugin(),
     errorReporterPlugin({
@@ -212,7 +232,7 @@ const api = createHttpClient({
 所有归一化失败都使用 `HttpRequestError`。
 
 ```ts
-import { HttpRequestError } from "@shamt/oh-my-fetch";
+import { HttpRequestError } from "@shamt/oh-my-fetch/errors";
 
 try {
   await api.get("users/current");

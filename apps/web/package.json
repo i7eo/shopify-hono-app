@@ -9,10 +9,11 @@
     "dist"
   ],
   "scripts": {
-    "dev": "NODE_OPTIONS=\"--import tsx/esm\" vite",
-    "build": "NODE_OPTIONS=\"--import tsx/esm\" vite build",
-    "preview": "vite preview",
-    "test": "vitest",
+    "dev": "node --env-file=../../.env.development --import tsx/esm ./node_modules/vite/bin/vite.js",
+    "build": "node --env-file=../../.env.production --import tsx/esm ./node_modules/vite/bin/vite.js build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:view": "open coverage/index.html",
     "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
     "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",
     "clean": "run-p \"clean:**\"",
@@ -21,7 +22,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.5",
-    "@shamt/envs": "workspace:*",
+    "@shamt/app-env": "workspace:*",
     "@shamt/oh-my-fetch": "workspace:*",
     "@shamt/utils": "workspace:*",
     "@shopify/polaris-types": "^1.0.7",
@@ -52,8 +53,12 @@
     "@vitejs/plugin-react": "catalog:react",
     "@vitest/coverage-v8": "catalog:test",
     "jsdom": "catalog:test",
+    "sharp": "^0.35.0",
+    "svgo": "^4.0.1",
+    "tsx": "catalog:dx",
     "typescript": "catalog:",
     "vite": "catalog:",
+    "vite-plugin-image-optimizer": "^2.0.3",
     "vitest": "catalog:test"
   }
 }
