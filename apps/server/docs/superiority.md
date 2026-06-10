@@ -37,10 +37,7 @@
 
 ## Runtime 与 Shopify Mode 正交
 
-`APP_RUNTIME` 和 `SHOPIFY_APP_MODE` 是两条独立轴：
-
-- `APP_RUNTIME`: Node、Cloudflare、Vercel Edge。
-- `SHOPIFY_APP_MODE`: embedded、standalone。
+runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [env.md](./env.md#shopify-相关-env)。
 
 这意味着组合空间是清晰的，例如：
 

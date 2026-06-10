@@ -1,6 +1,5 @@
 import path from "node:path";
-
-import type { ConfigSchema } from "@shamt/app-env";
+import { DEFAULT_ENVS, type ConfigSchema } from "@shamt/app-env";
 
 export type ShopifyFileConfig = ConfigSchema;
 
@@ -25,7 +24,7 @@ export const shopifyRedirectPaths = [
 export function getShopifyAppPath(appEnv: ShopifyFileConfig["APP_ENV"]) {
   return path.resolve(
     root,
-    appEnv === "production"
+    appEnv === DEFAULT_ENVS.PRODUCTION
       ? "shopify.app.production.toml"
       : "shopify.app.toml",
   );

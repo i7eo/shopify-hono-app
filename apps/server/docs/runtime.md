@@ -74,18 +74,17 @@ Cloudflare Worker 入口使用 `RuntimeAppEnv<"cloudflare">` 作为 `ExportedHan
 
 ## Shopify Mode Capabilities
 
-Shopify app mode 不是 runtime capability。它由 `SHOPIFY_APP_MODE` 决定，和 `APP_RUNTIME` 正交：
-
-| 配置               | 维度           | 示例                     |
-| ------------------ | -------------- | ------------------------ |
-| `APP_RUNTIME`      | 执行环境       | `node`、`cloudflare`     |
-| `SHOPIFY_APP_MODE` | Shopify app 流 | `embedded`、`standalone` |
+Shopify app mode 不是 runtime capability。它和 `APP_RUNTIME` 正交，具体 env 语义见 [env.md](./env.md#shopify-相关-env)。
 
 Shopify mode capability 只负责 app-flow 差异，例如 App Shell、OAuth callback redirect、Admin request session strategy。它位于：
 
 - `src/app/modules/shopify/mode`
 
 runtime capability 仍只负责平台差异，例如 logger、env source、KV/memory session storage。
+
+## Shopify Frontend Target
+
+Shopify frontend target 也不是 runtime capability。它和 `APP_RUNTIME`、`SHOPIFY_APP_MODE` 都正交，具体 env 语义、`shopify.web.toml` 生成规则和 app shell route 策略见 [env.md](./env.md#shopify-frontend-target)。
 
 ## 构建目标
 
@@ -144,6 +143,7 @@ pnpm --dir apps/server run cf:type
 7. Cloudflare entry 不静态导入 `node:*`、`@hono/node-server`、`@logtape/file`。
 8. `APP_RUNTIME=cloudflare` 时，request-bound binding 从 `c.env` 进入。
 9. `vercel-edge` 当前只作为未来扩展预留，不作为可部署目标。
+10. env var 语义和组合规则集中维护在 [env.md](./env.md)。
 
 ## 相关文档
 

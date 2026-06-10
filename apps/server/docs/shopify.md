@@ -8,12 +8,7 @@
 
 ## 当前模式
 
-Shopify app mode 必须显式配置：
-
-```txt
-SHOPIFY_APP_MODE=embedded
-SHOPIFY_APP_MODE=standalone
-```
+Shopify app mode 必须显式配置，具体 env 取值和 frontend target 组合见 [env.md](./env.md#shopify-相关-env)。
 
 | Mode         | App Shell                     | Admin API 身份来源                          | OAuth callback 后行为           |
 | ------------ | ----------------------------- | ------------------------------------------- | ------------------------------- |
@@ -24,7 +19,7 @@ mode 分发位于：
 
 - `src/app/modules/shopify/mode`
 
-`APP_RUNTIME` 和 `SHOPIFY_APP_MODE` 是两条独立配置。前者决定 Node/Cloudflare 平台能力，后者决定 Shopify app-flow 策略。
+runtime、Shopify mode 和 frontend target 是独立配置轴，详细规则见 [env.md](./env.md#shopify-相关-env)。
 
 ## 模块边界
 
@@ -119,6 +114,8 @@ shopify.auth.buildEmbeddedAppUrl(host);
 ${SHOPIFY_APP_URL}/app?shop=${session.shop}
 ```
 
+frontend target 改变时，fallback URL 应跟随 [env.md](./env.md#shopify-frontend-target) 中的 callback 规则。
+
 ### Standalone Callback
 
 standalone mode 写入 app account session cookie，然后跳转：
@@ -126,6 +123,8 @@ standalone mode 写入 app account session cookie，然后跳转：
 ```txt
 ${SHOPIFY_APP_URL}/app
 ```
+
+frontend target 改变时，fallback URL 应跟随 [env.md](./env.md#shopify-frontend-target) 中的 callback 规则。
 
 cookie 名来自：
 

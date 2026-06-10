@@ -1,8 +1,11 @@
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-
-import { configSchema } from "@shamt/app-env";
-
+import {
+  configSchema,
+  DEFAULT_RUNTIMES,
+  DEFAULT_SHOPIFY_APP_MODES,
+  DEFAULT_SHOPIFY_WEB_ROLES,
+} from "@shamt/app-env";
 import {
   getShopifyAppPath,
   root,
@@ -28,15 +31,17 @@ interface ShopifyWebTomlInput {
 }
 
 const serverCommandsByRuntime = {
-  cloudflare: {
+  [DEFAULT_RUNTIMES.CLOUDFLARE]: {
     dev: "pnpm cf:dev",
     build: "pnpm cf:deploy",
   },
-  node: {
+  [DEFAULT_RUNTIMES.NODE]: {
     dev: "pnpm node:dev",
     build: "pnpm node:deploy",
   },
-} as const satisfies Record<string, ShopifyWebTomlInput["command"]>;
+} as const satisfies Partial<
+  Record<ShopifyFileConfig["APP_RUNTIME"], ShopifyWebTomlInput["command"]>
+>;
 
 type ServerCommandRuntime = keyof typeof serverCommandsByRuntime;
 
@@ -56,15 +61,19 @@ async function writeShopifyWebFiles(config: ShopifyFileConfig) {
     removeFileIfExists(webShopifyWebPath),
   ]);
 
+  const isBackendFrontendTarget =
+    config.SHOPIFY_APP_FRONTEND_TARGET === DEFAULT_SHOPIFY_WEB_ROLES.BACKEND;
+  const backendRole = DEFAULT_SHOPIFY_WEB_ROLES.BACKEND;
+  const frontendRole = DEFAULT_SHOPIFY_WEB_ROLES.FRONTEND;
   const serverToml = renderShopifyWebToml({
-    roles: config.SHOPIFY_APP_SHELL_HTML
-      ? ["frontend", "backend"]
-      : ["backend"],
+    roles: isBackendFrontendTarget
+      ? [frontendRole, backendRole]
+      : [backendRole],
     port: config.APP__SERVER_PORT,
     command: getServerCommand(config.APP_RUNTIME),
   });
 
-  if (config.SHOPIFY_APP_SHELL_HTML) {
+  if (isBackendFrontendTarget) {
     await writeFile(serverShopifyWebPath, serverToml);
     return;
   }
@@ -74,7 +83,7 @@ async function writeShopifyWebFiles(config: ShopifyFileConfig) {
     writeFile(
       webShopifyWebPath,
       renderShopifyWebToml({
-        roles: ["frontend"],
+        roles: [frontendRole],
         port: config.APP__WEB_PORT,
         command: {
           dev: "pnpm dev",
@@ -107,7 +116,7 @@ async function writeShopifyFile(config: ShopifyFileConfig) {
   toml = replaceOrInsertTopLevelValue(
     toml,
     "embedded",
-    String(config.SHOPIFY_APP_MODE === "embedded"),
+    String(config.SHOPIFY_APP_MODE === DEFAULT_SHOPIFY_APP_MODES.EMBEDDED),
   );
   toml = replaceOrInsertSectionValue(
     toml,
