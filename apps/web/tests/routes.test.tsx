@@ -197,7 +197,7 @@ describe("route components", () => {
   it("renders and submits the settings form", async () => {
     const { Route } = await import("../src/routes/settings");
     const Component = Route.options.component as React.ComponentType;
-    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleInfo = vi.spyOn(console, "info").mockImplementation(() => {});
 
     render(<Component />);
     fireEvent.submit(document.querySelector("form")!);
@@ -207,7 +207,7 @@ describe("route components", () => {
     );
     expect(sectionHeading("Export defaults")).toBeTruthy();
     expect(sectionHeading("Description generation")).toBeTruthy();
-    expect(consoleLog).toHaveBeenCalledWith(
+    expect(consoleInfo).toHaveBeenCalledWith(
       "Settings form data",
       expect.any(Object),
     );

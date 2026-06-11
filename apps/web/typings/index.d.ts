@@ -3,18 +3,22 @@
 /// <reference types="@shopify/app-bridge-types" />
 
 /* eslint-disable vars-on-top */
-
-import type { Env } from "../configs/env";
+import type { ConfigSchema } from "@shamt/app-env";
 import type {
   SAppNavAttributes,
   SAppNavLinkAttributes,
 } from "@shopify/app-bridge-types";
 
+type PublicEnv = Omit<
+  ConfigSchema,
+  "SHOPIFY_APP_SECRET" | "APP_CACHE_REDIS_URL" | "APP_DATABASE_URL"
+>;
+
 declare global {
-  var __PUBLIC_ENV__: Env | undefined;
+  var __PUBLIC_ENV__: PublicEnv | undefined;
 
   interface Window {
-    __PUBLIC_ENV__?: Env;
+    __PUBLIC_ENV__?: PublicEnv;
   }
 }
 
