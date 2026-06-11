@@ -8,6 +8,7 @@ import {
   timeoutError,
   unprocessableEntityError,
 } from "./errors";
+import { normalizeShopifyError } from "./shopify";
 
 /**
  * Convert any thrown value into AppError before building the HTTP response.
@@ -15,6 +16,9 @@ import {
  */
 export function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) return error;
+
+  const shopifyError = normalizeShopifyError(error);
+  if (shopifyError) return shopifyError;
 
   if (error instanceof HttpRequestError) {
     return normalizeHttpRequestError(error);
