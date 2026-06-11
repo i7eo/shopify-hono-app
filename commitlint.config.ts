@@ -1,4 +1,4 @@
-import { getPackagesSync } from "./scripts/monorepo/index.ts";
+import { getPackagesSync } from "@shamt/node-utils/monorepo";
 import type { UserConfig } from "@commitlint/types";
 
 const { packages } = getPackagesSync();

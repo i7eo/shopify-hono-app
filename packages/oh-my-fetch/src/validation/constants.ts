@@ -1,4 +1,4 @@
-import { HTTP_STATUS_CODES } from "@shamt/envs";
+import { HTTP_STATUS_CODES } from "@shamt/envs/constants";
 
 export const VALIDATION_ERROR_CODE =
   HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY.code;

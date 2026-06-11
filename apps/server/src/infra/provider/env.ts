@@ -54,6 +54,9 @@ function setEnvProvider(config: RuntimeConfig, signature: string) {
   });
 }
 
+/**
+ * Builds a stable cache signature from env fields that change runtime behavior.
+ */
 function getEnvProviderSignature(config: Record<string, unknown>): string {
   return [
     config.APP_RUNTIME,
@@ -63,6 +66,7 @@ function getEnvProviderSignature(config: Record<string, unknown>): string {
     config.APP__WEB_PORT,
     config.APP_REQUEST_TIMEOUT,
     config.SHOPIFY_APP_MODE,
+    config.SHOPIFY_APP_FRONTEND_TARGET,
     config.SHOPIFY_APP_KEY,
     config.SHOPIFY_APP_URL,
     config.SHOPIFY_API_VERSION,

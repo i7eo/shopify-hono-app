@@ -1,5 +1,5 @@
-import type { DEFAULT_SHOPIFY_APP_MODES_VALUES } from "@/constants";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
+import type { DEFAULT_SHOPIFY_APP_MODES_VALUES } from "@shamt/app-env";
 import type { Session, Shopify } from "@shopify/shopify-api";
 import type { Context, MiddlewareHandler } from "hono";
 

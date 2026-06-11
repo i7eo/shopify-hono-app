@@ -1,5 +1,5 @@
 import { getRuntimeConfig } from "@/infra/env";
-import type { ConfigSchema } from "@/configs";
+import type { ConfigSchema } from "@shamt/app-env";
 
 /**
  * Process-only validated env singleton.

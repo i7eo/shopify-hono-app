@@ -3,7 +3,7 @@ import { normalizeError } from "@/shared/exceptions";
 import { createErrorResponse } from "@/shared/exceptions/response";
 import { getContextValue } from "@/utils";
 import type { AppError } from "@/shared/models";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context, Hono } from "hono";
 
 export function onAppError(app: Hono<AppEnv>) {

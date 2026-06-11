@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runtimeConfig } from "./test-utils";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 describe("Shopify app shell", () => {
   it("renders Polaris web component shell with Shopify scripts and API key", async () => {
@@ -77,6 +77,51 @@ describe("Shopify app shell", () => {
     expect(response.headers.get("Location")).toBe(
       "https://app.example.com/auth?shop=test-shop.myshopify.com",
     );
+  });
+
+  it("redirects app shell routes to the web frontend target", async () => {
+    const { registerAppShellRoutes } =
+      await import("@/app/modules/shopify/app-shell");
+    const app = new Hono<AppEnv>();
+    app.use("*", async (c, next) => {
+      c.set("runtimeEnv", {
+        ...runtimeConfig,
+        SHOPIFY_APP_FRONTEND_TARGET: "frontend",
+      } as never);
+      await next();
+    });
+
+    registerAppShellRoutes(app as never);
+
+    for (const path of ["/", "/app", "/app/settings"]) {
+      const response = await app.request(path);
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("https://app.example.com/");
+    }
+  });
+
+  it("builds app shell fallback URLs from the frontend target", async () => {
+    const { getShopifyAppShellUrl } =
+      await import("@/app/modules/shopify/app-shell/urls");
+
+    expect(
+      getShopifyAppShellUrl(
+        {
+          ...runtimeConfig,
+          SHOPIFY_APP_FRONTEND_TARGET: "backend",
+        },
+        { shop: "shop.myshopify.com" },
+      ),
+    ).toBe("https://app.example.com/app?shop=shop.myshopify.com");
+    expect(
+      getShopifyAppShellUrl(
+        {
+          ...runtimeConfig,
+          SHOPIFY_APP_FRONTEND_TARGET: "frontend",
+        },
+        { shop: "shop.myshopify.com" },
+      ),
+    ).toBe("https://app.example.com/?shop=shop.myshopify.com");
   });
 });
 

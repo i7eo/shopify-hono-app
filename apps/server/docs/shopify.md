@@ -8,23 +8,18 @@
 
 ## 当前模式
 
-Shopify app mode 必须显式配置：
-
-```txt
-SHOPIFY_APP_MODE=embedded
-SHOPIFY_APP_MODE=standalone
-```
+Shopify app mode 必须显式配置，具体 env 取值和 frontend target 组合见 [env.md](./env.md#shopify-相关-env)。
 
 | Mode         | App Shell                     | Admin API 身份来源                          | OAuth callback 后行为           |
 | ------------ | ----------------------------- | ------------------------------------------- | ------------------------------- |
 | `embedded`   | 加载 App Bridge + Polaris     | App Bridge session token + token exchange   | 跳回 Shopify Admin embedded URL |
-| `standalone` | 只加载 Polaris web components | app account session cookie + stored session | 写入 account cookie 后跳 `/app` |
+| `standalone` | 只加载 Polaris web components | app account session cookie + stored session | 写入 account cookie 后跳 shell  |
 
 mode 分发位于：
 
 - `src/app/modules/shopify/mode`
 
-`APP_RUNTIME` 和 `SHOPIFY_APP_MODE` 是两条独立配置。前者决定 Node/Cloudflare 平台能力，后者决定 Shopify app-flow 策略。
+runtime、Shopify mode 和 frontend target 是独立配置轴，详细规则见 [env.md](./env.md#shopify-相关-env)。
 
 ## 模块边界
 
@@ -115,17 +110,21 @@ shopify.auth.buildEmbeddedAppUrl(host);
 
 如果没有 `host`，fallback 到：
 
-```txt
-${SHOPIFY_APP_URL}/app?shop=${session.shop}
+```ts
+getShopifyAppShellUrl(runtimeEnv, { shop: session.shop });
 ```
+
+这个 helper 会根据 [frontend target](./env.md#shopify-frontend-target) 选择 `${SHOPIFY_APP_URL}/app?shop=...` 或 `${SHOPIFY_APP_URL}/?shop=...`。
 
 ### Standalone Callback
 
 standalone mode 写入 app account session cookie，然后跳转：
 
-```txt
-${SHOPIFY_APP_URL}/app
+```ts
+getShopifyAppShellUrl(runtimeEnv);
 ```
+
+这个 helper 会根据 [frontend target](./env.md#shopify-frontend-target) 选择 `${SHOPIFY_APP_URL}/app` 或 `${SHOPIFY_APP_URL}/`。
 
 cookie 名来自：
 
@@ -272,6 +271,8 @@ Webhook 路由统一挂载：
 shopify.webhooks.validate(...)
 ```
 
+验签前会通过 `readLimitedBody()` 读取 raw body，并按 `DEFAULT_WEBHOOK_MAX_SIZE` 做硬限制。这样既保留 Shopify HMAC 校验需要的原始 body，也避免不受控地把超大 webhook payload 读入内存。
+
 当前处理：
 
 - `/webhooks/app/uninstalled`: 删除该 shop 的已保存 Shopify sessions。
@@ -281,19 +282,19 @@ shopify.webhooks.validate(...)
 
 ## 路由总览
 
-| 路径                               | 所属模块          | 身份/验证方式                        |
-| ---------------------------------- | ----------------- | ------------------------------------ |
-| `/`                                | Shopify app shell | 页面本身不查数据                     |
-| `/app`                             | Shopify app shell | 页面本身不查数据                     |
-| `/app/*`                           | Shopify app shell | 页面本身不查数据                     |
-| `/auth`                            | Shopify OAuth     | shop query validation                |
-| `/auth/callback`                   | Shopify OAuth     | Shopify OAuth callback validation    |
-| `/api/shop`                        | Shop resource     | Shopify Admin session + Admin client |
-| `/api/product`                     | Product resource  | Shopify Admin session + Admin client |
-| `/webhooks/app/uninstalled`        | Shopify webhook   | Shopify webhook validation           |
-| `/webhooks/customers/data-request` | Shopify webhook   | Shopify webhook validation           |
-| `/webhooks/customers/redact`       | Shopify webhook   | Shopify webhook validation           |
-| `/webhooks/shop/redact`            | Shopify webhook   | Shopify webhook validation           |
+| 路径                               | 所属模块          | 身份/验证方式                                                    |
+| ---------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| `/`                                | Shopify app shell | backend frontend target 渲染 shell；frontend target 重定向到 web |
+| `/app`                             | Shopify app shell | backend frontend target 渲染 shell；frontend target 重定向到 web |
+| `/app/*`                           | Shopify app shell | backend frontend target 渲染 shell；frontend target 重定向到 web |
+| `/auth`                            | Shopify OAuth     | shop query validation                                            |
+| `/auth/callback`                   | Shopify OAuth     | Shopify OAuth callback validation                                |
+| `/api/shop`                        | Shop resource     | Shopify Admin session + Admin client                             |
+| `/api/product`                     | Product resource  | Shopify Admin session + Admin client                             |
+| `/webhooks/app/uninstalled`        | Shopify webhook   | Shopify webhook validation                                       |
+| `/webhooks/customers/data-request` | Shopify webhook   | Shopify webhook validation                                       |
+| `/webhooks/customers/redact`       | Shopify webhook   | Shopify webhook validation                                       |
+| `/webhooks/shop/redact`            | Shopify webhook   | Shopify webhook validation                                       |
 
 ## Provider 边界
 
@@ -305,6 +306,7 @@ shopify.webhooks.validate(...)
 - env
 - app key
 - app mode
+- frontend target
 - app URL
 - API version
 - scopes
@@ -363,18 +365,18 @@ session 解析、client 创建、401 retry 都由 middleware 和 Shopify Admin c
 
 ## 出问题时看哪里
 
-| 现象                         | 优先检查                                                  |
-| ---------------------------- | --------------------------------------------------------- |
-| App 页面打不开               | `app-shell/index.ts`、`mode/*`、`SHOPIFY_APP_MODE`        |
-| embedded API 返回 401        | `verify-session-token.ts`、App Bridge 是否加载            |
-| embedded token exchange 失败 | `token-exchange.ts`、`session.ts`、app secret/scopes      |
-| standalone API 返回 401      | `account/session.ts`、account cookie、stored session      |
-| Admin API 401 retry 异常     | `shopify/admin/client.ts`、`mode/*`、`session.ts`         |
-| Shopify 数据查不到           | `modules/shop`、`modules/product`、scopes                 |
-| Webhook 失败                 | `verify-webhook.ts`、raw body、app secret                 |
-| Cloudflare session 找不到    | KV binding `sofary`、Cloudflare runtime capability        |
-| Node production session 报错 | 当前不允许 memory session storage                         |
-| TOML embedded 配置不一致     | `SHOPIFY_APP_MODE`、`scripts/write-shopify-file/index.ts` |
+| 现象                         | 优先检查                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| App 页面打不开               | `app-shell/index.ts`、`mode/*`、`SHOPIFY_APP_MODE`                                       |
+| embedded API 返回 401        | `verify-session-token.ts`、App Bridge 是否加载                                           |
+| embedded token exchange 失败 | `token-exchange.ts`、`session.ts`、app secret/scopes                                     |
+| standalone API 返回 401      | `account/session.ts`、account cookie、stored session                                     |
+| Admin API 401 retry 异常     | `shopify/admin/client.ts`、`mode/*`、`session.ts`                                        |
+| Shopify 数据查不到           | `modules/shop`、`modules/product`、scopes                                                |
+| Webhook 失败                 | `verify-webhook.ts`、raw body、app secret                                                |
+| Cloudflare session 找不到    | KV binding `sofary`、Cloudflare runtime capability                                       |
+| Node production session 报错 | 当前不允许 memory session storage                                                        |
+| TOML role/mode 配置不一致    | `SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、`scripts/write-shopify-file/index.ts` |
 
 ## 当前测试覆盖
 

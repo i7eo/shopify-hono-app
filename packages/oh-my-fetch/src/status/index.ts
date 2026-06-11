@@ -1,4 +1,4 @@
-import { RESPONSE_ERROR_MESSAGE } from "@shamt/envs";
+import { RESPONSE_ERROR_MESSAGE } from "@shamt/envs/constants";
 import { STATUS_MESSAGE_BY_CODE } from "./constants";
 import type { KnownStatusCode } from "./types";
 

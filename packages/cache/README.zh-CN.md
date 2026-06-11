@@ -32,7 +32,7 @@ Redis、Cloudflare KV 等平台相关 store 不放在这个包内，应该由应
 - 基类方法默认抛出 `CacheMethodNotImplementedError`，让未实现的方法在开发阶段尽早暴露。
 - 包内传入的 TTL 均按毫秒处理。
 - value 在 cache 边界统一使用 `@shamt/utils` 的 JSON helper 序列化，让 memory driver 的行为更接近 Redis、KV 这类字符串存储。
-- key 可以使用 prefix 做命名空间隔离，非空 prefix 会被规范化为以 `:` 结尾。
+- key 可以使用 prefix 做命名空间隔离。`MemoryCache` 默认使用 `cache:`；非空 prefix 会被规范化为以 `:` 结尾，空字符串会关闭命名空间。
 
 `MemoryCache` 使用 `lru-cache` 负责淘汰、TTL 与 max-size 统计。它适合本地开发、测试、短生命周期进程内缓存，以及 runtime-neutral 的默认行为。
 
@@ -56,6 +56,7 @@ Redis、Cloudflare KV 等平台相关 store 不放在这个包内，应该由应
 
 - `ttl` 始终为毫秒。
 - `maxSize` 始终为字节。
+- `MemoryCache` 和 `createCache` 的 `keyPrefix` 默认是 `cache:`。
 
 ## 使用方式
 

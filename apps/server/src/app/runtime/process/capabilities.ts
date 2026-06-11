@@ -1,8 +1,8 @@
+import { checkProcessDiskAccess } from "@shamt/node-utils/disk";
 import { MemorySessionStorage } from "@shopify/shopify-app-session-storage-memory";
 import { setRuntimeCapability } from "@/app/runtime/capabilities";
 import { setupProcessLogger } from "@/infra/logger/process";
 import { isDev } from "@/utils";
-import { checkProcessDiskAccess } from "./utils/disk";
 
 const memorySessionStorage = new MemorySessionStorage();
 

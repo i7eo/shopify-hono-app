@@ -1,4 +1,4 @@
-import { HttpRequestError } from "@shamt/oh-my-fetch";
+import { HttpRequestError } from "@shamt/oh-my-fetch/errors";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 import { AppError } from "@/shared/models";

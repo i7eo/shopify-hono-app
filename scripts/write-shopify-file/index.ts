@@ -1,45 +1,112 @@
+import { readFile, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
-  appShopifyTargets,
-  shopifyAppPath,
+  configSchema,
+  DEFAULT_RUNTIMES,
+  DEFAULT_SHOPIFY_APP_MODES,
+  SHOPIFY_APP_FRONTEND_TARGETS,
+} from "@shamt/app-env";
+import { isObject, throwError } from "../utils";
+import {
+  getShopifyAppPath,
+  root,
+  serverShopifyWebPath,
   shopifyRedirectPaths,
+  webShopifyWebPath,
+  type ShopifyFileConfig,
 } from "./constants";
 import {
-  fileExists,
   formatTomlString,
-  getPort,
-  getRequiredEnv,
-  readEnv,
-  readRequiredFile,
   replaceOrInsertSectionValue,
   replaceOrInsertTopLevelValue,
   replaceSectionArray,
-  writeTextFile,
-} from "./shared";
+} from "./toml";
 
-async function updateTomlPort(tomlPath: string, port: number) {
-  const toml = await readRequiredFile(tomlPath);
-  const updated = replaceOrInsertTopLevelValue(toml, "port", String(port));
-
-  await writeTextFile(tomlPath, updated);
+interface ShopifyWebTomlInput {
+  roles: readonly string[];
+  port: number;
+  command: {
+    dev: string;
+    build: string;
+  };
 }
 
-export async function writeAppShopifyFile(envs: Map<string, string>) {
-  for (const target of appShopifyTargets) {
-    if (
-      "optional" in target &&
-      target.optional &&
-      !(await fileExists(target.tomlPath))
-    ) {
-      continue;
-    }
+const serverCommandsByRuntime = {
+  [DEFAULT_RUNTIMES.CLOUDFLARE]: {
+    dev: "pnpm cf:dev",
+    build: "pnpm cf:deploy",
+  },
+  [DEFAULT_RUNTIMES.NODE]: {
+    dev: "pnpm node:dev",
+    build: "pnpm node:deploy",
+  },
+} as const satisfies Partial<
+  Record<ShopifyFileConfig["APP_RUNTIME"], ShopifyWebTomlInput["command"]>
+>;
 
-    await updateTomlPort(target.tomlPath, getPort(envs, target.envKey));
+type ServerCommandRuntime = keyof typeof serverCommandsByRuntime;
+
+/**
+ * Renders a shopify.web.toml file from roles, port, and command settings.
+ */
+function renderShopifyWebToml({ roles, port, command }: ShopifyWebTomlInput) {
+  return `roles = [${roles.map(formatTomlString).join(", ")}]
+port = ${port}
+
+[commands]
+dev = ${formatTomlString(command.dev)}
+build = ${formatTomlString(command.build)}
+`;
+}
+
+/**
+ * Regenerates Shopify web role files from the active frontend target.
+ */
+async function writeShopifyWebFiles(config: ShopifyFileConfig) {
+  await Promise.all([
+    removeFileIfExists(serverShopifyWebPath),
+    removeFileIfExists(webShopifyWebPath),
+  ]);
+
+  const isBackendFrontendTarget =
+    config.SHOPIFY_APP_FRONTEND_TARGET === SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
+  const backendRole = SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
+  const frontendRole = SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
+  const serverToml = renderShopifyWebToml({
+    roles: isBackendFrontendTarget
+      ? [frontendRole, backendRole]
+      : [backendRole],
+    port: config.APP__SERVER_PORT,
+    command: getServerCommand(config.APP_RUNTIME),
+  });
+
+  if (isBackendFrontendTarget) {
+    await writeFile(serverShopifyWebPath, serverToml);
+    return;
   }
+
+  await Promise.all([
+    writeFile(serverShopifyWebPath, serverToml),
+    writeFile(
+      webShopifyWebPath,
+      renderShopifyWebToml({
+        roles: [frontendRole],
+        port: config.APP__WEB_PORT,
+        command: {
+          dev: "pnpm dev",
+          build: "pnpm build",
+        },
+      }),
+    ),
+  ]);
 }
 
-export async function writeShopifyFile(envs: Map<string, string>) {
-  const appUrl = getRequiredEnv(envs, "SHOPIFY_APP_URL");
-  const appMode = getShopifyAppMode(envs);
+/**
+ * Updates shopify.app.toml while preserving unrelated TOML sections.
+ */
+async function writeShopifyFile(config: ShopifyFileConfig) {
+  const shopifyAppPath = getShopifyAppPath(config.APP_ENV);
+  const appUrl = config.SHOPIFY_APP_URL;
   const redirectUrls = shopifyRedirectPaths.map((redirectPath) => {
     return new URL(redirectPath, appUrl).toString();
   });
@@ -49,7 +116,7 @@ export async function writeShopifyFile(envs: Map<string, string>) {
   toml = replaceOrInsertTopLevelValue(
     toml,
     "client_id",
-    formatTomlString(getRequiredEnv(envs, "SHOPIFY_APP_KEY")),
+    formatTomlString(config.SHOPIFY_APP_KEY),
   );
   toml = replaceOrInsertTopLevelValue(
     toml,
@@ -59,42 +126,100 @@ export async function writeShopifyFile(envs: Map<string, string>) {
   toml = replaceOrInsertTopLevelValue(
     toml,
     "embedded",
-    String(appMode === "embedded"),
+    String(config.SHOPIFY_APP_MODE === DEFAULT_SHOPIFY_APP_MODES.EMBEDDED),
   );
   toml = replaceOrInsertSectionValue(
     toml,
     "webhooks",
     "api_version",
-    formatTomlString(getRequiredEnv(envs, "SHOPIFY_API_VERSION")),
+    formatTomlString(config.SHOPIFY_API_VERSION),
   );
   toml = replaceOrInsertSectionValue(
     toml,
     "access_scopes",
     "scopes",
-    formatTomlString(getRequiredEnv(envs, "SCOPES")),
+    formatTomlString(config.SCOPES),
   );
   toml = replaceSectionArray(toml, "auth", "redirect_urls", redirectUrls);
 
-  await writeTextFile(shopifyAppPath, toml);
+  await writeFile(shopifyAppPath, toml);
 }
 
-function getShopifyAppMode(envs: Map<string, string>) {
-  const appMode = getRequiredEnv(envs, "SHOPIFY_APP_MODE");
-
-  if (appMode !== "embedded" && appMode !== "standalone") {
-    throw new Error(
-      `SHOPIFY_APP_MODE must be "embedded" or "standalone", received "${appMode}"`,
+/**
+ * Resolves server lifecycle commands for runtimes supported by Shopify CLI.
+ */
+function getServerCommand(runtime: ShopifyFileConfig["APP_RUNTIME"]) {
+  if (!isServerCommandRuntime(runtime)) {
+    throwError(
+      "write-shopify-file",
+      `APP_RUNTIME=${runtime} is not supported by Shopify web TOML generation`,
     );
   }
 
-  return appMode;
+  const command = serverCommandsByRuntime[runtime];
+
+  return command;
 }
 
+/**
+ * Narrows runtime values to the command table keys.
+ */
+function isServerCommandRuntime(
+  runtime: ShopifyFileConfig["APP_RUNTIME"],
+): runtime is ServerCommandRuntime {
+  return Reflect.has(serverCommandsByRuntime, runtime);
+}
+
+/**
+ * Reads a required file and reports missing paths relative to the repo root.
+ */
+async function readRequiredFile(filePath: string) {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      throwError(
+        "write-shopify-file",
+        `${path.relative(root, filePath)} does not exist`,
+      );
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Removes generated files when present so each run starts from env state.
+ */
+async function removeFileIfExists(filePath: string) {
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Narrows unknown errors to Node filesystem-style errors.
+ */
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && isObject(error) && "code" in error;
+}
+
+/**
+ * Validates env and regenerates all Shopify config files.
+ */
 async function main() {
-  const envs = await readEnv();
-  await writeAppShopifyFile(envs);
-  await writeShopifyFile(envs);
+  const config = configSchema.parse(process.env);
+
+  await Promise.all([writeShopifyWebFiles(config), writeShopifyFile(config)]);
 }
 
-// eslint-disable-next-line baseline-js/use-baseline
-await main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

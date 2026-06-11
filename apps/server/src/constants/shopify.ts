@@ -1,11 +1,4 @@
-import { DEFAULT_APP_NAME } from "@shamt/envs";
-
-export const DEFAULT_SHOPIFY_APP_MODES = {
-  EMBEDDED: "embedded",
-  STANDALONE: "standalone",
-} as const;
-export type DEFAULT_SHOPIFY_APP_MODES_VALUES =
-  (typeof DEFAULT_SHOPIFY_APP_MODES)[keyof typeof DEFAULT_SHOPIFY_APP_MODES];
+import { DEFAULT_APP_NAME } from "@shamt/app-env";
 
 const appName =
   typeof process !== "undefined" && process.env.APP_NAME

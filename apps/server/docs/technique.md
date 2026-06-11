@@ -59,7 +59,7 @@ Shopify app mode 不走 runtime capability，而是单独维护 mode capability�
 - `src/app/modules/shopify/mode/embedded.ts`
 - `src/app/modules/shopify/mode/standalone.ts`
 
-这样 `APP_RUNTIME` 和 `SHOPIFY_APP_MODE` 保持正交：一个决定平台能力，一个决定 Shopify 流程。
+runtime、Shopify mode 和 frontend target 保持正交，具体 env 语义见 [env.md](./env.md#shopify-相关-env)。
 
 ## Runtime Env 合并
 

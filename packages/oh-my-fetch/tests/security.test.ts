@@ -1,5 +1,5 @@
+import { applyJsonSecurity, parseJsonSafely } from "@shamt/oh-my-fetch/json";
 import { describe, expect, it } from "vitest";
-import { applyJsonSecurity, parseJsonSafely } from "../src/security/json";
 import {
   sanitizeJsonValue,
   sanitizeJsonValueShallow,

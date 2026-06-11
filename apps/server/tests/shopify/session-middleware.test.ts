@@ -826,6 +826,31 @@ describe("verifyWebhook middleware", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
+  it("rejects webhook bodies that exceed the configured size limit", async () => {
+    const { DEFAULT_WEBHOOK_MAX_SIZE } = await import("@shamt/app-env");
+    const { verifyWebhook } =
+      await import("@/shared/middlewares/shopify/verify-webhook");
+
+    await expect(
+      verifyWebhook(
+        createMockContext({
+          method: "POST",
+          headers: {
+            "content-length": String(DEFAULT_WEBHOOK_MAX_SIZE + 1),
+          },
+          body: "{}",
+        }) as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 413, "Webhook request body overflow maxsize");
+      expect(error).toMatchObject({
+        details: { maxSize: DEFAULT_WEBHOOK_MAX_SIZE },
+      });
+      return true;
+    });
+  });
+
   it("rejects invalid webhook signatures", async () => {
     const validation = { valid: false, reason: "hmac" };
     vi.doMock("@/infra/provider", () => ({

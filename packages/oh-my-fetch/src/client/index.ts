@@ -7,7 +7,7 @@ import { normalizeHttpError, redactHttpRequestConfig } from "../errors";
 import { createAbortReason } from "../lifecycle/abort";
 import { createDedupeManager, type DedupeManager } from "../lifecycle/dedupe";
 import { RequestScope } from "../lifecycle/disposable";
-import { validationPlugin } from "../plugins";
+import { validationPlugin } from "../plugins/validation";
 import {
   BODYLESS_METHODS,
   DEFAULT_BEHAVIOR,

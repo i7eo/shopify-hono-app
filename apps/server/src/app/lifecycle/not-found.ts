@@ -1,5 +1,5 @@
 import { createErrorResponse, notFoundError } from "@/shared/exceptions";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Hono } from "hono";
 
 export function onAppNotFound(app: Hono<AppEnv>) {

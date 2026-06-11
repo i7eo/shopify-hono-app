@@ -7,15 +7,16 @@
 - [介绍](#介绍)
 - [设计与架构](#设计与架构)
 - [静态 Env 与运行时设置](#静态-env-与运行时设置)
+- [与 @shamt/app-env 的关系](#与-shamtapp-env-的关系)
 - [输入与输出](#输入与输出)
 - [使用方式](#使用方式)
 - [单位约定](#单位约定)
 
 ## 介绍
 
-`@shamt/envs` 是项目级环境常量与 Zod 配置 schema 包。它集中维护跨应用共享的默认值、运行环境枚举、运行时枚举、HTTP 状态码、响应默认结构、日志配置、缓存配置、数据库配置、Redis 配置等。
+`@shamt/envs` 是基础环境常量与 Zod 配置 schema 包。它集中维护跨应用共享的默认值、运行环境枚举、运行时枚举、HTTP 状态码、响应默认结构、日志配置、缓存配置、数据库配置、Redis 配置、请求限制等。
 
-这个包不读取 `process.env`，也不负责判断当前部署平台。它只提供可复用的常量、类型和 schema，让业务应用在自己的 bootstrap、runtime env provider 或中间件中完成实际解析。
+这个包不读取 `process.env`，也不负责判断当前部署平台，也不包含 Shopify app 专属 schema。它只提供可复用的常量、类型和 schema，让业务应用在自己的 bootstrap、runtime env provider 或中间件中完成实际解析。
 
 ## 设计与架构
 
@@ -68,6 +69,20 @@ Feature flag 服务：比如 OpenFeature/Unleash/LaunchDarkly/Statsig 等。
 <https://docs.getunleash.io/guides/feature-flag-best-practices>
 <https://octopus.com/devops/feature-flags/>
 
+## 与 @shamt/app-env 的关系
+
+`@shamt/envs` 只提供 runtime-neutral 的基础积木。当前 app 使用
+`@shamt/app-env` 聚合项目 schema，其中包含 `SHOPIFY_APP_MODE`、
+`SHOPIFY_APP_FRONTEND_TARGET`、`SHOPIFY_APP_KEY`、`SCOPES` 等 Shopify 字段。
+
+```ts
+import { configSchema } from "@shamt/app-env";
+
+const config = configSchema.parse(process.env);
+```
+
+这种拆分可以让基础常量保持可复用，同时让 app 专属 env contract 独立演进，不把 Shopify 语义塞回基础包。
+
 ## 输入与输出
 
 输入：
@@ -79,7 +94,7 @@ Feature flag 服务：比如 OpenFeature/Unleash/LaunchDarkly/Statsig 等。
 
 - app、cache、database、env、logger、Redis 等配置的 Zod schema。
 - `AppConfigSchema`、`EnvConfigSchema`、`LogConfigSchema` 等 TypeScript 推导类型。
-- HTTP 状态码、响应默认值、content type、runtime 名称、env 名称、超时时间、大小限制等共享常量。
+- HTTP 状态码、响应默认值、content type、runtime 名称、env 名称、请求限制、超时时间、大小限制等共享常量。
 
 ## 使用方式
 
@@ -97,7 +112,7 @@ config.APP_ENV; // "development"
 config.APP_RUNTIME; // "cloudflare"
 ```
 
-组合项目自己的配置 schema：
+组合通用配置 schema：
 
 ```ts
 import {
@@ -110,7 +125,7 @@ import { z } from "zod";
 const serverSchema = extendConfigSchema(
   extendConfigSchema(envConfigSchema, appConfigSchema),
   z.object({
-    SHOPIFY_APP_KEY: z.string().min(1),
+    SERVICE_NAME: z.string().min(1),
   }),
 );
 

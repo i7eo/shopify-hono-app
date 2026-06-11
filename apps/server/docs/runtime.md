@@ -74,18 +74,17 @@ Cloudflare Worker 入口使用 `RuntimeAppEnv<"cloudflare">` 作为 `ExportedHan
 
 ## Shopify Mode Capabilities
 
-Shopify app mode 不是 runtime capability。它由 `SHOPIFY_APP_MODE` 决定，和 `APP_RUNTIME` 正交：
-
-| 配置               | 维度           | 示例                     |
-| ------------------ | -------------- | ------------------------ |
-| `APP_RUNTIME`      | 执行环境       | `node`、`cloudflare`     |
-| `SHOPIFY_APP_MODE` | Shopify app 流 | `embedded`、`standalone` |
+Shopify app mode 不是 runtime capability。它和 `APP_RUNTIME` 正交，具体 env 语义见 [env.md](./env.md#shopify-相关-env)。
 
 Shopify mode capability 只负责 app-flow 差异，例如 App Shell、OAuth callback redirect、Admin request session strategy。它位于：
 
 - `src/app/modules/shopify/mode`
 
 runtime capability 仍只负责平台差异，例如 logger、env source、KV/memory session storage。
+
+## Shopify Frontend Target
+
+Shopify frontend target 也不是 runtime capability。它和 `APP_RUNTIME`、`SHOPIFY_APP_MODE` 都正交，具体 env 语义、`shopify.web.toml` 生成规则和 app shell route 策略见 [env.md](./env.md#shopify-frontend-target)。
 
 ## 构建目标
 
@@ -102,6 +101,65 @@ pnpm --dir apps/server run cf:build
 ```
 
 两个脚本只清理自己的输出目录，因此可以先后构建并保留两套产物。
+
+## 部署入口
+
+根目录部署入口是：
+
+```bash
+pnpm deploy
+```
+
+执行顺序固定为：
+
+```text
+deploy:prepare -> deploy:runtime -> app:deploy
+```
+
+- `deploy:prepare` 使用 `.env.production` 重新生成 `shopify.app.toml` 和
+  `shopify.web.toml`。
+- `deploy:runtime` 只做 runtime 分发。根脚本
+  `scripts/deploy/index.ts` 校验 `APP_RUNTIME`，然后调用 server workspace 的
+  `cf:deploy` 或 `node:deploy`。
+- `app:deploy` 交给 Shopify CLI 同步 app 配置。
+
+server workspace 拥有具体部署实现：
+
+| Runtime      | Server script | 说明                                                                                                      |
+| ------------ | ------------- | --------------------------------------------------------------------------------------------------------- |
+| `cloudflare` | `cf:deploy`   | 运行 `scripts/deploy/cloudflare.ts` 构建 web 产物并写入 Wrangler assets，然后执行 Wrangler secrets/deploy |
+| `node`       | `node:deploy` | 运行 `scripts/deploy/node.ts` 构建 web/server，生成 Compose/Nginx，并通过 Docker + PM2 runtime 部署       |
+
+Cloudflare 部署脚本会把 `apps/server/wrangler.json` 的 `assets` 动态写成：
+
+```json
+{
+  "directory": "../web/dist",
+  "not_found_handling": "single-page-application",
+  "binding": "ASSETS",
+  "run_worker_first": ["/api/*", "/auth", "/auth/*", "/webhooks", "/webhooks/*"]
+}
+```
+
+这样 Worker 统一托管 SPA 静态资源和 Hono 动态路由。`/api/*`、`/auth*`、
+`/webhooks*` 必须先进入 Hono，其他路径才走静态资源或 SPA fallback。
+
+Node 部署脚本会生成这两个本地文件：
+
+```text
+apps/server/docker-compose.yml
+apps/server/nginx.conf
+```
+
+它们是部署产物，已在 `.gitignore` 中忽略。Compose 的 image 和
+container_name 由根 `package.json` 的 `name` 派生，容器内通过
+[`apps/server/Dockerfile`](../Dockerfile) 使用 PM2 runtime 启动 Node build。
+Nginx 负责同域托管：`/assets/*` 直接读取 web build，`/api/*`、`/auth*`、
+`/webhooks*` 代理到本机 Node 容器，其余路径回落到 `index.html`。
+
+Node 部署默认把 web 产物同步到 `/var/www/<deployment-name>/web`，把 Nginx
+配置复制到 `/etc/nginx/conf.d/<SHOPIFY_APP_URL host>.conf`。如需覆盖路径，
+使用 [env.md](./env.md#部署期-env) 中的部署期 env。
 
 ## OpenAPI 注册
 
@@ -133,6 +191,12 @@ pnpm --dir apps/server run cf:type
 
 这是生成物，不手动维护。提交前的 lint-staged 已过滤该文件，避免 ESLint/Prettier 修改 Wrangler 输出。
 
+如果需要排查 Wrangler CLI 子进程实际拿到的 env，可以临时使用
+`scripts/print/wrangler-env.ts` 作为 `NODE_OPTIONS` 调试入口，例如在
+`apps/server` 目录下执行 Wrangler 前临时加上
+`NODE_OPTIONS="--import tsx --import ./scripts/print/wrangler-env.ts"`。它只
+打印白名单 key，并会对 secret 值做长度级别的脱敏。
+
 ## 边界规则
 
 1. `bootstrapApp()` 永远 runtime-agnostic，不接收 runtime 参数。
@@ -144,6 +208,7 @@ pnpm --dir apps/server run cf:type
 7. Cloudflare entry 不静态导入 `node:*`、`@hono/node-server`、`@logtape/file`。
 8. `APP_RUNTIME=cloudflare` 时，request-bound binding 从 `c.env` 进入。
 9. `vercel-edge` 当前只作为未来扩展预留，不作为可部署目标。
+10. env var 语义和组合规则集中维护在 [env.md](./env.md)。
 
 ## 相关文档
 

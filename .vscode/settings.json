@@ -83,7 +83,11 @@
     "**/bower_components/**": true,
     "**/dist/**": true,
     "**/yarn.lock": true,
-    "**/pnpm-lock.yaml": true
+    "**/pnpm-lock.yaml": true,
+    "**/routeTree.gen.ts": true
+  },
+  "files.readonlyInclude": {
+    "**/routeTree.gen.ts": true
   },
   "files.associations": {
     "*.css": "tailwindcss"
@@ -114,7 +118,8 @@
     "res": true,
     "screenshots": true,
     "yarn-error.log": true,
-    "**/.yarn": true
+    "**/.yarn": true,
+    "**/routeTree.gen.ts": true
   },
 
   "[javascript]": {

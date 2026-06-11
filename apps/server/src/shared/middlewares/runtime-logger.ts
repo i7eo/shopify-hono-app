@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { getLoggerProvider } from "@/infra/provider";
 import { internalServerError } from "@/shared/exceptions";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 export function runtimeLoggerMiddleware() {
   return createMiddleware<AppEnv>(async (c, next) => {

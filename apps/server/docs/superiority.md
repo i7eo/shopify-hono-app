@@ -37,10 +37,7 @@
 
 ## Runtime 与 Shopify Mode 正交
 
-`APP_RUNTIME` 和 `SHOPIFY_APP_MODE` 是两条独立轴：
-
-- `APP_RUNTIME`: Node、Cloudflare、Vercel Edge。
-- `SHOPIFY_APP_MODE`: embedded、standalone。
+runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [env.md](./env.md#shopify-相关-env)。
 
 这意味着组合空间是清晰的，例如：
 
@@ -49,7 +46,7 @@
 - Node development + embedded
 - Node development + standalone
 
-常见项目容易把部署平台和 Shopify app flow 混在一起。本项目把它们拆成两个 capability 系统，降低组合复杂度。
+常见项目容易把部署平台和 Shopify app flow 混在一起。本项目用 runtime capability、Shopify mode capability 和 frontend target 配置分别承载三类差异，降低组合复杂度。
 
 ## 统一 Env 模型
 

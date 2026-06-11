@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { DEFAULT_ENVS } from "@shamt/envs";
+import { DEFAULT_ENVS } from "@shamt/app-env";
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerProcessExceptions } from "@/app/runtime/process/register-process-exceptions";
 import { registerProcessExits } from "@/app/runtime/process/register-process-exits";

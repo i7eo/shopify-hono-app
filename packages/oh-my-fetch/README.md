@@ -31,7 +31,7 @@ providers, or framework-specific exceptions.
 ## Basic Usage
 
 ```ts
-import { createHttpClient } from "@shamt/oh-my-fetch";
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
 
 const api = createHttpClient({
   prefix: "/api",
@@ -48,6 +48,26 @@ type User = {
 
 const user = await api.get<User>("users/current");
 ```
+
+## Entrypoints
+
+The root entry exports only the core client, error class, and shared types.
+Plugins and specialized helpers are imported from explicit subpaths.
+
+| Entrypoint                                   | Use for                                   |
+| -------------------------------------------- | ----------------------------------------- |
+| `@shamt/oh-my-fetch`                         | core client, `HttpRequestError`, types    |
+| `@shamt/oh-my-fetch/client`                  | `createHttpClient`, `HttpClient`          |
+| `@shamt/oh-my-fetch/errors`                  | `HttpRequestError` and error types        |
+| `@shamt/oh-my-fetch/status`                  | HTTP status message helpers               |
+| `@shamt/oh-my-fetch/validation`              | schema validation helpers                 |
+| `@shamt/oh-my-fetch/json`                    | secure JSON parsing helpers               |
+| `@shamt/oh-my-fetch/dedupe`                  | request dedupe lifecycle helpers          |
+| `@shamt/oh-my-fetch/plugins/business-status` | business wrapper failure plugin           |
+| `@shamt/oh-my-fetch/plugins/error-reporter`  | error reporting plugin                    |
+| `@shamt/oh-my-fetch/plugins/request-format`  | request body formatting plugin            |
+| `@shamt/oh-my-fetch/plugins/validation`      | request/response schema validation plugin |
+| `@shamt/oh-my-fetch/utils`                   | lower-level shared utility types/helpers  |
 
 ## Query And Body
 
@@ -71,7 +91,8 @@ Bodies are not mutated or normalized by default. Add the request-format plugin
 when a service wants recursive string trimming and Date formatting.
 
 ```ts
-import { createHttpClient, requestFormatPlugin } from "@shamt/oh-my-fetch";
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
+import { requestFormatPlugin } from "@shamt/oh-my-fetch/plugins/request-format";
 
 const formattedApi = createHttpClient({
   plugins: [requestFormatPlugin()],
@@ -123,15 +144,15 @@ Validation failures throw `HttpRequestError` with `kind` set to
 Plugins are explicit lifecycle policies.
 
 ```ts
-import {
-  businessStatusPlugin,
-  createHttpClient,
-  errorReporterPlugin,
-  requestFormatPlugin,
-} from "@shamt/oh-my-fetch";
+import { createHttpClient } from "@shamt/oh-my-fetch/client";
+import { businessStatusPlugin } from "@shamt/oh-my-fetch/plugins/business-status";
+import { errorReporterPlugin } from "@shamt/oh-my-fetch/plugins/error-reporter";
+import { requestFormatPlugin } from "@shamt/oh-my-fetch/plugins/request-format";
+import { validationPlugin } from "@shamt/oh-my-fetch/plugins/validation";
 
 const api = createHttpClient({
   plugins: [
+    validationPlugin(),
     requestFormatPlugin(),
     businessStatusPlugin(),
     errorReporterPlugin({
@@ -224,7 +245,7 @@ const api = createHttpClient({
 All normalized failures use `HttpRequestError`.
 
 ```ts
-import { HttpRequestError } from "@shamt/oh-my-fetch";
+import { HttpRequestError } from "@shamt/oh-my-fetch/errors";
 
 try {
   await api.get("users/current");

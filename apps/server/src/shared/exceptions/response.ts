@@ -1,11 +1,11 @@
-import { DEFAULT_ENVS, HTTP_STATUS_CODES } from "@shamt/envs";
+import { DEFAULT_ENVS, HTTP_STATUS_CODES } from "@shamt/app-env";
 import {
   createError,
   type AppError,
   type ErrorResponse,
 } from "@/shared/models";
 import { getContextValue, setResponseHeaders } from "@/utils";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 

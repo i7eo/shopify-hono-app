@@ -3,7 +3,7 @@ import { getShopifyConfigProvider } from "@/infra/provider";
 import { badRequestError } from "@/shared/exceptions";
 import { getShopifyModeCapabilities } from "../mode";
 import { getShopifySessionStorage } from "../session-storage";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 const SHOP_DOMAIN_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
 

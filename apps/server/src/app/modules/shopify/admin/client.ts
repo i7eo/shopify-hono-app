@@ -1,7 +1,7 @@
 import { getShopifyClientProvider, type ShopifyClient } from "@/infra/provider";
 import { getShopifyModeCapabilities } from "../mode";
 import { setShopifySessionContext } from "../session";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
 type ShopifyClientRequest = (...args: unknown[]) => Promise<unknown>;

@@ -32,7 +32,9 @@ Platform-specific stores such as Redis and Cloudflare KV should live in the appl
 - Base methods throw `CacheMethodNotImplementedError` by default, so missing implementations fail early during development.
 - TTL values passed into the package are always handled as milliseconds.
 - Values are serialized at the cache boundary with JSON helpers from `@shamt/utils`, making the memory driver behave closer to string-based stores such as Redis and KV.
-- Keys can be namespaced with a prefix. Non-empty prefixes are normalized to end with `:`.
+- Keys can be namespaced with a prefix. `MemoryCache` defaults to `cache:`;
+  non-empty prefixes are normalized to end with `:`, and an empty prefix disables
+  namespacing.
 
 `MemoryCache` uses `lru-cache` for eviction, TTL, and max-size accounting. It is suitable for local development, tests, short-lived in-process caching, and runtime-neutral default behavior.
 
@@ -56,6 +58,7 @@ Units:
 
 - `ttl` is always in milliseconds.
 - `maxSize` is always in bytes.
+- `keyPrefix` defaults to `cache:` for `MemoryCache` and `createCache`.
 
 ## Usage
 

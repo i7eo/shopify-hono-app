@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 
 export const LogPrefix = {
   Incoming: "👈 req 👈",

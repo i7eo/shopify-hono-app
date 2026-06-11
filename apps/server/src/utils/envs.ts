@@ -3,7 +3,7 @@ import {
   DEFAULT_RUNTIMES,
   type DEFAULT_ENVS_VALUES,
   type DEFAULT_RUNTIMES_VALUES,
-} from "@shamt/envs";
+} from "@shamt/app-env";
 
 const PROCESS_RUNTIMES = [DEFAULT_RUNTIMES.NODE] as const;
 const ISOLATE_RUNTIMES = [

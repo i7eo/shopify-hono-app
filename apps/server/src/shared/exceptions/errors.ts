@@ -1,4 +1,4 @@
-import { HTTP_STATUS_CODES } from "@shamt/envs";
+import { HTTP_STATUS_CODES } from "@shamt/app-env";
 import { AppError, type AppErrorOptions } from "@/shared/models";
 
 type ErrorOptions = Omit<AppErrorOptions, "message" | "status">;
@@ -102,6 +102,26 @@ export function conflictError(
     expose: options?.expose ?? true,
   });
 }
+
+/**
+ * Use when the request payload exceeds the allowed size.
+ * Example: throw payloadTooLargeError("Request payload too large", { details });
+ */
+export function payloadTooLargeError(
+  message: string = HTTP_STATUS_CODES.REQUEST_TOO_LONG.phrase,
+  options?: ErrorOptions,
+) {
+  return createHttpError(HTTP_STATUS_CODES.REQUEST_TOO_LONG.code, message, {
+    ...options,
+    expose: options?.expose ?? true,
+  });
+}
+
+/**
+ * Use for upload-specific payload size failures.
+ * Example: throw uploadPayloadTooLargeError("Upload payload too large", { details });
+ */
+export const uploadPayloadTooLargeError = payloadTooLargeError;
 
 /**
  * Use when parsed input fails validation, including Zod validation errors.

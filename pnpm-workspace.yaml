@@ -32,7 +32,6 @@ catalog:
 
 catalogs:
   "dx":
-    "typescript-eslint": "^8.60.1"
     "eslint": "^10.4.1"
     "@sxzz/eslint-config": "^8.1.0"
     "eslint-plugin-react-hooks": "^7.1.1"
@@ -42,7 +41,7 @@ catalogs:
     "@commitlint/types": "^21.0.1"
     "czg": "^1.13.1"
     "lint-staged": "^17.0.7"
-    "prettier": "^3.8.3"
+    "prettier": "^3.8.4"
     "prettier-plugin-tailwindcss": "^0.8.0"
     "simple-git-hooks": "^2.13.1"
     "@unconfig/stylelint-config": "^0.1.10"
@@ -57,8 +56,9 @@ catalogs:
     "react-dom": "^19.2.7"
     "@types/react": "^19.2.17"
     "@types/react-dom": "^19.2.3"
+    "immer": "^11.1.8"
+    "zustand": "^5.0.14"
     "@vitejs/plugin-react": "^6.0.2"
-    "babel-plugin-react-compiler": "^1.0.0"
   "vue":
     "vue": "^3.5.35"
     "@vitejs/plugin-vue": "^6.0.7"
@@ -67,16 +67,18 @@ catalogs:
     "tailwindcss": "^4.3.0"
     "@tailwindcss/vite": "^4.3.0"
   "hono":
-    "hono": "^4.12.24"
+    "hono": "^4.12.25"
   "shopify":
     "@shopify/cli": "^4.1.0"
   "test":
     "vitest": "^4.1.8"
     "@vitest/ui": "^4.1.8"
     "@vitest/coverage-v8": "^4.1.8"
+    "@testing-library/react": "^16.3.2"
+    "jsdom": "^29.1.1"
   "cloudflare":
-    "@cloudflare/workers-types": "^4.20260608.1"
-    "wrangler": "^4.98.0"
+    "@cloudflare/workers-types": "^4.20260609.1"
+    "wrangler": "^4.99.0"
 
 minimumReleaseAgeExclude:
   - hono@4.12.23
@@ -109,6 +111,34 @@ minimumReleaseAgeExclude:
   - typescript-eslint@8.60.0
   - es-toolkit@1.47.0
   - "@cloudflare/workers-types@4.20260606.1"
+  - "@img/sharp-darwin-arm64@0.35.0"
+  - "@img/sharp-darwin-x64@0.35.0"
+  - "@img/sharp-freebsd-wasm32@0.35.0"
+  - "@img/sharp-libvips-darwin-arm64@1.3.0"
+  - "@img/sharp-libvips-darwin-x64@1.3.0"
+  - "@img/sharp-libvips-linux-arm64@1.3.0"
+  - "@img/sharp-libvips-linux-arm@1.3.0"
+  - "@img/sharp-libvips-linux-ppc64@1.3.0"
+  - "@img/sharp-libvips-linux-riscv64@1.3.0"
+  - "@img/sharp-libvips-linux-s390x@1.3.0"
+  - "@img/sharp-libvips-linux-x64@1.3.0"
+  - "@img/sharp-libvips-linuxmusl-arm64@1.3.0"
+  - "@img/sharp-libvips-linuxmusl-x64@1.3.0"
+  - "@img/sharp-linux-arm64@0.35.0"
+  - "@img/sharp-linux-arm@0.35.0"
+  - "@img/sharp-linux-ppc64@0.35.0"
+  - "@img/sharp-linux-riscv64@0.35.0"
+  - "@img/sharp-linux-s390x@0.35.0"
+  - "@img/sharp-linux-x64@0.35.0"
+  - "@img/sharp-linuxmusl-arm64@0.35.0"
+  - "@img/sharp-linuxmusl-x64@0.35.0"
+  - "@img/sharp-wasm32@0.35.0"
+  - "@img/sharp-webcontainers-wasm32@0.35.0"
+  - "@img/sharp-win32-arm64@0.35.0"
+  - "@img/sharp-win32-ia32@0.35.0"
+  - "@img/sharp-win32-x64@0.35.0"
+  - semver@7.8.4
+  - sharp@0.35.0
 
 allowBuilds:
   esbuild: true

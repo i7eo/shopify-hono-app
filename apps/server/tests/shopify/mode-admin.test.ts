@@ -104,11 +104,11 @@ describe("Shopify app mode capabilities", () => {
       );
 
     expect(await shell.text()).toContain("test_app_key");
-    expect(hostedRedirect.headers.get("Location")).toBe(
+    expect((await hostedRedirect).headers.get("Location")).toBe(
       "https://admin.shopify.com/encoded-host",
     );
-    expect(hostedRedirect.headers.get("Set-Cookie")).toBe("shopify=1");
-    expect(fallbackRedirect.headers.get("Location")).toBe(
+    expect((await hostedRedirect).headers.get("Set-Cookie")).toBe("shopify=1");
+    expect((await fallbackRedirect).headers.get("Location")).toBe(
       "https://app.example.com/app?shop=fallback.myshopify.com",
     );
   });
@@ -192,20 +192,20 @@ describe("Shopify app mode capabilities", () => {
         new Headers({ "Set-Cookie": "shopify=1" }),
       );
 
-    expect(redirectResponse.status).toBe(302);
-    expect(redirectResponse.headers.get("Location")).toBe(
+    expect((await redirectResponse).status).toBe(302);
+    expect((await redirectResponse).headers.get("Location")).toBe(
       "https://app.example.com/auth?shop=shop.myshopify.com",
     );
-    expect(await htmlResponse.text()).toContain("test_app_key");
+    expect(await (await htmlResponse).text()).toContain("test_app_key");
     expect(authContext.var.shopDomain).toBe("shop.myshopify.com");
     expect(authContext.var.shopifySession).toBe(session);
     expect(authContext.var.shopifyAccessToken).toBe("offline-token");
     expect(next).toHaveBeenCalledOnce();
-    expect(callbackResponse.status).toBe(302);
-    expect(callbackResponse.headers.get("Location")).toBe(
+    expect((await callbackResponse).status).toBe(302);
+    expect((await callbackResponse).headers.get("Location")).toBe(
       "https://app.example.com/app",
     );
-    expect(callbackResponse.headers.get("Set-Cookie")).toContain(
+    expect((await callbackResponse).headers.get("Set-Cookie")).toContain(
       ":account_session_cookie=offline_shop.myshopify.com",
     );
 

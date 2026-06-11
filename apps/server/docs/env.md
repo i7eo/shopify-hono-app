@@ -57,12 +57,14 @@ Cloudflare 下 `envConfig` 来自 `c.env`，其中包含 request-bound 平台 bi
 
 `getEnvProvider()` 内部保存两份状态：
 
-- raw env 快照：用于 bootstrap env 与 request env 合并。
+- 已校验的 `RuntimeConfig`：用于复用同一份基础配置。
 - env signature：用于判断有效配置是否变化。
 
 如果签名没有变化，provider 会直接返回上一次解析好的 `RuntimeConfig`，不会每个请求都重新跑 schema parse。
 
-签名只包含关键配置字段和平台 binding 是否存在，不会把 binding 对象整体 stringify。
+签名只包含关键配置字段和平台 binding 是否存在，不会把 binding 对象整体 stringify。`APP_RUNTIME`、`SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、端口、Shopify app key、app URL、API version、scopes 等字段变化时都会触发重新解析。
+
+`SHOPIFY_APP_FRONTEND_TARGET` 属于签名字段，因为它会改变 server app shell route 和 OAuth callback fallback URL。切换 frontend target 后，provider 必须重新解析配置，不能复用旧的 `runtimeEnv`。
 
 ## Runtime Schema
 
@@ -89,6 +91,46 @@ sofary?: KVNamespace
 
 这不是静默放宽使用要求。真正消费 binding 的 runtime capability 必须在使用点强校验，例如 Cloudflare Shopify session storage 会通过 `requireCloudflareBinding(...)` 校验 `sofary` 存在且具备 `get`、`put`、`delete`、`list` 方法。
 
+## Env File 字段
+
+当前项目通过根目录 env file 注入部署期配置：
+
+- `.env.development`
+- `.env.production`
+
+两份文件当前维护这些字段：
+
+| 字段                          | 示例/取值                           | 说明                                    |
+| ----------------------------- | ----------------------------------- | --------------------------------------- |
+| `APP_ENV`                     | `development`、`test`、`production` | 当前配置环境                            |
+| `APP_RUNTIME`                 | `node`、`cloudflare`、`vercel-edge` | server 执行环境，`vercel-edge` 当前预留 |
+| `APP_LOGGER_EXPIRE`           | `604800000`                         | 日志过期时间                            |
+| `APP__SERVER_PORT`            | `10001`                             | `apps/server` dev 端口                  |
+| `APP__WEB_PORT`               | `10002`                             | `apps/web` dev 端口                     |
+| `SHOPIFY_APP_MODE`            | `embedded`、`standalone`            | Shopify app-flow                        |
+| `SHOPIFY_APP_FRONTEND_TARGET` | `backend`、`frontend`               | Shopify frontend role 承载位置          |
+| `SHOPIFY_APP_KEY`             | Shopify app client ID               | Shopify app key                         |
+| `SHOPIFY_APP_SECRET`          | Shopify app secret                  | Shopify app secret                      |
+| `SHOPIFY_APP_URL`             | `https://example.com`               | Shopify app 对外 URL                    |
+| `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version               |
+| `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                   |
+
+其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`。
+
+## 部署期 Env
+
+下面两个字段不属于运行时 config schema，只由
+`apps/server/scripts/deploy/node.ts` 在 Node 部署阶段读取：
+
+| 字段                       | 默认值                                          | 说明                              |
+| -------------------------- | ----------------------------------------------- | --------------------------------- |
+| `DEPLOY_WEB_ROOT`          | `/var/www/<deployment-name>/web`                | Nginx 读取 `apps/web/dist` 的目录 |
+| `DEPLOY_NGINX_CONF_TARGET` | `/etc/nginx/conf.d/<SHOPIFY_APP_URL host>.conf` | 生成的 Nginx 配置复制到的目标路径 |
+
+`deployment-name` 由根 `package.json` 的 `name` 派生，例如
+`@shamt/repository` 会生成 `shamt-repository-server`。这些字段适合放在
+`.env.production` 中覆盖机器路径，但不会被浏览器 public env 注入。
+
 ## Hono AppEnv 类型
 
 Hono env 类型从 `RuntimeConfig` union 推导 bindings，避免新增普通 env 时重复维护手写 `Bindings`：
@@ -110,7 +152,7 @@ type RuntimeAppEnv<
 
 ## Shopify 相关 env
 
-Shopify app mode 是显式配置，不再有隐藏 fallback：
+Shopify app mode 是显式配置，不再有隐藏 fallback。`SHOPIFY_APP_MODE` 和 `APP_RUNTIME` 正交：
 
 ```txt
 SHOPIFY_APP_MODE=embedded
@@ -124,13 +166,78 @@ SHOPIFY_APP_MODE=standalone
 - Admin API 请求使用 session token/token exchange，还是 standalone account session cookie。
 - OAuth callback 后的 redirect 和 cookie 写入策略。
 
+### Shopify Frontend Target
+
+`SHOPIFY_APP_FRONTEND_TARGET` 和 `APP_RUNTIME`、`SHOPIFY_APP_MODE` 都正交。它只决定 Shopify `frontend` role 由哪个 web target 承载：
+
+```txt
+SHOPIFY_APP_FRONTEND_TARGET=backend
+SHOPIFY_APP_FRONTEND_TARGET=frontend
+```
+
+| `SHOPIFY_APP_FRONTEND_TARGET` | `apps/server/shopify.web.toml`    | `apps/web/shopify.web.toml` | 说明                                                  |
+| ----------------------------- | --------------------------------- | --------------------------- | ----------------------------------------------------- |
+| `backend`                     | `roles = ["frontend", "backend"]` | 不生成                      | server 同时负责 app shell、API、auth、webhooks        |
+| `frontend`                    | `roles = ["backend"]`             | `roles = ["frontend"]`      | web 负责 app shell，server 只负责 API、auth、webhooks |
+
+因此 `SHOPIFY_APP_FRONTEND_TARGET=frontend` 不表示只支持 embedded，也不表示只支持 Cloudflare。它只把 HTML app shell 从 `apps/server` 移到 `apps/web`。
+
+当 frontend target 为 `frontend` 时，浏览器入口是 `apps/web`：
+
+```text
+apps/web
+  /              -> Vite/SPA app shell
+
+apps/server
+  /api/*         -> business API
+  /auth/*        -> Shopify OAuth
+  /webhooks/*    -> Shopify webhooks
+```
+
+开发环境中，`apps/web` 应通过 Vite proxy 把后端路径转发给 `apps/server`。前端业务代码始终使用相对路径，例如 `fetch("/api/xxx")`，不要硬编码 server origin。生产环境中也应保持同域路由：
+
+```text
+/            -> web static assets
+/assets/*    -> web static assets
+/api/*       -> server
+/auth/*      -> server
+/webhooks/*  -> server
+```
+
+这条规则对 standalone 尤其重要。standalone 依赖浏览器 cookie/account session，如果 web 和 server 分域，会引入 CORS、`credentials`、`SameSite` 和 callback URL 的额外复杂度。
+
+`SHOPIFY_APP_FRONTEND_TARGET=frontend` 不能抹平 `embedded` 和 `standalone` 的认证差异。`apps/web` 可以是同一个 shell，但 API client 必须按 `SHOPIFY_APP_MODE` 选择认证策略：
+
+| `SHOPIFY_APP_MODE` | 前端请求策略                                                          | server 认证策略                                         |
+| ------------------ | --------------------------------------------------------------------- | ------------------------------------------------------- |
+| `embedded`         | App Bridge 获取 session token，并发送 `Authorization: Bearer <token>` | `verifySessionToken` + token exchange / online session  |
+| `standalone`       | `fetch(..., { credentials: "include" })`                              | account session cookie + `loadShopifySessionForAccount` |
+
+新增 admin API route 时，不要把 middleware 写死成 embedded session token。业务 route 应继续通过 Shopify mode capability 获取 Admin request session strategy。
+
+当 `SHOPIFY_APP_FRONTEND_TARGET=backend` 时，`apps/server` 可以注册 `/`、`/app`、`/app/*` 并返回 app shell HTML。
+
+当 `SHOPIFY_APP_FRONTEND_TARGET=frontend` 时，`apps/server` 不应再作为主要 app shell renderer。可选策略是：
+
+- 不注册 `/`、`/app`、`/app/*` shell routes。
+- 或只把 `/app`、`/app/*` 重定向到 `SHOPIFY_APP_URL`。
+
+OAuth callback 结束后的 fallback redirect 也要跟随 frontend target：
+
+| `SHOPIFY_APP_FRONTEND_TARGET` | callback fallback        |
+| ----------------------------- | ------------------------ |
+| `backend`                     | `${SHOPIFY_APP_URL}/app` |
+| `frontend`                    | `${SHOPIFY_APP_URL}/`    |
+
+embedded 模式中，如果 callback 带有 `host`，仍可优先使用 `shopify.auth.buildEmbeddedAppUrl(host)`。
+
 `APP_NAME` 也会影响 standalone account session cookie 名：
 
 ```txt
 ${APP_NAME}:account_session_cookie
 ```
 
-默认值来自 `@shamt/envs` 的 `DEFAULT_APP_NAME`。如果修改 `APP_NAME`，已有浏览器 cookie 名也会变化，需要重新建立 standalone account session。
+默认值来自 `@shamt/app-env` 的 `DEFAULT_APP_NAME`。如果修改 `APP_NAME`，已有浏览器 cookie 名也会变化，需要重新建立 standalone account session。
 
 ## normalizeEnv
 
@@ -165,4 +272,7 @@ throw internalServerError("runtime env errors", {
 6. 平台 binding 必须在 request 阶段通过 `c.env` 合并，并在 capability 使用点强校验。
 7. `APP_RUNTIME` 是事实配置，不新增 `APP_RUNTIME_MODE`。
 8. `SHOPIFY_APP_MODE` 是 Shopify app-flow 配置，不要和 `APP_RUNTIME` 混用。
-9. 新增 runtime 时，需要同步扩展 schema、capability 和 runtime entry。
+9. `SHOPIFY_APP_FRONTEND_TARGET` 只决定 frontend role 承载位置，不改变 runtime 或 Shopify mode。
+10. `SHOPIFY_APP_FRONTEND_TARGET=frontend` 时，server 不应继续作为主要 app shell renderer。
+11. `embedded` 与 `standalone` 的认证策略必须继续由 Shopify mode capability 分流。
+12. 新增 runtime 时，需要同步扩展 schema、capability 和 runtime entry。

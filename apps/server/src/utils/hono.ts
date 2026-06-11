@@ -1,4 +1,4 @@
-import type { AppEnv } from "@/types";
+import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
 export function getContextValue<K extends keyof AppEnv["Variables"]>(

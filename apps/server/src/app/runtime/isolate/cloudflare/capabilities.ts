@@ -2,7 +2,7 @@ import { KVSessionStorage } from "@shopify/shopify-app-session-storage-kv";
 import { setRuntimeCapability } from "@/app/runtime/capabilities";
 import { setupIsolateLogger } from "@/infra/logger/isolate";
 import { isCloudflareKVNamespace, requireCloudflareBinding } from "./bindings";
-import type { RuntimeAppEnv } from "@/types";
+import type { RuntimeAppEnv } from "@/typings";
 import type { Context } from "hono";
 
 export function registerCloudflareIsolateRuntimeCapabilities() {
