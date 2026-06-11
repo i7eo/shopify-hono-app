@@ -35,7 +35,7 @@
     "@commitlint/types": "catalog:dx",
     "@manypkg/get-packages": "catalog:dx",
     "@shamt/app-env": "workspace:*",
-    "@shamt/utils": "workspace:*",
+    "@shamt/node-utils": "workspace:*",
     "@shopify/cli": "catalog:shopify",
     "@sxzz/eslint-config": "catalog:dx",
     "@types/node": "catalog:",

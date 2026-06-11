@@ -1,34 +1,6 @@
-import { spawn } from "node:child_process";
 import { configSchema, DEFAULT_RUNTIMES } from "@shamt/app-env";
-import { throwError } from "@shamt/utils";
-
-/**
- * Execute a child process from the current workspace root.
- */
-async function executeCommand(command: string, args: readonly string[]) {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, {
-      env: process.env,
-      stdio: "inherit",
-    });
-
-    child.once("error", reject);
-    child.once("exit", (code, signal) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(
-        new Error(
-          `${command} ${args.join(" ")} failed with ${
-            signal ? `signal ${signal}` : `exit code ${code}`
-          }`,
-        ),
-      );
-    });
-  });
-}
+import { executeCommand } from "@shamt/node-utils/execute-command";
+import { throwError } from "../utils";
 
 /**
  * Dispatch the runtime-specific deployment owned by apps/server.

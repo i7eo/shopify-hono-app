@@ -226,6 +226,14 @@ The local port split is unchanged:
 | `10001` | apps/server | Node or Wrangler development server   |
 | `10002` | apps/web    | Vite development server when enabled  |
 
+When using `shopify app dev --tunnel-url=...`, keep the
+`shopifyProxyPort` and `tunnelName` constants in
+[`scripts/tunnel/index.ts`](./scripts/tunnel/index.ts) aligned with the named
+Cloudflare Tunnel. The `shopifyProxyPort` value must be unique: it cannot match
+any root env variable whose name contains `port`, case-insensitively, such as
+`APP__SERVER_PORT` or `APP__WEB_PORT`. The tunnel script fails before starting
+child processes when a duplicate port is detected.
+
 Start the fixed-hostname flow with:
 
 ```bash

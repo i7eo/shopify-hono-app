@@ -34,9 +34,6 @@ export const SHUTDOWN_TIMEOUT_MS = 10000;
 
 /**
  * Create a graceful exit controller with closure-scoped shutdown state.
- * This follows the same organization style as rafThrottle: state and cleanup
- * controls live inside the factory result instead of being exposed as module
- * variables.
  *
  * @example
  * ```ts
@@ -72,16 +69,18 @@ export function createProcessGracefulExit(
     listeners: RegisteredExitSignalListener[],
   ) => {
     listeners.forEach(removeRegisteredListener);
-    registeredListeners.splice(
-      0,
-      registeredListeners.length,
-      ...registeredListeners.filter((item) => !listeners.includes(item)),
-    );
+    const removed = new Set(listeners);
+
+    for (let index = registeredListeners.length - 1; index >= 0; index -= 1) {
+      if (removed.has(registeredListeners[index])) {
+        registeredListeners.splice(index, 1);
+      }
+    }
   };
 
-  /** Preserve current shutdown behavior by removing all listeners for shutdown signals. */
-  const removeAllExitSignalListeners = () => {
-    exitSignals.forEach((signal) => process.removeAllListeners(signal));
+  /** Remove only listeners owned by this controller. */
+  const removeAllRegisteredExitSignalListeners = () => {
+    registeredListeners.forEach(removeRegisteredListener);
     registeredListeners.length = 0;
   };
 
@@ -89,12 +88,13 @@ export function createProcessGracefulExit(
   const shutdown = async (cleanup: () => Promise<void>) => {
     if (isShuttingDown) return;
     isShuttingDown = true;
-    removeAllExitSignalListeners();
+    removeAllRegisteredExitSignalListeners();
 
     const timeout = setTimeout(() => {
       logger.warn("Graceful shutdown timeout, forcing exit");
       process.exit(1);
     }, SHUTDOWN_TIMEOUT_MS);
+    timeout.unref?.();
 
     try {
       await cleanup();
@@ -151,6 +151,11 @@ export function createProcessGracefulExit(
 /**
  * Close the runtime app handle when it exposes a supported stop or close API.
  * Callback-style close methods are converted to promises.
+ *
+ * @example
+ * ```ts
+ * await closeApp(server);
+ * ```
  */
 async function closeApp(app: GracefulExitTarget) {
   if (app.stop) {

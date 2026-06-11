@@ -1,13 +1,37 @@
-import { spawn, type ChildProcess } from "node:child_process";
 import { configSchema } from "@shamt/app-env";
+import { unifiedSpawn } from "@shamt/node-utils/unified-spawn";
+import type { ChildProcess } from "node:child_process";
 
+// When using `shopify app dev --tunnel-url=...`, manually keep
+// `shopifyProxyPort` and `tunnelName` in sync with the named Cloudflare Tunnel
+// and ensure the proxy port does not duplicate any root env port variable.
 const shopifyProxyPort = "10101";
-const tunnelName = process.env.SHOPIFY_APP_DEV_TUNNEL_NAME ?? "sofary";
-const tunnelReadyTimeoutMs = 5_000;
+const tunnelName = "sofary";
+
+const tunnelReadyTimeoutMs = 5 * 1000;
 const tunnelReadyPattern =
   /Registered tunnel connection|Connection .* registered|Started tunnel|Tunnel .* ready/i;
+const portEnvKeyPattern = /port/i;
 
 let isShuttingDown = false;
+
+/**
+ * Fail fast when the Shopify CLI proxy port duplicates an env port.
+ */
+function assertUniqueShopifyProxyPort(env: NodeJS.ProcessEnv = process.env) {
+  const conflicts = Object.entries(env)
+    .filter(([key, value]) => portEnvKeyPattern.test(key) && value)
+    .filter(([, value]) => String(value).trim() === shopifyProxyPort)
+    .map(([key]) => key);
+
+  if (conflicts.length === 0) return;
+
+  throw new Error(
+    `shopifyProxyPort (${shopifyProxyPort}) must not duplicate root env port variable(s): ${conflicts.join(
+      ", ",
+    )}. Use a unique port for Shopify CLI's tunnel proxy.`,
+  );
+}
 
 /**
  * Spawn a long-lived child process with inherited stdin and piped output.
@@ -17,7 +41,7 @@ function spawnProcess(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
 ) {
-  return spawn(command, args, {
+  return unifiedSpawn(command, args, {
     env,
     stdio: ["inherit", "pipe", "pipe"],
   });
@@ -135,6 +159,8 @@ function getTunnelUrl() {
  * Start the named Cloudflare tunnel, then run Shopify app dev against it.
  */
 async function main() {
+  assertUniqueShopifyProxyPort();
+
   const tunnelUrl = getTunnelUrl();
   const tunnel = spawnProcess(
     "pnpm",

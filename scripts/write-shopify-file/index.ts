@@ -6,7 +6,7 @@ import {
   DEFAULT_SHOPIFY_APP_MODES,
   SHOPIFY_APP_FRONTEND_TARGETS,
 } from "@shamt/app-env";
-import { isObject, throwError } from "@shamt/utils";
+import { isObject, throwError } from "../utils";
 import {
   getShopifyAppPath,
   root,

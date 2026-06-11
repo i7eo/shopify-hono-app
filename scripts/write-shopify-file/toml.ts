@@ -1,4 +1,4 @@
-import { serializeValue } from "@shamt/utils";
+import { serializeValue } from "../utils";
 
 export function formatTomlString(value: string) {
   return serializeValue(value);

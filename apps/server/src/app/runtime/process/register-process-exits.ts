@@ -1,5 +1,5 @@
+import { createProcessGracefulExit } from "@shamt/node-utils/graceful-exit";
 import { getLoggerProvider } from "@/infra/provider";
-import { createProcessGracefulExit } from "@/utils";
 import { onAppShutdown } from "./lifecycle/shutdown";
 import type { AppEnv } from "@/typings";
 import type { ServerType } from "@hono/node-server";
