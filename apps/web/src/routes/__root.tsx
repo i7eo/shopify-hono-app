@@ -1,9 +1,13 @@
-import {
-  createRootRouteWithContext,
-  Link,
-  Outlet,
-} from "@tanstack/react-router";
+import { createRootRouteWithContext } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
+import { Loading } from "@/components/loading";
+import { NotFound } from "@/components/not-found";
+import { EmbeddedLayout } from "@/layouts/embedded";
+import { StandaloneLayout } from "@/layouts/standalone";
+import {
+  DEFAULT_SHOPIFY_APP_MODES,
+  getShopifyAppMode,
+} from "@/utils/public-env";
 import type { QueryClient } from "@tanstack/react-query";
 
 const Devtools = import.meta.env.DEV
@@ -25,66 +29,44 @@ const Devtools = import.meta.env.DEV
     })
   : undefined;
 
-export const Route = createRootRouteWithContext<{
-  queryClient: QueryClient;
-}>()({
-  component: RootComponent,
-  notFoundComponent: () => {
-    return (
-      <div>
-        <p>This is the notFoundComponent configured on root route</p>
-        <Link to="/">Start Over</Link>
-      </div>
-    );
-  },
+const Toaster = lazy(async () => {
+  const { Toaster } = await import("@/components/ui/sonner");
+
+  return { default: Toaster };
 });
 
 function RootComponent() {
+  const Layout =
+    getShopifyAppMode() === DEFAULT_SHOPIFY_APP_MODES.STANDALONE
+      ? StandaloneLayout
+      : EmbeddedLayout;
+
   return (
     <>
-      <div className="flex gap-2 p-2 text-lg">
-        <Link
-          to="/"
-          activeProps={{
-            className: "font-bold",
-          }}
-          activeOptions={{ exact: true }}
-        >
-          Home
-        </Link>{" "}
-        <Link
-          to="/posts"
-          activeProps={{
-            className: "font-bold",
-          }}
-        >
-          Posts
-        </Link>{" "}
-        <Link
-          to="/layout/nested/route-a"
-          activeProps={{
-            className: "font-bold",
-          }}
-        >
-          Layout Routes
-        </Link>{" "}
-        <Link
-          // @ts-expect-error
-          to="/this-route-does-not-exist"
-          activeProps={{
-            className: "font-bold",
-          }}
-        >
-          This Route Does Not Exist
-        </Link>
-      </div>
-      <hr />
-      <Outlet />
+      <Layout />
+      <Suspense fallback={null}>
+        <Toaster />
+      </Suspense>
       {Devtools ? (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <Loading
+              heading="Loading developer tools"
+              message="Please wait while developer tools load."
+              scope="page"
+            />
+          }
+        >
           <Devtools />
         </Suspense>
       ) : null}
     </>
   );
 }
+
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
+  component: RootComponent,
+  notFoundComponent: () => <NotFound scope="page" />,
+});

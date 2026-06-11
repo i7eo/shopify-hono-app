@@ -9,140 +9,73 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PostsRouteRouteImport } from './routes/posts/route'
-import { Route as LayoutRouteRouteImport } from './routes/layout/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PostsIndexRouteImport } from './routes/posts/index'
-import { Route as PostsPostIdRouteImport } from './routes/posts/$postId'
-import { Route as LayoutNestedRouteRouteImport } from './routes/layout/nested/route'
-import { Route as LayoutNestedRouteBRouteImport } from './routes/layout/nested/route-b'
-import { Route as LayoutNestedRouteARouteImport } from './routes/layout/nested/route-a'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ProductExportIndexRouteImport } from './routes/product-export/index'
+import { Route as ProductDescriptionIndexRouteImport } from './routes/product-description/index'
 
-const PostsRouteRoute = PostsRouteRouteImport.update({
-  id: '/posts',
-  path: '/posts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LayoutRouteRoute = LayoutRouteRouteImport.update({
-  id: '/layout',
-  path: '/layout',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PostsIndexRoute = PostsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PostsRouteRoute,
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PostsPostIdRoute = PostsPostIdRouteImport.update({
-  id: '/$postId',
-  path: '/$postId',
-  getParentRoute: () => PostsRouteRoute,
+const ProductExportIndexRoute = ProductExportIndexRouteImport.update({
+  id: '/product-export/',
+  path: '/product-export/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const LayoutNestedRouteRoute = LayoutNestedRouteRouteImport.update({
-  id: '/nested',
-  path: '/nested',
-  getParentRoute: () => LayoutRouteRoute,
-} as any)
-const LayoutNestedRouteBRoute = LayoutNestedRouteBRouteImport.update({
-  id: '/route-b',
-  path: '/route-b',
-  getParentRoute: () => LayoutNestedRouteRoute,
-} as any)
-const LayoutNestedRouteARoute = LayoutNestedRouteARouteImport.update({
-  id: '/route-a',
-  path: '/route-a',
-  getParentRoute: () => LayoutNestedRouteRoute,
+const ProductDescriptionIndexRoute = ProductDescriptionIndexRouteImport.update({
+  id: '/product-description/',
+  path: '/product-description/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/layout': typeof LayoutRouteRouteWithChildren
-  '/posts': typeof PostsRouteRouteWithChildren
-  '/layout/nested': typeof LayoutNestedRouteRouteWithChildren
-  '/posts/$postId': typeof PostsPostIdRoute
-  '/posts/': typeof PostsIndexRoute
-  '/layout/nested/route-a': typeof LayoutNestedRouteARoute
-  '/layout/nested/route-b': typeof LayoutNestedRouteBRoute
+  '/product-description/': typeof ProductDescriptionIndexRoute
+  '/product-export/': typeof ProductExportIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/layout': typeof LayoutRouteRouteWithChildren
-  '/layout/nested': typeof LayoutNestedRouteRouteWithChildren
-  '/posts/$postId': typeof PostsPostIdRoute
-  '/posts': typeof PostsIndexRoute
-  '/layout/nested/route-a': typeof LayoutNestedRouteARoute
-  '/layout/nested/route-b': typeof LayoutNestedRouteBRoute
+  '/product-description': typeof ProductDescriptionIndexRoute
+  '/product-export': typeof ProductExportIndexRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/layout': typeof LayoutRouteRouteWithChildren
-  '/posts': typeof PostsRouteRouteWithChildren
-  '/layout/nested': typeof LayoutNestedRouteRouteWithChildren
-  '/posts/$postId': typeof PostsPostIdRoute
-  '/posts/': typeof PostsIndexRoute
-  '/layout/nested/route-a': typeof LayoutNestedRouteARoute
-  '/layout/nested/route-b': typeof LayoutNestedRouteBRoute
+  '/product-description/': typeof ProductDescriptionIndexRoute
+  '/product-export/': typeof ProductExportIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/layout'
-    | '/posts'
-    | '/layout/nested'
-    | '/posts/$postId'
-    | '/posts/'
-    | '/layout/nested/route-a'
-    | '/layout/nested/route-b'
+  fullPaths: '/' | '/product-description/' | '/product-export/' | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/layout'
-    | '/layout/nested'
-    | '/posts/$postId'
-    | '/posts'
-    | '/layout/nested/route-a'
-    | '/layout/nested/route-b'
+  to: '/' | '/product-description' | '/product-export' | '/settings'
   id:
     | '__root__'
     | '/'
-    | '/layout'
-    | '/posts'
-    | '/layout/nested'
-    | '/posts/$postId'
-    | '/posts/'
-    | '/layout/nested/route-a'
-    | '/layout/nested/route-b'
+    | '/product-description/'
+    | '/product-export/'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  LayoutRouteRoute: typeof LayoutRouteRouteWithChildren
-  PostsRouteRoute: typeof PostsRouteRouteWithChildren
+  ProductDescriptionIndexRoute: typeof ProductDescriptionIndexRoute
+  ProductExportIndexRoute: typeof ProductExportIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/posts': {
-      id: '/posts'
-      path: '/posts'
-      fullPath: '/posts'
-      preLoaderRoute: typeof PostsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/layout': {
-      id: '/layout'
-      path: '/layout'
-      fullPath: '/layout'
-      preLoaderRoute: typeof LayoutRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -150,87 +83,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/posts/': {
-      id: '/posts/'
-      path: '/'
-      fullPath: '/posts/'
-      preLoaderRoute: typeof PostsIndexRouteImport
-      parentRoute: typeof PostsRouteRoute
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/posts/$postId': {
-      id: '/posts/$postId'
-      path: '/$postId'
-      fullPath: '/posts/$postId'
-      preLoaderRoute: typeof PostsPostIdRouteImport
-      parentRoute: typeof PostsRouteRoute
+    '/product-export/': {
+      id: '/product-export/'
+      path: '/product-export'
+      fullPath: '/product-export/'
+      preLoaderRoute: typeof ProductExportIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/layout/nested': {
-      id: '/layout/nested'
-      path: '/nested'
-      fullPath: '/layout/nested'
-      preLoaderRoute: typeof LayoutNestedRouteRouteImport
-      parentRoute: typeof LayoutRouteRoute
-    }
-    '/layout/nested/route-b': {
-      id: '/layout/nested/route-b'
-      path: '/route-b'
-      fullPath: '/layout/nested/route-b'
-      preLoaderRoute: typeof LayoutNestedRouteBRouteImport
-      parentRoute: typeof LayoutNestedRouteRoute
-    }
-    '/layout/nested/route-a': {
-      id: '/layout/nested/route-a'
-      path: '/route-a'
-      fullPath: '/layout/nested/route-a'
-      preLoaderRoute: typeof LayoutNestedRouteARouteImport
-      parentRoute: typeof LayoutNestedRouteRoute
+    '/product-description/': {
+      id: '/product-description/'
+      path: '/product-description'
+      fullPath: '/product-description/'
+      preLoaderRoute: typeof ProductDescriptionIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface LayoutNestedRouteRouteChildren {
-  LayoutNestedRouteARoute: typeof LayoutNestedRouteARoute
-  LayoutNestedRouteBRoute: typeof LayoutNestedRouteBRoute
-}
-
-const LayoutNestedRouteRouteChildren: LayoutNestedRouteRouteChildren = {
-  LayoutNestedRouteARoute: LayoutNestedRouteARoute,
-  LayoutNestedRouteBRoute: LayoutNestedRouteBRoute,
-}
-
-const LayoutNestedRouteRouteWithChildren =
-  LayoutNestedRouteRoute._addFileChildren(LayoutNestedRouteRouteChildren)
-
-interface LayoutRouteRouteChildren {
-  LayoutNestedRouteRoute: typeof LayoutNestedRouteRouteWithChildren
-}
-
-const LayoutRouteRouteChildren: LayoutRouteRouteChildren = {
-  LayoutNestedRouteRoute: LayoutNestedRouteRouteWithChildren,
-}
-
-const LayoutRouteRouteWithChildren = LayoutRouteRoute._addFileChildren(
-  LayoutRouteRouteChildren,
-)
-
-interface PostsRouteRouteChildren {
-  PostsPostIdRoute: typeof PostsPostIdRoute
-  PostsIndexRoute: typeof PostsIndexRoute
-}
-
-const PostsRouteRouteChildren: PostsRouteRouteChildren = {
-  PostsPostIdRoute: PostsPostIdRoute,
-  PostsIndexRoute: PostsIndexRoute,
-}
-
-const PostsRouteRouteWithChildren = PostsRouteRoute._addFileChildren(
-  PostsRouteRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  LayoutRouteRoute: LayoutRouteRouteWithChildren,
-  PostsRouteRoute: PostsRouteRouteWithChildren,
+  ProductDescriptionIndexRoute: ProductDescriptionIndexRoute,
+  ProductExportIndexRoute: ProductExportIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -3,7 +3,7 @@
 client_id = "fe68b5e4a88eab465983b36b0ddd33a5"
 name = "unmanual"
 application_url = "https://sofary-app-dev-server.i7eo.com"
-embedded = true
+embedded = false
 
 [build]
 automatically_update_urls_on_dev = true

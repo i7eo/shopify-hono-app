@@ -115,28 +115,42 @@ Vite dev server 配置集中在 [`scripts/vite/server.ts`](./scripts/vite/server
 
 ## HTTP Client 边界
 
-浏览器侧 HTTP client 统一从 [`src/utils/client.ts`](./src/utils/client.ts) 获取：
+Shopify app 后端 API 的浏览器侧 HTTP client 统一从
+[`src/utils/client.shopify.ts`](./src/utils/client.shopify.ts) 获取：
 
 ```text
-import { apiClient, client, HttpRequestError } from "@/utils/client";
+import { shopifyClient, ShopifyAuthRedirectError } from "@/utils/client.shopify";
 ```
 
-- `client`：通用 HTTP client，不带 API prefix，适合请求完整 URL。
-- `apiClient`：基于 `client.extend()` 创建，带 `/${DEFAULT_APP_API_PREFIX}` prefix，适合请求当前 app server API。
-- `HttpRequestError`：也从这里 re-export，`src/apis/*` 不直接 import `@shamt/oh-my-fetch`。
+- `shopifyClient`：基于 `@shamt/oh-my-fetch` 的 `createHttpClient().extend({ hooks })` 创建，保留 `.get()`、`.post()`、`.put()`、`.patch()`、`.delete()`、`.upload()` 和 `.request()` 等原生方法。
+- `ShopifyAuthRedirectError`：401 OAuth recovery 时抛出的业务错误，页面层可用它区分授权跳转状态。
+- `HttpRequestError`：从这里 re-export，便于测试或边界层判断底层 HTTP 错误。
 
-Shopify API 请求在 [`src/apis/shopify.ts`](./src/apis/shopify.ts) 中使用 `apiClient`，并根据 `SHOPIFY_APP_MODE` 区分 embedded 与 standalone：
+`shopifyClient` 通过 hooks 统一处理 Shopify app 请求策略：
 
-- embedded：通过 `globalThis.shopify?.idToken()` 设置 `Authorization`。
-- standalone：使用 cookie 凭证。
+- `beforeRequest`：根据 `SHOPIFY_APP_MODE` 设置 `credentials`，embedded 模式下通过 `globalThis.shopify?.idToken()` 注入 `Authorization`。
+- `afterResponse`：成功响应后重置 OAuth redirect throttle。
+- `beforeError`：把 401 `HttpRequestError` 转换成 `ShopifyAuthRedirectError`，并按当前 `shop` 参数触发 `/auth` 顶层跳转。
+
+业务 API 文件只保留数据类型与端点调用，例如
+[`src/apis/shopify.ts`](./src/apis/shopify.ts)：
+
+```text
+shopifyClient.get<ApiResponse<{ shop?: ShopInfo }>>("shop", { signal });
+shopifyClient.get<ApiResponse<ProductsData>>("product", { signal });
+```
+
+页面层使用这些业务函数，不直接拼认证 header 或处理 OAuth recovery。
 
 ## 目录边界
 
 - `configs/`：Node/Vite 侧配置，只允许 Vite config、scripts、plugins 使用。
 - `constants/`：web package 层常量，主要给 Vite plugins 使用。
 - `scripts/vite/`：Vite plugin 与构建期逻辑。
+- `src/apis/`：业务 API 类型与端点函数，只调用领域 client，不承载通用请求策略。
+- `src/components/`：跨路由复用的 UI 状态组件，例如 loading 与 not found。
 - `src/utils/public-env.ts`：浏览器侧 public env 唯一入口。
-- `src/utils/client.ts`：浏览器侧 HTTP client 唯一入口。
+- `src/utils/client.shopify.ts`：Shopify app 后端 API 的领域 HTTP client。
 - `src/utils/client.query.ts`：React Query client 工厂，避免组件重复创建缓存实例。
 - `typings/`：Polaris web components、App Bridge 和 public env 全局类型。
 

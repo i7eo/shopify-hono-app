@@ -1,19 +1,46 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PostNotFoundError } from "../src/apis/posts";
 
-const routerInvalidateMock = vi.hoisted(() => vi.fn());
-const queryBoundaryResetMock = vi.hoisted(() => vi.fn());
 const fetchProductsMock = vi.hoisted(() => vi.fn());
 const fetchShopInfoMock = vi.hoisted(() => vi.fn());
-const useSuspenseQueryMock = vi.hoisted(() => vi.fn());
-const routeParams = vi.hoisted(() => ({ postId: "1" }));
 
-vi.mock("@tanstack/react-query", () => ({
-  queryOptions: (options: unknown) => options,
-  useQueryErrorResetBoundary: () => ({ reset: queryBoundaryResetMock }),
-  useSuspenseQuery: useSuspenseQueryMock,
+vi.mock("@/utils/public-env", () => ({
+  DEFAULT_APP_API_PREFIX: "api",
+  DEFAULT_REQUEST_TIMEOUT: 180_000,
+  DEFAULT_SHOPIFY_APP_MODES: {
+    EMBEDDED: "embedded",
+    STANDALONE: "standalone",
+  },
+  getShopifyAppMode: () => "embedded",
+  isEmbeddedShopifyApp: () => false,
+  isStandaloneShopifyAppMode: () => true,
+}));
+
+vi.mock("@/apis/shopify", () => ({
+  fetchProducts: fetchProductsMock,
+  fetchShopInfo: fetchShopInfoMock,
+  ShopifyAuthRedirectError: class ShopifyAuthRedirectError extends Error {
+    static [Symbol.hasInstance](instance: unknown) {
+      return (
+        instance instanceof Error &&
+        instance.name === "ShopifyAuthRedirectError"
+      );
+    }
+
+    override name = "ShopifyAuthRedirectError";
+  },
+}));
+
+vi.mock("sonner", () => ({
+  Toaster: () => <div data-testid="toaster" />,
+  toast: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query-devtools", () => ({
@@ -35,7 +62,6 @@ vi.mock("@tanstack/react-router", () => {
   const makeRoute = (path: string, config: Record<string, unknown>) => ({
     path,
     options: config,
-    useParams: () => routeParams,
   });
 
   return {
@@ -47,254 +73,156 @@ vi.mock("@tanstack/react-router", () => {
       () =>
       (config: Record<string, unknown> = {}) =>
         makeRoute("__root__", config),
-    ErrorComponent: ({ error }: { error: Error }) => (
-      <div data-error>{error.message}</div>
-    ),
-    Link: ({
-      children,
-      to,
-      params,
-      className,
-    }: {
-      children: React.ReactNode;
-      to: string;
-      params?: { postId?: string };
-      className?: string;
-    }) => (
-      <a
-        className={className}
-        href={params?.postId ? `${to}:${params.postId}` : to}
-      >
-        {children}
-      </a>
-    ),
     Outlet: () => <main data-testid="outlet" />,
-    useRouter: () => ({ invalidate: routerInvalidateMock }),
   };
 });
 
-vi.mock("@/apis/shopify", () => ({
-  fetchProducts: fetchProductsMock,
-  fetchShopInfo: fetchShopInfoMock,
-  ShopifyAuthRedirectError: class ShopifyAuthRedirectError extends Error {
-    override name = "ShopifyAuthRedirectError";
-  },
-}));
-
 describe("route components", () => {
   beforeEach(() => {
-    routeParams.postId = "1";
     fetchProductsMock.mockReset();
     fetchShopInfoMock.mockReset();
-    fetchProductsMock.mockResolvedValue({ data: { products: { edges: [] } } });
+    fetchProductsMock.mockResolvedValue({
+      data: {
+        products: {
+          edges: [
+            { node: { id: "gid://shopify/Product/1", title: "Cotton tee" } },
+          ],
+        },
+      },
+    });
     fetchShopInfoMock.mockResolvedValue({
       data: { shop: { myshopifyDomain: "shop.myshopify.com", name: "Shop" } },
     });
-    useSuspenseQueryMock.mockReset();
-    queryBoundaryResetMock.mockClear();
-    routerInvalidateMock.mockClear();
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("renders the root route shell and not-found component", async () => {
+  it("renders the root shell, app nav, devtools fallback, and not-found component", async () => {
     const { Route } = await import("../src/routes/__root");
     const Component = Route.options.component as React.ComponentType;
     const NotFound = Route.options.notFoundComponent as React.ComponentType;
 
-    const { unmount } = render(<Component />);
+    render(<Component />);
 
-    expect(screen.getByRole("link", { name: "Home" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Posts" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Layout Routes" })).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: "This Route Does Not Exist" }),
-    ).toBeTruthy();
+    expect(screen.getByTestId("outlet")).toBeTruthy();
+    expect(document.querySelector("s-app-nav")).toBeTruthy();
+    expect(readAppNavLinks()).toEqual([
+      { href: "/", label: "Home" },
+      { href: "/product-export", label: "Product export" },
+      { href: "/product-description", label: "Product description" },
+      { href: "/settings", label: "Settings" },
+    ]);
+    expect(await screen.findByTestId("toaster")).toBeTruthy();
     expect(
       (await screen.findByTestId("react-query-devtools")).dataset.position,
     ).toBe("bottom-left");
     expect(
       (await screen.findByTestId("router-devtools")).dataset.position,
     ).toBe("bottom-right");
-    unmount();
 
+    cleanup();
     render(<NotFound />);
 
-    expect(
-      screen.getByText(
-        "This is the notFoundComponent configured on root route",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Start Over" })).toBeTruthy();
-  });
-
-  it("renders simple page routes", async () => {
-    const home = await import("../src/routes/index");
-    const postsIndex = await import("../src/routes/posts/index");
-    const routeA = await import("../src/routes/layout/nested/route-a");
-    const routeB = await import("../src/routes/layout/nested/route-b");
-
-    const { unmount } = render(
-      React.createElement(home.Route.options.component as React.ComponentType),
-    );
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
-      "My Shopify App",
+      "Page not found",
     );
-    unmount();
-
-    render(
-      React.createElement(
-        postsIndex.Route.options.component as React.ComponentType,
-      ),
-    );
-    expect(screen.getByText("Select a post.")).toBeTruthy();
-    unmount();
-
-    render(
-      React.createElement(
-        routeA.Route.options.component as React.ComponentType,
-      ),
-    );
-    expect(screen.getByText("I'm layout A!")).toBeTruthy();
-    unmount();
-
-    render(
-      React.createElement(
-        routeB.Route.options.component as React.ComponentType,
-      ),
-    );
-    expect(screen.getByText("I'm layout B!")).toBeTruthy();
+    expect(screen.getByText("Oops! Page Not Found.")).toBeTruthy();
+    expect(screen.getByText("Go to app home")).toBeTruthy();
   });
 
-  it("renders layout shells", async () => {
-    const { LayoutRouteShell, NestedLayoutRouteShell } =
-      await import("../src/layouts/layout-routes");
+  it("renders the homepage dashboard", async () => {
+    const { Route } = await import("../src/routes/index");
+    const Component = Route.options.component as React.ComponentType;
 
-    const { unmount } = render(<LayoutRouteShell />);
-    expect(screen.getByText("I'm a layout")).toBeTruthy();
-    expect(screen.getByTestId("outlet")).toBeTruthy();
-    unmount();
+    render(<Component />);
 
-    render(<NestedLayoutRouteShell />);
-
-    expect(screen.getByText("I'm a nested layout")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Go to route A" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Go to route B" })).toBeTruthy();
-  });
-
-  it("wires layout route modules to their shell components", async () => {
-    const layout = await import("../src/routes/layout/route");
-    const nested = await import("../src/routes/layout/nested/route");
-
-    expect(layout.Route.path).toBe("/layout");
-    expect(nested.Route.path).toBe("/layout/nested");
-
-    const { unmount } = render(
-      React.createElement(
-        layout.Route.options.component as React.ComponentType,
-      ),
+    expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+      "Product content hub",
     );
-    expect(screen.getByText("I'm a layout")).toBeTruthy();
-    unmount();
+    expect(sectionHeading("Setup guide")).toBeTruthy();
+    expect(sectionHeading("Needs attention")).toBeTruthy();
+    expect(screen.getByText("Description review")).toBeTruthy();
+  });
 
-    render(
-      React.createElement(
-        nested.Route.options.component as React.ComponentType,
-      ),
+  it("renders the product description resource index", async () => {
+    const { Route } = await import("../src/routes/product-description");
+    const Component = Route.options.component as React.ComponentType;
+
+    render(<Component />);
+
+    expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+      "Product descriptions",
     );
-    expect(screen.getByText("I'm a nested layout")).toBeTruthy();
+    expect(screen.getByText("Classic cotton tee")).toBeTruthy();
+    expect(screen.getByText("Everyday canvas tote")).toBeTruthy();
+    expect(screen.getByText("Approve selected")).toBeTruthy();
   });
 
-  it("loads and renders the posts layout", async () => {
-    const { PostsLayout } = await import("../src/layouts/posts");
-    useSuspenseQueryMock.mockReturnValueOnce({
-      data: [
-        {
-          id: "1",
-          title: "A title that is definitely longer than twenty",
-          body: "",
-        },
-        { id: "2", title: "Short title", body: "" },
-      ],
-    });
-
-    render(<PostsLayout />);
-
-    const firstPostLink = screen.getByRole("link", {
-      name: "A title that is defi",
-    });
-
-    expect(screen.getByText("Short title")).toBeTruthy();
-    expect(screen.getByText("Non-existent Post")).toBeTruthy();
-    expect(firstPostLink.getAttribute("href")).toBe("/posts/$postId:1");
-    expect(screen.getByTestId("outlet")).toBeTruthy();
-  });
-
-  it("uses React Query loaders for posts routes", async () => {
-    const postsRoute = await import("../src/routes/posts/route");
-    const postRoute = await import("../src/routes/posts/$postId");
-    const ensureQueryData = vi.fn((options) => options);
-    const context = { queryClient: { ensureQueryData } };
-
-    //@ts-ignore
-    const postsResult = postsRoute.Route.options.loader({
-      context,
-    });
-    //@ts-ignore
-    const postResult = postRoute.Route.options.loader({
-      context,
-      params: { postId: "abc" },
-    });
-
-    expect(postsResult.queryKey).toEqual(["posts"]);
-    expect(postResult.queryKey).toEqual(["posts", { postId: "abc" }]);
-    expect(ensureQueryData).toHaveBeenCalledTimes(2);
-  });
-
-  it("renders a post detail", async () => {
-    const { Route } = await import("../src/routes/posts/$postId");
-    routeParams.postId = "42";
-    useSuspenseQueryMock.mockReturnValueOnce({
-      data: { id: "42", title: "Meaningful title", body: "The answer body" },
-    });
+  it("loads and renders the product export resource index", async () => {
+    const { Route } = await import("../src/routes/product-export");
     const Component = Route.options.component as React.ComponentType;
 
     render(<Component />);
 
     expect(
-      screen.getByRole("heading", { name: "Meaningful title" }),
+      document.querySelector(
+        's-spinner[accessibilitylabel="Loading products"]',
+      ),
     ).toBeTruthy();
-    expect(screen.getByText("The answer body")).toBeTruthy();
-    expect(useSuspenseQueryMock).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ["posts", { postId: "42" }] }),
+    await waitFor(() => {
+      expect(screen.getByText("Cotton tee")).toBeTruthy();
+    });
+    expect(screen.getByText("Shop")).toBeTruthy();
+    expect(document.querySelector("#shop-info")?.textContent).toContain(
+      "shop.myshopify.com",
+    );
+    expect(fetchShopInfoMock).toHaveBeenCalledOnce();
+    expect(fetchProductsMock).toHaveBeenCalledOnce();
+  });
+
+  it("renders generic error states on product export", async () => {
+    fetchShopInfoMock.mockRejectedValueOnce(new Error("Server unavailable"));
+    const { Route } = await import("../src/routes/product-export");
+    const Component = Route.options.component as React.ComponentType;
+
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Server unavailable")).toBeTruthy();
+    });
+  });
+
+  it("renders and submits the settings form", async () => {
+    const { Route } = await import("../src/routes/settings");
+    const Component = Route.options.component as React.ComponentType;
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    render(<Component />);
+    fireEvent.submit(document.querySelector("form")!);
+
+    expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+      "Settings",
+    );
+    expect(sectionHeading("Export defaults")).toBeTruthy();
+    expect(sectionHeading("Description generation")).toBeTruthy();
+    expect(consoleLog).toHaveBeenCalledWith(
+      "Settings form data",
+      expect.any(Object),
     );
   });
-
-  it("renders a friendly post-not-found error", async () => {
-    const { Route } = await import("../src/routes/posts/$postId");
-    const ErrorComponent = Route.options.errorComponent as React.ComponentType<{
-      error: Error;
-    }>;
-
-    render(<ErrorComponent error={new PostNotFoundError("Gone")} />);
-
-    expect(screen.getByText("Gone")).toBeTruthy();
-    expect(queryBoundaryResetMock).not.toHaveBeenCalled();
-  });
-
-  it("renders retry UI for other post errors", async () => {
-    const { Route } = await import("../src/routes/posts/$postId");
-    const ErrorComponent = Route.options.errorComponent as React.ComponentType<{
-      error: Error;
-    }>;
-
-    render(<ErrorComponent error={new Error("Temporary failure")} />);
-    fireEvent.click(screen.getByRole("button", { name: "retry" }));
-
-    expect(screen.getByText("Temporary failure")).toBeTruthy();
-    expect(queryBoundaryResetMock).toHaveBeenCalledTimes(1);
-    expect(routerInvalidateMock).toHaveBeenCalledTimes(1);
-  });
 });
+
+function sectionHeading(heading: string) {
+  return document.querySelector(`s-section[heading="${heading}"]`);
+}
+
+function readAppNavLinks() {
+  return Array.from(document.querySelectorAll("s-app-nav s-link")).map(
+    (link) => ({
+      href: link.getAttribute("href"),
+      label: link.textContent?.trim(),
+    }),
+  );
+}

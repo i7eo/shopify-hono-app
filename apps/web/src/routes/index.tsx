@@ -1,120 +1,110 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import {
-  fetchProducts,
-  fetchShopInfo,
-  ShopifyAuthRedirectError,
-  type ProductNode,
-  type ShopInfo,
-} from "@/apis/shopify";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
 
-interface HomeState {
-  error?: string;
-  products: ProductNode[];
-  shop?: ShopInfo;
-  status: "loading" | "ready" | "redirecting" | "error";
-}
-
 function Home() {
-  const [state, setState] = useState<HomeState>({
-    products: [],
-    status: "loading",
-  });
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadAppShellData() {
-      try {
-        const [shop, products] = await Promise.all([
-          fetchShopInfo(controller.signal),
-          fetchProducts(controller.signal),
-        ]);
-
-        setState({
-          products:
-            products.data?.products?.edges?.map((edge) => edge.node) ?? [],
-          shop: shop.data?.shop,
-          status: "ready",
-        });
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setState({
-          error: error instanceof Error ? error.message : String(error),
-          products: [],
-          status: isAuthRedirectError(error) ? "redirecting" : "error",
-        });
-      }
-    }
-
-    loadAppShellData();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
   return (
-    <s-page heading="My Shopify App" inlineSize="base">
-      {state.status === "redirecting" ? (
-        <s-section>
-          <s-banner tone="info">Redirecting to Shopify authorization.</s-banner>
-        </s-section>
-      ) : null}
+    <s-page heading="Product content hub">
+      <s-button slot="primary-action" variant="primary" href="/product-export">
+        Export products
+      </s-button>
+      <s-button
+        slot="secondary-actions"
+        variant="secondary"
+        href="/product-description"
+      >
+        Review descriptions
+      </s-button>
+      <s-button slot="secondary-actions" variant="secondary" href="/settings">
+        Settings
+      </s-button>
 
-      {state.status === "error" ? (
-        <s-section>
-          <s-banner tone="critical">{state.error}</s-banner>
-        </s-section>
-      ) : null}
+      <s-banner tone="info">
+        Product export and description workflows are ready for Shopify app
+        testing.
+      </s-banner>
 
-      <s-section heading="Shop Info">
-        <s-box id="shop-info">
-          {state.status === "loading" ? (
-            <s-spinner
-              accessibilityLabel="Loading shop info"
-              size="base"
-            ></s-spinner>
-          ) : state.shop ? (
-            <>
-              <s-text type="strong">{state.shop.name}</s-text>
-              <s-text color="subdued"> ({state.shop.myshopifyDomain})</s-text>
-            </>
-          ) : (
-            <s-text color="subdued">No shop info found.</s-text>
-          )}
+      <s-section heading="Setup guide">
+        <s-box border="base" borderRadius="base" background="base">
+          <s-box padding="base">
+            <s-checkbox
+              label="Connect Shopify authorization"
+              checked
+            ></s-checkbox>
+          </s-box>
+          <s-divider></s-divider>
+          <s-box padding="base">
+            <s-checkbox label="Review product description defaults"></s-checkbox>
+          </s-box>
+          <s-divider></s-divider>
+          <s-box padding="base">
+            <s-checkbox label="Export your first product catalog"></s-checkbox>
+          </s-box>
         </s-box>
       </s-section>
 
-      <s-section heading="Products">
-        <s-box id="products-container">
-          {state.status === "loading" ? (
-            <s-spinner
-              accessibilityLabel="Loading products"
-              size="base"
-            ></s-spinner>
-          ) : state.products.length > 0 ? (
-            <s-unordered-list>
-              {state.products.map((product) => (
-                <s-list-item key={product.id}>{product.title}</s-list-item>
-              ))}
-            </s-unordered-list>
-          ) : (
-            <s-text color="subdued">No products found.</s-text>
-          )}
-        </s-box>
+      <s-section heading="Overview">
+        <s-grid
+          gridTemplateColumns="@container (inline-size <= 640px) 1fr, 1fr auto 1fr auto 1fr"
+          gap="base"
+        >
+          <s-clickable href="/product-export" padding="base">
+            <s-heading>Products ready</s-heading>
+            <s-stack direction="inline" gap="small-200" alignItems="center">
+              <s-text>24</s-text>
+              <s-badge tone="success">Synced</s-badge>
+            </s-stack>
+          </s-clickable>
+          <s-divider direction="block"></s-divider>
+          <s-clickable href="/product-description" padding="base">
+            <s-heading>Descriptions</s-heading>
+            <s-stack direction="inline" gap="small-200" alignItems="center">
+              <s-text>8</s-text>
+              <s-badge tone="warning">Need review</s-badge>
+            </s-stack>
+          </s-clickable>
+          <s-divider direction="block"></s-divider>
+          <s-clickable href="/settings" padding="base">
+            <s-heading>Automation</s-heading>
+            <s-stack direction="inline" gap="small-200" alignItems="center">
+              <s-text>On</s-text>
+              <s-badge tone="success">Active</s-badge>
+            </s-stack>
+          </s-clickable>
+        </s-grid>
+      </s-section>
+
+      <s-section heading="Needs attention">
+        <s-table>
+          <s-table-header-row>
+            <s-table-header listSlot="primary">Workflow</s-table-header>
+            <s-table-header>Status</s-table-header>
+            <s-table-header>Next step</s-table-header>
+          </s-table-header-row>
+          <s-table-body>
+            <s-table-row>
+              <s-table-cell>
+                <s-link href="/product-description">Description review</s-link>
+              </s-table-cell>
+              <s-table-cell>
+                <s-badge tone="warning">Review</s-badge>
+              </s-table-cell>
+              <s-table-cell>Approve generated descriptions</s-table-cell>
+            </s-table-row>
+            <s-table-row>
+              <s-table-cell>
+                <s-link href="/product-export">Product export</s-link>
+              </s-table-cell>
+              <s-table-cell>
+                <s-badge tone="success">Ready</s-badge>
+              </s-table-cell>
+              <s-table-cell>Download the latest catalog</s-table-cell>
+            </s-table-row>
+          </s-table-body>
+        </s-table>
       </s-section>
     </s-page>
   );
-}
-
-function isAuthRedirectError(error: unknown) {
-  return error instanceof ShopifyAuthRedirectError;
 }

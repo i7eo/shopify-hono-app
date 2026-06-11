@@ -2,6 +2,7 @@
   "extends": ["@unconfig/ts-config-latest/node.json"],
   "compilerOptions": {
     "composite": true,
+    "types": ["node"],
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
