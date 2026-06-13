@@ -1,7 +1,11 @@
-import { createShopifyConfig } from "@/app/modules/shopify/config";
+import {
+  createShopifyConfig,
+  getShopifyEnvConfig,
+} from "@/app/modules/shopify/config";
 import { createShopifyClient } from "@/infra/http/shopify";
 import { providerDisposers, providers } from "./constants";
 import { getLoggerProvider } from "./logger";
+import { createProviderSignature } from "./signature";
 import type { RuntimeConfig } from "@/infra/env";
 import type { AppEnv } from "@/typings";
 import type { Shopify } from "@shopify/shopify-api";
@@ -47,15 +51,5 @@ function setShopifyConfigProvider(shopify: Shopify, signature: string) {
 }
 
 function getShopifyConfigSignature(config: RuntimeConfig): string {
-  return [
-    config.APP_RUNTIME,
-    config.APP_ENV,
-    config.SHOPIFY_APP_MODE,
-    config.SHOPIFY_APP_KEY,
-    config.SHOPIFY_APP_URL,
-    config.SHOPIFY_API_VERSION,
-    config.SCOPES,
-  ]
-    .map((value) => String(value ?? ""))
-    .join(":");
+  return createProviderSignature(getShopifyEnvConfig(config));
 }

@@ -3,8 +3,8 @@ import path from "node:path";
 import {
   configSchema,
   DEFAULT_RUNTIMES,
+  DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS,
   DEFAULT_SHOPIFY_APP_MODES,
-  SHOPIFY_APP_FRONTEND_TARGETS,
 } from "@shamt/app-env";
 import { isObject, throwError } from "../utils";
 import {
@@ -69,9 +69,10 @@ async function writeShopifyWebFiles(config: ShopifyFileConfig) {
   ]);
 
   const isBackendFrontendTarget =
-    config.SHOPIFY_APP_FRONTEND_TARGET === SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
-  const backendRole = SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
-  const frontendRole = SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
+    config.SHOPIFY_APP_FRONTEND_TARGET ===
+    DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
+  const backendRole = DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.BACKEND;
+  const frontendRole = DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
   const serverToml = renderShopifyWebToml({
     roles: isBackendFrontendTarget
       ? [frontendRole, backendRole]

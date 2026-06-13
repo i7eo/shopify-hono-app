@@ -6,6 +6,7 @@ export const runtimeConfig = {
   APP_API_PREFIX: "api",
   APP__SERVER_PORT: 3000,
   APP__WEB_PORT: 3001,
+  APP_DATABASE_PROVIDER: "postgres",
   SHOPIFY_APP_MODE: "embedded",
   SHOPIFY_APP_FRONTEND_TARGET: "backend",
   SHOPIFY_APP_KEY: "test_app_key",

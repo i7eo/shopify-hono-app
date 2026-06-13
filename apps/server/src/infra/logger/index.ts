@@ -14,7 +14,7 @@ let loggerConfigured = false;
 export async function setupBootstrapLogger(): Promise<void> {
   if (loggerConfigured) return;
 
-  await setupConsoleLogger(DEFAULT_LOG_LEVEL, { reset: false });
+  await setupConsoleLogger({ level: DEFAULT_LOG_LEVEL }, { reset: false });
   loggerConfigured = true;
 }
 
@@ -33,7 +33,10 @@ export async function setupLogger(
   if (runtimeLoggerSetup) {
     await runtimeLoggerSetup(runtimeConfig, { reset });
   } else {
-    await setupConsoleLogger(runtimeConfig.APP_LOGGER_LEVEL, { reset });
+    await setupConsoleLogger(
+      { level: runtimeConfig.APP_LOGGER_LEVEL },
+      { reset },
+    );
   }
 
   loggerConfigured = true;

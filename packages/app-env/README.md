@@ -56,15 +56,16 @@ Use constants without scattering string literals:
 ```ts
 import {
   DEFAULT_RUNTIMES,
+  DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS,
   DEFAULT_SHOPIFY_APP_MODES,
-  SHOPIFY_APP_FRONTEND_TARGETS,
 } from "@shamt/app-env/constants";
 
 const isCloudflare = config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE;
 const isEmbedded =
   config.SHOPIFY_APP_MODE === DEFAULT_SHOPIFY_APP_MODES.EMBEDDED;
 const frontendTarget =
-  config.SHOPIFY_APP_FRONTEND_TARGET === SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
+  config.SHOPIFY_APP_FRONTEND_TARGET ===
+  DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
 ```
 
 ## Boundaries

@@ -1,4 +1,4 @@
-import { SHOPIFY_APP_FRONTEND_TARGETS } from "@shamt/app-env";
+import { DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS } from "@shamt/app-env";
 import { getShopifyModeCapabilities } from "../mode";
 import { getShopifyAppShellUrl } from "./urls";
 import type { AppEnv } from "@/typings";
@@ -20,7 +20,8 @@ function renderAppShellResponse(c: Context<AppEnv>) {
   const config = c.get("runtimeEnv");
 
   if (
-    config.SHOPIFY_APP_FRONTEND_TARGET === SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND
+    config.SHOPIFY_APP_FRONTEND_TARGET ===
+    DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND
   ) {
     return c.redirect(getShopifyAppShellUrl(config));
   }

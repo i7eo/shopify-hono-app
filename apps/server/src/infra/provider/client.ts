@@ -1,6 +1,7 @@
-import { createClient } from "@/infra/http/client";
+import { createClient, getClientEnvConfig } from "@/infra/http/client";
 import { providerDisposers, providers } from "./constants";
 import { getEnvProvider } from "./env";
+import { createProviderSignature } from "./signature";
 import type { RuntimeConfig } from "@/infra/env";
 
 export type HttpClient = ReturnType<typeof createClient>;
@@ -45,7 +46,5 @@ function getCurrentEnvProvider(): RuntimeConfig {
 }
 
 function getClientProviderSignature(config: RuntimeConfig): string {
-  return [config.APP_RUNTIME, config.APP_ENV, config.APP_REQUEST_TIMEOUT]
-    .map((value) => String(value ?? ""))
-    .join(":");
+  return createProviderSignature(getClientEnvConfig(config));
 }

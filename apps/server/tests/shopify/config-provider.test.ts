@@ -126,7 +126,10 @@ describe("Shopify provider and HTTP client", () => {
       .mockReturnValueOnce({ id: "first" })
       .mockReturnValueOnce({ id: "second" })
       .mockReturnValueOnce({ id: "third" });
-    vi.doMock("@/app/modules/shopify/config", () => ({
+    vi.doMock("@/app/modules/shopify/config", async (importOriginal) => ({
+      ...(await importOriginal<
+        typeof import("@/app/modules/shopify/config")
+      >()),
       createShopifyConfig,
     }));
     vi.doMock("@/infra/provider/logger", () => ({
@@ -146,7 +149,7 @@ describe("Shopify provider and HTTP client", () => {
     } as never);
     const third = await getShopifyConfigProvider({
       ...runtimeConfig,
-      SCOPES: undefined,
+      SHOPIFY_APP_URL: "https://updated.example.com",
     } as never);
 
     expect(first).toEqual({ id: "first" });

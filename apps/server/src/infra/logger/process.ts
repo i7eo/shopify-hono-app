@@ -35,6 +35,14 @@ type ProcessLoggerSinkName =
   | "warnDailyFile"
   | "errorDailyFile";
 
+export function getProcessLoggerEnvConfig(config: RuntimeConfig) {
+  return {
+    level: config.APP_LOGGER_LEVEL,
+    maxSize: config.APP_LOGGER_MAX_SIZE,
+    expire: config.APP_LOGGER_EXPIRE,
+  };
+}
+
 /**
  * Configure logger sinks for process runtimes such as Node.
  * Production can write rotating files, while non-production stays console-only.
@@ -43,14 +51,16 @@ export async function setupProcessLogger(
   config: RuntimeConfig,
   options: LoggerSetupOptions,
 ): Promise<void> {
+  const processLoggerEnvConfig = getProcessLoggerEnvConfig(config);
+
   if (config.APP_ENV !== DEFAULT_ENVS.PRODUCTION) {
-    await setupConsoleLogger(config.APP_LOGGER_LEVEL, options);
+    await setupConsoleLogger({ level: processLoggerEnvConfig.level }, options);
     return;
   }
 
   const logPaths = await resolveProcessLogPaths(config);
-  const maxSize = config.APP_LOGGER_MAX_SIZE;
-  const expire = config.APP_LOGGER_EXPIRE;
+  const maxSize = processLoggerEnvConfig.maxSize;
+  const expire = processLoggerEnvConfig.expire;
   const sinks: Partial<Record<ProcessLoggerSinkName, Sink>> = {
     console: getConsoleSink({ formatter: jsonLinesFormatter }),
   };

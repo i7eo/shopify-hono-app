@@ -62,7 +62,19 @@ Cloudflare 下 `envConfig` 来自 `c.env`，其中包含 request-bound 平台 bi
 
 如果签名没有变化，provider 会直接返回上一次解析好的 `RuntimeConfig`，不会每个请求都重新跑 schema parse。
 
-签名只包含关键配置字段和平台 binding 是否存在，不会把 binding 对象整体 stringify。`APP_RUNTIME`、`SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、端口、Shopify app key、app URL、API version、scopes 等字段变化时都会触发重新解析。
+env provider 的签名由 `@shamt/app-env` 的 `configSchema.shape` 自动生成，不再手写字段清单。新增 env schema 文件时，只要字段被合入 `configSchema`，`getEnvProvider()` 的缓存签名就会自动包含这些字段。
+
+签名不会把平台 binding 对象整体 stringify。Cloudflare KV 这类 binding 只记录是否存在，避免把 request-bound 对象细节写入缓存 key。
+
+其他 provider 不直接复用全量 env 签名，而是先把 `RuntimeConfig` 投影成自己实际消费的配置 DTO，再用这个 DTO 生成签名。例如 HTTP client 只关心 `APP_REQUEST_TIMEOUT`，不会因为 `APP_FILE_UPLOAD_TIMEOUT` 变化而重建。
+
+相关文件：
+
+- `src/infra/provider/signature.ts`
+- `src/infra/provider/env.ts`
+- `src/infra/provider/client.ts`
+- `src/infra/provider/logger.ts`
+- `src/infra/provider/shopify.ts`
 
 `SHOPIFY_APP_FRONTEND_TARGET` 属于签名字段，因为它会改变 server app shell route 和 OAuth callback fallback URL。切换 frontend target 后，provider 必须重新解析配置，不能复用旧的 `runtimeEnv`。
 
@@ -104,6 +116,7 @@ sofary?: KVNamespace
 | ----------------------------- | ----------------------------------- | --------------------------------------- |
 | `APP_ENV`                     | `development`、`test`、`production` | 当前配置环境                            |
 | `APP_RUNTIME`                 | `node`、`cloudflare`、`vercel-edge` | server 执行环境，`vercel-edge` 当前预留 |
+| `APP_DATABASE_PROVIDER`       | `postgres`、`neon`                  | 数据库 provider                         |
 | `APP_LOGGER_EXPIRE`           | `604800000`                         | 日志过期时间                            |
 | `APP__SERVER_PORT`            | `10001`                             | `apps/server` dev 端口                  |
 | `APP__WEB_PORT`               | `10002`                             | `apps/web` dev 端口                     |
@@ -115,7 +128,7 @@ sofary?: KVNamespace
 | `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version               |
 | `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                   |
 
-其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`。
+其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_DATABASE_URL`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
 
 ## 部署期 Env
 

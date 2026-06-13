@@ -1,4 +1,3 @@
-import { DEFAULT_UPLOAD_TIMEOUT } from "@shamt/app-env";
 import { requestId } from "hono/request-id";
 // import { compress } from "hono/compress";
 import { trimTrailingSlash } from "hono/trailing-slash";
@@ -6,10 +5,9 @@ import { getEnvProvider } from "@/infra/provider";
 import {
   emojiFaviconMiddleware,
   loggerMiddleware,
+  requestMiddleware,
   runtimeEnvMiddleware,
   runtimeLoggerMiddleware,
-  timeoutMiddleware,
-  uploadMiddleware,
 } from "@/shared/middlewares";
 import type { AppEnv } from "@/typings";
 import type { Hono } from "hono";
@@ -20,16 +18,13 @@ import type { Hono } from "hono";
 export function registerMiddleware(app: Hono<AppEnv>) {
   const env = getEnvProvider();
   const apiPrefix = `/${env.APP_API_PREFIX}`;
-  const apiPath = `${apiPrefix}/:path{(?!upload(?:/|$)).*}`;
-  const apiUploadPath = `${apiPrefix}/upload`;
-  const apiUploadMessage = "Upload request timed out";
+  const apiFilesPath = `${apiPrefix}/files`;
 
   app.use(emojiFaviconMiddleware("⚡️"));
   app.use(trimTrailingSlash());
   app.use("*", requestId());
   app.use("*", runtimeEnvMiddleware());
   app.use("*", runtimeLoggerMiddleware());
-  app.use(apiPath, timeoutMiddleware(env.APP_REQUEST_TIMEOUT));
   app.use(
     /** must be after runtimeLoggerMiddleware, avoid logger reset */
     loggerMiddleware({
@@ -37,14 +32,26 @@ export function registerMiddleware(app: Hono<AppEnv>) {
     }),
   );
   app.use(
-    apiUploadPath,
-    timeoutMiddleware(DEFAULT_UPLOAD_TIMEOUT, apiUploadMessage),
-    uploadMiddleware(),
-  );
-  app.use(
-    `${apiUploadPath}/*`,
-    timeoutMiddleware(DEFAULT_UPLOAD_TIMEOUT, apiUploadMessage),
-    uploadMiddleware(),
+    "*",
+    requestMiddleware({
+      apiPrefix,
+      defaultTimeout: {
+        ms: env.APP_REQUEST_TIMEOUT,
+      },
+      policies: [
+        {
+          bodyLimit: {
+            maxSize: env.APP_FILE_MAX_SIZE,
+          },
+          method: "POST",
+          path: apiFilesPath,
+          timeout: {
+            message: "Upload request timed out",
+            ms: env.APP_FILE_UPLOAD_TIMEOUT,
+          },
+        },
+      ],
+    }),
   );
   // app.use(compress()); // if nginx config this is not required
 }

@@ -13,6 +13,24 @@ const apiVersions: Record<string, ApiVersion> = {
   "2026-04": ApiVersion.April26,
 };
 
+export function getShopifyEnvConfig(config: RuntimeConfig) {
+  const appUrl = new URL(config.SHOPIFY_APP_URL);
+  const hostScheme: "http" | "https" =
+    appUrl.protocol === "http:" ? "http" : "https";
+
+  return {
+    apiKey: config.SHOPIFY_APP_KEY,
+    apiSecretKey: config.SHOPIFY_APP_SECRET,
+    apiVersion: getShopifyApiVersion(config.SHOPIFY_API_VERSION),
+    hostName: appUrl.host,
+    hostScheme,
+    isEmbeddedApp: isEmbeddedShopifyAppMode(config.SHOPIFY_APP_MODE),
+    scopes: config.SCOPES.split(",")
+      .map((scope) => scope.trim())
+      .filter(Boolean),
+  };
+}
+
 /**
  * Creates the Shopify API SDK instance from validated runtime configuration.
  */
@@ -20,24 +38,16 @@ export function createShopifyConfig(
   config: RuntimeConfig,
   logger: Logger,
 ): Shopify {
-  const appUrl = new URL(config.SHOPIFY_APP_URL);
+  const shopifyEnvConfig = getShopifyEnvConfig(config);
 
   return shopifyApi({
-    apiKey: config.SHOPIFY_APP_KEY,
-    apiSecretKey: config.SHOPIFY_APP_SECRET,
-    apiVersion: getShopifyApiVersion(config.SHOPIFY_API_VERSION),
-    hostName: appUrl.host,
-    hostScheme: appUrl.protocol === "http:" ? "http" : "https",
-    isEmbeddedApp: isEmbeddedShopifyAppMode(config.SHOPIFY_APP_MODE),
+    ...shopifyEnvConfig,
     logger: {
       level: LogSeverity.Info,
       log: (severity, message) => {
         logShopifyMessage(logger, severity, message);
       },
     },
-    scopes: config.SCOPES.split(",")
-      .map((scope) => scope.trim())
-      .filter(Boolean),
   });
 }
 

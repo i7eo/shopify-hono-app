@@ -51,6 +51,18 @@ logger provider 使用阶段标记避免普通请求反复 reset LogTape：
 - 从 bootstrap 阶段切到 runtime 阶段。
 - 显式传入 `{ override: true }`。
 - provider 被 reset 或 dispose 后重新初始化。
+- logger 配置 DTO 的签名发生变化。
+
+logger provider 不使用全量 env 签名，而是只从 `RuntimeConfig` 中投影 logger 实际消费的字段：
+
+- `APP_RUNTIME`
+- `APP_ENV`
+- `APP_LOGGER_DIR`
+- `APP_LOGGER_LEVEL`
+- `APP_LOGGER_EXPIRE`
+- `APP_LOGGER_MAX_SIZE`
+
+这能避免 file、database、Shopify 等无关配置变化时重复 reset LogTape。
 
 ## Runtime Sink
 

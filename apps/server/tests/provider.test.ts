@@ -41,6 +41,28 @@ describe("infra providers", () => {
     resetEnvProvider();
   });
 
+  it("recreates env provider when composed schema fields change", async () => {
+    stubRuntimeEnv({ APP_FILE_UPLOAD_TIMEOUT: "1000" });
+    const getRuntimeConfig = vi.fn((rawEnv) => ({
+      ...(rawEnv as Record<string, unknown>),
+      parsedAt: getRuntimeConfig.mock.calls.length,
+    }));
+    vi.doMock("@/infra/env", () => ({
+      getRuntimeConfig,
+    }));
+
+    const { getEnvProvider, resetEnvProvider } =
+      await import("@/infra/provider/env");
+    const first = getEnvProvider();
+    vi.stubEnv("APP_FILE_UPLOAD_TIMEOUT", "2000");
+    const changed = getEnvProvider();
+
+    expect(changed).not.toBe(first);
+    expect(getRuntimeConfig).toHaveBeenCalledTimes(2);
+
+    resetEnvProvider();
+  });
+
   it("creates the HTTP client with APP_REQUEST_TIMEOUT from the env provider", async () => {
     stubRuntimeEnv({ APP_REQUEST_TIMEOUT: "1234" });
     const createHttpClient = vi.fn((options) => ({
@@ -108,6 +130,35 @@ describe("infra providers", () => {
         timeout: 2000,
       }),
     );
+
+    resetClientProvider();
+  });
+
+  it("does not recreate the HTTP client when unrelated file config changes", async () => {
+    stubRuntimeEnv({
+      APP_FILE_UPLOAD_TIMEOUT: "1000",
+      APP_REQUEST_TIMEOUT: "1234",
+    });
+    const createHttpClient = vi.fn((options) => ({
+      options,
+      dispose: vi.fn(),
+    }));
+    vi.doMock("@shamt/oh-my-fetch/client", () => ({
+      createHttpClient,
+    }));
+
+    const { getClientProvider, getEnvProvider, resetClientProvider } =
+      await import("@/infra/provider");
+    const firstEnv = getEnvProvider();
+    vi.stubEnv("APP_FILE_UPLOAD_TIMEOUT", "2000");
+    const secondEnv = getEnvProvider();
+
+    const firstClient = getClientProvider(firstEnv);
+    const secondClient = getClientProvider(secondEnv);
+
+    expect(secondClient).toBe(firstClient);
+    expect(firstClient.dispose).not.toHaveBeenCalled();
+    expect(createHttpClient).toHaveBeenCalledTimes(1);
 
     resetClientProvider();
   });

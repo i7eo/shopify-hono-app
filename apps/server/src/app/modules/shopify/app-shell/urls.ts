@@ -1,4 +1,4 @@
-import { SHOPIFY_APP_FRONTEND_TARGETS } from "@shamt/app-env";
+import { DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS } from "@shamt/app-env";
 import type { RuntimeConfig } from "@/infra/env";
 
 type ShopifyAppShellUrlConfig = Pick<
@@ -11,7 +11,7 @@ type ShopifyAppShellUrlConfig = Pick<
  */
 export function getShopifyAppShellPath(config: ShopifyAppShellUrlConfig) {
   return config.SHOPIFY_APP_FRONTEND_TARGET ===
-    SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND
+    DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND
     ? "/"
     : "/app";
 }

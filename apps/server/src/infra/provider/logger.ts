@@ -3,7 +3,10 @@ import runtimeLogger, {
   setupBootstrapLogger,
   setupLogger,
 } from "@/infra/logger";
+import { getIsolateLoggerEnvConfig } from "../logger/isolate";
+import { getProcessLoggerEnvConfig } from "../logger/process";
 import { providerDisposers, providers } from "./constants";
+import { createProviderSignature } from "./signature";
 import type { RuntimeConfig } from "@/infra/env";
 
 type LoggerProviderOptions = {
@@ -67,14 +70,8 @@ function setLoggerProvider(signature: string) {
 }
 
 function getLoggerProviderSignature(config: RuntimeConfig): string {
-  return [
-    config.APP_RUNTIME,
-    config.APP_ENV,
-    config.APP_LOGGER_DIR,
-    config.APP_LOGGER_LEVEL,
-    config.APP_LOGGER_EXPIRE,
-    config.APP_LOGGER_MAX_SIZE,
-  ]
-    .map((value) => String(value ?? ""))
-    .join(":");
+  return createProviderSignature({
+    ...getIsolateLoggerEnvConfig(config),
+    ...getProcessLoggerEnvConfig(config),
+  });
 }

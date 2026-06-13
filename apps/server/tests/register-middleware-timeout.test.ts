@@ -25,6 +25,8 @@ async function createTestApp(timeoutMs: number) {
   vi.doMock("@/infra/provider", () => ({
     getEnvProvider: vi.fn(() => ({
       ...runtimeConfig,
+      APP_FILE_MAX_SIZE: 200 * 1024,
+      APP_FILE_UPLOAD_TIMEOUT: uploadTimeoutMs,
       APP_REQUEST_TIMEOUT: timeoutMs,
     })),
     getLoggerProvider: vi.fn(() => logger),
@@ -40,7 +42,7 @@ async function createTestApp(timeoutMs: number) {
     await sleep(timeoutMs + 20);
     return c.json({ ok: true });
   });
-  app.post("/api/upload", async (c) => {
+  app.post("/api/files", async (c) => {
     const mode = c.req.query("mode");
     if (mode === "slow") {
       await sleep(uploadTimeoutMs + 20);
@@ -48,7 +50,10 @@ async function createTestApp(timeoutMs: number) {
 
     return c.json({ ok: true });
   });
-  app.post("/api/upload/chunk", async (c) => {
+  app.get("/api/files", (c) => {
+    return c.json({ ok: true });
+  });
+  app.post("/api/files/chunk", async (c) => {
     const mode = c.req.query("mode");
     if (mode === "slow") {
       await sleep(uploadTimeoutMs + 20);
@@ -77,7 +82,7 @@ describe("registerMiddleware timeout", () => {
     const app = await createTestApp(5);
 
     const response = await app.request("/api/slow", {}, runtimeConfig as never);
-    const body = await response.json();
+    const body: any = await response.json();
 
     expect(response.status).toBe(408);
     expect(body).toMatchObject({
@@ -105,14 +110,14 @@ describe("registerMiddleware timeout", () => {
     const app = await createTestApp(5);
 
     const response = await app.request(
-      "/api/upload",
+      "/api/files",
       {
         body: "x".repeat(200 * 1024 + 1),
         method: "POST",
       },
       runtimeConfig as never,
     );
-    const body = await response.json();
+    const body: any = await response.json();
 
     expect(response.status).toBe(413);
     expect(body).toMatchObject({
@@ -130,14 +135,14 @@ describe("registerMiddleware timeout", () => {
     const app = await createTestApp(1);
 
     const response = await app.request(
-      "/api/upload?mode=slow",
+      "/api/files?mode=slow",
       {
         body: "ok",
         method: "POST",
       },
       runtimeConfig as never,
     );
-    const body = await response.json();
+    const body: any = await response.json();
 
     expect(response.status).toBe(408);
     expect(body).toMatchObject({
@@ -151,28 +156,43 @@ describe("registerMiddleware timeout", () => {
     });
   });
 
-  it("uses upload middleware for nested upload routes", async () => {
+  it("does not apply upload middleware to non-POST file requests", async () => {
+    const app = await createTestApp(5);
+
+    const response = await app.request(
+      "/api/files",
+      {
+        method: "GET",
+      },
+      runtimeConfig as never,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("does not apply upload middleware to nested file routes", async () => {
     const app = await createTestApp(1);
 
     const response = await app.request(
-      "/api/upload/chunk?mode=slow",
+      "/api/files/chunk?mode=slow",
       {
         body: "ok",
         method: "POST",
       },
       runtimeConfig as never,
     );
-    const body = await response.json();
+    const body: any = await response.json();
 
     expect(response.status).toBe(408);
     expect(body).toMatchObject({
       code: 408,
       data: null,
-      message: "Upload request timed out",
+      message: "Request timed out",
       success: false,
     });
     expect(body.details).toMatchObject({
-      timeoutMs: uploadTimeoutMs,
+      timeoutMs: 1,
     });
   });
 });

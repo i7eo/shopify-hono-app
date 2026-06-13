@@ -19,7 +19,7 @@ export type LoggerSetupOptions = {
  * This is shared by bootstrap, isolate runtimes, and non-production process runtimes.
  */
 export async function setupConsoleLogger(
-  level: DEFAULT_LOGGER_LEVELS_VALUES,
+  config: { level: DEFAULT_LOGGER_LEVELS_VALUES },
   options: LoggerSetupOptions,
 ): Promise<void> {
   await configure({
@@ -35,7 +35,7 @@ export async function setupConsoleLogger(
       },
       {
         category: name,
-        lowestLevel: toLogTapeLevel(level),
+        lowestLevel: toLogTapeLevel(config.level),
         sinks: ["console"],
       },
     ],

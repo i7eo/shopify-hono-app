@@ -1,19 +1,18 @@
-import { DEFAULT_UPLOAD_MAX_SIZE } from "@shamt/app-env";
 import { bodyLimit } from "hono/body-limit";
 import {
   createErrorResponse,
   uploadPayloadTooLargeError,
 } from "@/shared/exceptions";
 
-export function uploadMiddleware() {
+export function uploadMiddleware(maxSize: number) {
   return bodyLimit({
-    maxSize: DEFAULT_UPLOAD_MAX_SIZE,
+    maxSize,
     onError: (c) =>
       createErrorResponse(
         c,
         uploadPayloadTooLargeError("Upload request body overflow maxsize", {
           details: {
-            maxSize: DEFAULT_UPLOAD_MAX_SIZE,
+            maxSize,
           },
         }),
       ),
