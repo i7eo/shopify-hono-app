@@ -23,20 +23,20 @@ runtime、Shopify mode 和 frontend target 是独立配置轴，详细规则见 
 
 ## 模块边界
 
-| 模块/目录                                    | 职责                                                      |
-| -------------------------------------------- | --------------------------------------------------------- |
-| `src/app/modules/shopify/app-shell`          | 返回 embedded/standalone App Shell HTML                   |
-| `src/app/modules/shopify/auth`               | Shopify OAuth begin/callback                              |
-| `src/app/modules/shopify/mode`               | embedded/standalone capability registry                   |
-| `src/app/modules/shopify/account`            | standalone account session cookie 与 Shopify session 映射 |
-| `src/app/modules/shopify/admin`              | 注入 retryable Shopify Admin GraphQL client               |
-| `src/app/modules/shopify/session.ts`         | embedded online session 读取、token exchange、刷新        |
-| `src/app/modules/shopify/session-storage.ts` | 根据 runtime capability 获取 Shopify session storage      |
-| `src/app/modules/shopify/webhook`            | Shopify webhook 路由                                      |
-| `src/app/modules/product`                    | Product resource API                                      |
-| `src/app/modules/shop`                       | Shop resource API                                         |
-| `src/shared/middlewares/shopify`             | session token、token exchange、webhook 验证中间件         |
-| `src/infra/provider/shopify.ts`              | Shopify SDK config provider 与 request client factory     |
+| 模块/目录                                 | 职责                                                      |
+| ----------------------------------------- | --------------------------------------------------------- |
+| `src/app/modules/shopify/app-shell`       | 返回 embedded/standalone App Shell HTML                   |
+| `src/app/modules/shopify/auth`            | Shopify OAuth begin/callback                              |
+| `src/app/modules/shopify/mode`            | embedded/standalone capability registry                   |
+| `src/app/modules/shopify/account`         | standalone account session cookie 与 Shopify session 映射 |
+| `src/app/modules/shopify/admin`           | 注入 retryable Shopify Admin GraphQL client               |
+| `src/app/modules/shopify/session.ts`      | embedded online session 读取、token exchange、刷新        |
+| `src/app/modules/shopify/session-storage` | 根据 database capability 获取 Shopify session storage     |
+| `src/app/modules/shopify/webhook`         | Shopify webhook 路由                                      |
+| `src/app/modules/product`                 | Product resource API                                      |
+| `src/app/modules/shop`                    | Shop resource API                                         |
+| `src/shared/middlewares/shopify`          | session token、token exchange、webhook 验证中间件         |
+| `src/infra/provider/shopify.ts`           | Shopify SDK config provider 与 request client factory     |
 
 `modules/shopify` 不再注册 `shop` 和 `product` controller。它们由 route aggregator 单独注册：
 
@@ -218,23 +218,35 @@ Standalone Shopify session expired or was revoked
 
 ## Session Storage
 
-Shopify session storage 由 runtime capability 决定：
+Shopify session storage 由 `src/app/modules/shopify/session-storage` 通过统一 `databaseFactory` 创建 Drizzle-backed adapter；runtime 不再单独注册 Shopify session storage capability：
 
-| Runtime / Env      | Storage 策略                                               |
-| ------------------ | ---------------------------------------------------------- |
-| Cloudflare Workers | `KVSessionStorage(requireCloudflareBinding(c.env.sofary))` |
-| Node development   | shared `MemorySessionStorage`                              |
-| Node production    | 不允许 memory session storage，直接报错                    |
-| Vercel Edge        | 预留 runtime，没有完整 session storage 能力                |
+| Runtime / Provider        | Storage 策略                                            |
+| ------------------------- | ------------------------------------------------------- |
+| `node` + `postgres`       | `DrizzleSessionStoragePostgres` + `pg.Pool`             |
+| `cloudflare` + `postgres` | `DrizzleSessionStoragePostgres` + Hyperdrive PostgreSQL |
+| `cloudflare` + `d1`       | `DrizzleSessionStorageSQLite` + Cloudflare D1           |
+| `node` + `d1`             | 预留，当前 `runtimeNotSupported`                        |
+| `vercel-edge`             | 预留 runtime，没有完整 session storage 能力             |
 
 入口：
 
-- `src/app/modules/shopify/session-storage.ts`
+- `src/app/modules/shopify/session-storage/index.ts`
+- `src/app/modules/shopify/session-storage/database.ts`
 - `src/app/runtime/isolate/cloudflare/capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/bindings.ts`
 - `src/app/runtime/process/capabilities.ts`
+- `src/infra/database`
+- `packages/database/src/models/postgres/shopify-sessions.ts`
+- `packages/database/src/models/sqlite/shopify-sessions.ts`
 
-Cloudflare 下的 KV binding 在 config schema 中允许 bootstrap 阶段缺失。真正创建 Shopify session storage 时，Cloudflare runtime capability 会强校验 `sofary` 是否存在且具备 KV namespace 方法。这样 route metadata 等模块 import 阶段不会因为 request-bound binding 尚未进入而失败，但 session storage 使用点仍然会快速失败。
+Cloudflare 下的 D1/Hyperdrive binding 在 config schema 中允许 bootstrap 阶段缺失。真正创建 database 时，Cloudflare runtime capability 会根据 `APP_DATABASE_PROVIDER` 强校验 `i7eo_dev_shopify_app_d1` 或 `i7eo_dev_shopify_app_hyperdrive`。这样 route metadata 等模块 import 阶段不会因为 request-bound binding 尚未进入而失败，但 session storage 使用点仍然会快速失败。
+
+数据库 schema 来自 `@shamt/database` 的 PostgreSQL / SQLite models，与 file module 共享同一个 `databaseFactory`。本地验证可使用：
+
+```bash
+pnpm --dir apps/server run db:pg:seed
+pnpm --dir apps/server run db:d1:seed
+```
 
 ## Resource API
 
@@ -374,8 +386,8 @@ session 解析、client 创建、401 retry 都由 middleware 和 Shopify Admin c
 | Admin API 401 retry 异常     | `shopify/admin/client.ts`、`mode/*`、`session.ts`                                        |
 | Shopify 数据查不到           | `modules/shop`、`modules/product`、scopes                                                |
 | Webhook 失败                 | `verify-webhook.ts`、raw body、app secret                                                |
-| Cloudflare session 找不到    | KV binding `sofary`、Cloudflare runtime capability                                       |
-| Node production session 报错 | 当前不允许 memory session storage                                                        |
+| Cloudflare session 找不到    | `APP_DATABASE_PROVIDER`、D1/Hyperdrive binding、Cloudflare runtime capability            |
+| Node D1 session 报错         | `node + d1` 当前预留，走 `runtimeNotSupported`                                           |
 | TOML role/mode 配置不一致    | `SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、`scripts/write-shopify-file/index.ts` |
 
 ## 当前测试覆盖

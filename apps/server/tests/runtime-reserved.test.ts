@@ -18,7 +18,7 @@ describe("reserved runtimes", () => {
     expect(config.APP_RUNTIME).toBe(DEFAULT_RUNTIMES.VERCEL_EDGE);
   });
 
-  it("fails fast for Shopify session storage when no Vercel Edge runtime capability is registered", async () => {
+  it("fails fast for Shopify session storage when no database capability is registered", async () => {
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
     const context = createMockContext({
@@ -30,8 +30,8 @@ describe("reserved runtimes", () => {
       },
     });
 
-    expect(() => getShopifySessionStorage(context as never)).toThrow(
-      "Shopify session storage is not configured for this runtime",
+    await expect(getShopifySessionStorage(context as never)).rejects.toThrow(
+      "Runtime capability is not registered: databaseFactory",
     );
   });
 });

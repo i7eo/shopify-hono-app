@@ -26,6 +26,9 @@ export function createIsolateBucket(config: RuntimeConfig): Bucket {
   );
 }
 
+/**
+ * Passes a Web stream through a byte-counting TransformStream for isolates.
+ */
 function createLimitedWebUploadBody(
   stream: ReadableStream<Uint8Array>,
   maxBytes: number,

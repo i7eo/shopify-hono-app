@@ -122,6 +122,15 @@ describe("Shopify app shell", () => {
         { shop: "shop.myshopify.com" },
       ),
     ).toBe("https://app.example.com/?shop=shop.myshopify.com");
+    expect(
+      getShopifyAppShellUrl(
+        {
+          ...runtimeConfig,
+          SHOPIFY_APP_FRONTEND_TARGET: "backend",
+        },
+        { host: undefined, shop: "shop.myshopify.com" },
+      ),
+    ).toBe("https://app.example.com/app?shop=shop.myshopify.com");
   });
 });
 
@@ -264,7 +273,7 @@ describe("Shopify auth routes", () => {
       "https://app.example.com/app",
     );
     expect(response.headers.get("Set-Cookie")).toContain(
-      ":account_session_cookie=offline_shop.myshopify.com",
+      ":shopify_session_id=offline_shop.myshopify.com",
     );
     expect(storeSession).toHaveBeenCalledWith(
       expect.objectContaining({

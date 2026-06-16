@@ -37,7 +37,7 @@ export const createAuthRoutes = () => {
       rawRequest: c.req.raw,
     });
 
-    await getShopifySessionStorage(c).storeSession(session);
+    await (await getShopifySessionStorage(c)).storeSession(session);
 
     return getShopifyModeCapabilities(
       config.SHOPIFY_APP_MODE,

@@ -1,117 +1,226 @@
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockContext, expectAppError, runtimeConfig } from "./test-utils";
 
 describe("Shopify session storage", () => {
   afterEach(() => {
     vi.resetModules();
+    vi.doUnmock("@/app/modules/shopify/session-storage/database");
   });
 
-  it("uses KV session storage in Cloudflare runtime", async () => {
-    const kvConstructor = vi.fn(function KVSessionStorage(
-      this: unknown,
-      namespace,
-    ) {
-      return { kind: "kv", namespace };
-    });
-    const memoryConstructor = vi.fn(function MemorySessionStorage() {
-      return { kind: "memory" };
-    });
+  it("uses database session storage in Cloudflare D1 runtime", async () => {
+    const database = {
+      db: {},
+      dialect: "sqlite",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "cloudflare",
+    };
+    const sessionStorage = { kind: "database-session-storage" };
+    const createDatabase = vi.fn(() => Promise.resolve(database));
+    const createDatabaseShopifySessionStorage = vi.fn(() => sessionStorage);
 
-    vi.doMock("@shopify/shopify-app-session-storage-kv", () => ({
-      KVSessionStorage: kvConstructor,
+    vi.doMock("@/infra/database", () => ({
+      createDatabase,
     }));
-    vi.doMock("@shopify/shopify-app-session-storage-memory", () => ({
-      MemorySessionStorage: memoryConstructor,
+    vi.doMock("@/app/modules/shopify/session-storage/database", () => ({
+      createDatabaseShopifySessionStorage,
     }));
 
-    const { registerCloudflareIsolateRuntimeCapabilities } =
-      await import("@/app/runtime/isolate/cloudflare/capabilities");
+    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
-    registerCloudflareIsolateRuntimeCapabilities();
-    const namespace = {
-      get: vi.fn(),
-      put: vi.fn(),
-      delete: vi.fn(),
-      list: vi.fn(),
-    };
+    setRuntimeCapability("databaseFactory", () => createDatabase());
     const context = createMockContext({
-      env: { sofary: namespace },
       vars: {
         runtimeEnv: {
           ...runtimeConfig,
+          APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
           APP_RUNTIME: "cloudflare",
           APP_ENV: "production",
         },
       },
     });
 
-    expect(getShopifySessionStorage(context as never)).toEqual({
-      kind: "kv",
-      namespace,
-    });
-    expect(kvConstructor).toHaveBeenCalledWith(namespace);
-    expect(memoryConstructor).not.toHaveBeenCalled();
+    await expect(getShopifySessionStorage(context as never)).resolves.toBe(
+      sessionStorage,
+    );
+    expect(createDatabase).toHaveBeenCalledOnce();
+    expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
 
-  it("uses one shared memory session storage in node development", async () => {
-    const memoryInstance = { kind: "memory" };
-    const memoryConstructor = vi.fn(function MemorySessionStorage() {
-      return memoryInstance;
-    });
+  it("uses database session storage in node postgres runtime", async () => {
+    const database = {
+      db: {},
+      dialect: "postgres",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      runtime: "node",
+    };
+    const sessionStorage = { kind: "database-session-storage" };
+    const createDatabase = vi.fn(() => Promise.resolve(database));
+    const createDatabaseShopifySessionStorage = vi.fn(() => sessionStorage);
 
-    vi.doMock("@shopify/shopify-app-session-storage-kv", () => ({
-      KVSessionStorage: vi.fn(),
+    vi.doMock("@/infra/database", () => ({
+      createDatabase,
     }));
-    vi.doMock("@shopify/shopify-app-session-storage-memory", () => ({
-      MemorySessionStorage: memoryConstructor,
+    vi.doMock("@/app/modules/shopify/session-storage/database", () => ({
+      createDatabaseShopifySessionStorage,
     }));
 
-    const { registerProcessRuntimeCapabilities } =
-      await import("@/app/runtime/process/capabilities");
+    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
-    registerProcessRuntimeCapabilities();
+    setRuntimeCapability("databaseFactory", () => createDatabase());
     const context = createMockContext({
       vars: {
         runtimeEnv: {
           ...runtimeConfig,
+          APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
           APP_RUNTIME: "node",
           APP_ENV: "development",
         },
       },
     });
 
-    expect(getShopifySessionStorage(context as never)).toBe(memoryInstance);
-    expect(getShopifySessionStorage(context as never)).toBe(memoryInstance);
-    expect(memoryConstructor).toHaveBeenCalledOnce();
+    await expect(getShopifySessionStorage(context as never)).resolves.toBe(
+      sessionStorage,
+    );
+    expect(createDatabase).toHaveBeenCalledOnce();
+    expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
 
-  it("rejects memory session storage outside node development", async () => {
-    vi.doMock("@shopify/shopify-app-session-storage-kv", () => ({
-      KVSessionStorage: vi.fn(),
-    }));
-    vi.doMock("@shopify/shopify-app-session-storage-memory", () => ({
-      MemorySessionStorage: vi.fn(),
+  it("rejects node d1 through the database factory", async () => {
+    const createDatabase = vi.fn(() =>
+      Promise.reject(new Error("D1 database is not implemented for Node")),
+    );
+
+    vi.doMock("@/infra/database", () => ({
+      createDatabase,
     }));
 
-    const { registerProcessRuntimeCapabilities } =
-      await import("@/app/runtime/process/capabilities");
+    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
-    registerProcessRuntimeCapabilities();
+    setRuntimeCapability("databaseFactory", () => createDatabase());
     const context = createMockContext({
       vars: {
         runtimeEnv: {
           ...runtimeConfig,
+          APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
           APP_RUNTIME: "node",
           APP_ENV: "production",
         },
       },
     });
 
-    expect(() => getShopifySessionStorage(context as never)).toThrow(
-      "Shopify memory session storage is only available",
+    await expect(getShopifySessionStorage(context as never)).rejects.toThrow(
+      "D1 database is not implemented for Node",
+    );
+  });
+});
+
+describe("Shopify database session storage adapter", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    vi.doUnmock("@shopify/shopify-app-session-storage-drizzle");
+  });
+
+  it("creates the Postgres Drizzle session storage adapter", async () => {
+    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    const DrizzleSessionStoragePostgres = vi.fn(function (
+      this: { db: unknown; table: unknown; type: string },
+      db: unknown,
+      table: unknown,
+    ) {
+      this.db = db;
+      this.table = table;
+      this.type = "postgres";
+    });
+    const DrizzleSessionStorageSQLite = vi.fn();
+
+    vi.doMock("@shopify/shopify-app-session-storage-drizzle", () => ({
+      DrizzleSessionStoragePostgres,
+      DrizzleSessionStorageSQLite,
+    }));
+
+    const { postgresShopifySessions } =
+      await import("@shamt/database/models/postgres");
+    const { createDatabaseShopifySessionStorage } =
+      await import("@/app/modules/shopify/session-storage/database");
+    const db = { id: "pg-db" };
+    const storage = createDatabaseShopifySessionStorage({
+      db,
+      dialect: "postgres",
+      dispose: vi.fn(),
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      runtime: "node",
+    } as never);
+
+    expect(DrizzleSessionStoragePostgres).toHaveBeenCalledWith(
+      db,
+      postgresShopifySessions,
+    );
+    expect(DrizzleSessionStorageSQLite).not.toHaveBeenCalled();
+    expect(storage).toMatchObject({ db, table: postgresShopifySessions });
+  });
+
+  it("creates the SQLite Drizzle session storage adapter for D1", async () => {
+    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    const DrizzleSessionStoragePostgres = vi.fn();
+    const DrizzleSessionStorageSQLite = vi.fn(function (
+      this: { db: unknown; table: unknown; type: string },
+      db: unknown,
+      table: unknown,
+    ) {
+      this.db = db;
+      this.table = table;
+      this.type = "sqlite";
+    });
+
+    vi.doMock("@shopify/shopify-app-session-storage-drizzle", () => ({
+      DrizzleSessionStoragePostgres,
+      DrizzleSessionStorageSQLite,
+    }));
+
+    const { sqliteShopifySessions } =
+      await import("@shamt/database/models/sqlite");
+    const { createDatabaseShopifySessionStorage } =
+      await import("@/app/modules/shopify/session-storage/database");
+    const db = { id: "d1-db" };
+    const storage = createDatabaseShopifySessionStorage({
+      db,
+      dialect: "sqlite",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "cloudflare",
+    } as never);
+
+    expect(DrizzleSessionStorageSQLite).toHaveBeenCalledWith(
+      db,
+      sqliteShopifySessions,
+    );
+    expect(DrizzleSessionStoragePostgres).not.toHaveBeenCalled();
+    expect(storage).toMatchObject({ db, table: sqliteShopifySessions });
+  });
+
+  it("rejects unsupported database providers", async () => {
+    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    vi.doMock("@shopify/shopify-app-session-storage-drizzle", () => ({
+      DrizzleSessionStoragePostgres: vi.fn(),
+      DrizzleSessionStorageSQLite: vi.fn(),
+    }));
+
+    const { createDatabaseShopifySessionStorage } =
+      await import("@/app/modules/shopify/session-storage/database");
+
+    expect(() =>
+      createDatabaseShopifySessionStorage({
+        db: {},
+        dialect: "unknown",
+        provider: "unsupported",
+        runtime: "node",
+      } as never),
+    ).toThrow(
+      "Shopify session storage database provider is not supported: unsupported",
     );
   });
 });
@@ -637,7 +746,7 @@ describe("Shopify account session", () => {
       shopifySessionId: "offline_shop.myshopify.com",
     });
     expect(cookie).toContain(
-      ":account_session_cookie=offline_shop.myshopify.com",
+      `${DEFAULT_APP_ACCOUNT_SESSION_COOKIE}=offline_shop.myshopify.com`,
     );
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("; Secure");
@@ -826,6 +935,67 @@ describe("verifyWebhook middleware", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
+  it("rejects empty webhook bodies after validation", async () => {
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        webhooks: {
+          validate: vi.fn(() => ({
+            valid: true,
+            topic: "SHOP_REDACT",
+            domain: "shop.myshopify.com",
+          })),
+        },
+      })),
+    }));
+
+    const { verifyWebhook } =
+      await import("@/shared/middlewares/shopify/verify-webhook");
+
+    await expect(
+      verifyWebhook(
+        createMockContext({
+          method: "POST",
+        }) as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 401, "Invalid Shopify webhook JSON payload");
+      return true;
+    });
+  });
+
+  it("ignores invalid webhook content-length values", async () => {
+    const validate = vi.fn(() => ({
+      valid: true,
+      topic: "APP_UNINSTALLED",
+      domain: "shop.myshopify.com",
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        webhooks: { validate },
+      })),
+    }));
+
+    const { verifyWebhook } =
+      await import("@/shared/middlewares/shopify/verify-webhook");
+    const next = vi.fn();
+    const context = createMockContext({
+      method: "POST",
+      headers: {
+        "content-length": "not-a-number",
+      },
+      body: JSON.stringify({ ok: true }),
+    });
+
+    await verifyWebhook(context as never, next);
+
+    expect(validate).toHaveBeenCalledWith({
+      rawRequest: context.req.raw,
+      rawBody: '{"ok":true}',
+    });
+    expect(next).toHaveBeenCalledOnce();
+  });
+
   it("rejects webhook bodies that exceed the configured size limit", async () => {
     const { DEFAULT_WEBHOOK_MAX_SIZE } = await import("@/constants");
     const { verifyWebhook } =
@@ -849,6 +1019,81 @@ describe("verifyWebhook middleware", () => {
       });
       return true;
     });
+  });
+
+  it("rejects streamed webhook bodies that overflow without content-length", async () => {
+    const { DEFAULT_WEBHOOK_MAX_SIZE } = await import("@/constants");
+    const { verifyWebhook } =
+      await import("@/shared/middlewares/shopify/verify-webhook");
+    const raw = new Request("https://app.example.com/webhook", {
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(DEFAULT_WEBHOOK_MAX_SIZE + 1));
+          controller.close();
+        },
+        cancel: vi.fn(),
+      }),
+      // Node's Request implementation requires duplex for streaming bodies.
+      duplex: "half",
+      method: "POST",
+    } as RequestInit & { duplex: "half" });
+
+    await expect(
+      verifyWebhook(
+        {
+          req: { raw },
+          get: vi.fn(() => runtimeConfig),
+          set: vi.fn(),
+          var: {},
+        } as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 413, "Webhook request body overflow maxsize");
+      expect(error).toMatchObject({
+        details: { maxSize: DEFAULT_WEBHOOK_MAX_SIZE },
+      });
+      return true;
+    });
+  });
+
+  it("ignores reader cancel failures after streamed webhook overflow", async () => {
+    const { DEFAULT_WEBHOOK_MAX_SIZE } = await import("@/constants");
+    const { verifyWebhook } =
+      await import("@/shared/middlewares/shopify/verify-webhook");
+    const cancel = vi.fn(() => Promise.reject(new Error("cancel failed")));
+    const raw = {
+      clone: () => ({
+        body: {
+          getReader: () => ({
+            cancel,
+            read: vi.fn(() =>
+              Promise.resolve({
+                done: false,
+                value: new Uint8Array(DEFAULT_WEBHOOK_MAX_SIZE + 1),
+              }),
+            ),
+          }),
+        },
+      }),
+      headers: new Headers(),
+    };
+
+    await expect(
+      verifyWebhook(
+        {
+          req: { raw },
+          get: vi.fn(() => runtimeConfig),
+          set: vi.fn(),
+          var: {},
+        } as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 413, "Webhook request body overflow maxsize");
+      return true;
+    });
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("rejects invalid webhook signatures", async () => {

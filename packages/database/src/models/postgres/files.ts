@@ -8,13 +8,15 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-export const fileStatusEnum = pgEnum("file_status", [
+export const FILE_STATUS_VALUES = [
   "uploading",
   "available",
   "expired",
   "deleted",
   "failed",
-]);
+] as const;
+
+export const fileStatusEnum = pgEnum("file_status", FILE_STATUS_VALUES);
 
 export const fileBucketProviderEnum = pgEnum(
   "file_bucket_provider",

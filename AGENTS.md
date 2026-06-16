@@ -5,7 +5,7 @@
 - **Runtime:** Cloudflare Workers
 - **Framework:** Hono (TypeScript)
 - **Platform:** Shopify embedded app
-- **Session storage:** Cloudflare KV
+- **Session storage:** D1 or Hyperdrive PostgreSQL
 
 ## UI: Polaris Web Components
 
@@ -70,4 +70,4 @@ When generating Polaris web component code, use the `validate_component_codebloc
 
 - Run `shopify app dev` to start (it launches Wrangler automatically via `shopify.web.toml`)
 - Secrets are in `.dev.vars` (not committed)
-- KV data is stored locally in `.wrangler/` during dev
+- D1 data is stored locally in `.wrangler/` during dev; Hyperdrive local dev uses `localConnectionString`

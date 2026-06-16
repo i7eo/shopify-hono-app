@@ -6,6 +6,10 @@ import type { Context } from "hono";
  * Parses file-only multipart uploads with formidable@4's Fetch Request API.
  */
 export class FormidableFileUploadStreamParser implements FileUploadStreamParser {
+  /**
+   * Streams each accepted multipart file into the caller-provided callback.
+   * Non-file fields are rejected so business forms can submit metadata later.
+   */
   async parse(context: Context, input: ParseFileUploadInput): Promise<void> {
     const { FormidableError, parseMultipartRequest } =
       await import("formidable");
@@ -74,6 +78,9 @@ export function getFileUploadStreamParser(): FileUploadStreamParser {
   return fileUploadStreamParser;
 }
 
+/**
+ * Maps formidable parser failures onto the app's HTTP error model.
+ */
 function normalizeFormidableError(error: { code?: string; message: string }) {
   if (error.code === "ERR_MAX_FILE_SIZE") {
     return payloadTooLargeError("Upload request body overflow maxsize", {

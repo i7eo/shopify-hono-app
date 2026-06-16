@@ -1,24 +1,27 @@
 import { checkProcessDiskAccess } from "@shamt/node-utils/disk";
-import { MemorySessionStorage } from "@shopify/shopify-app-session-storage-memory";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import { NoopFileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
 import {
   setRuntimeCapability,
   type ModuleHealthDiskCheckResult,
 } from "@/app/runtime/capabilities";
-import { createBucket, createBucketDownloadSigner } from "@/infra/bucket";
-import { createDatabase } from "@/infra/database";
+import {
+  createBucket,
+  createBucketDownloadSigner,
+  disposeBucket,
+} from "@/infra/bucket";
+import { createDatabase, disposeDatabase } from "@/infra/database";
 import { setupProcessLogger } from "@/infra/logger/process";
-import { isDev } from "@/utils";
 import { runtimeNotSupported } from "@/utils/runtime";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
-const memorySessionStorage = new MemorySessionStorage();
 const fileTaskDispatcher = new NoopFileTaskDispatcher();
 
 /**
  * Registers Node process implementations for runtime and module capabilities.
+ * databaseFactory and bucketFactory also register disposers for cached process
+ * resources such as pg pools and bucket adapters.
  */
 export function registerProcessRuntimeCapabilities() {
   setRuntimeCapability("runtimeLoggerSetup", setupProcessLogger);
@@ -32,19 +35,16 @@ export function registerProcessRuntimeCapabilities() {
       path,
     };
   });
-  setRuntimeCapability("moduleShopifySessionStorageFactory", (c) => {
-    const config = c.get("runtimeEnv");
-
-    if (isDev(config.APP_ENV)) {
-      return memorySessionStorage;
-    }
-
-    throw new Error(
-      "Shopify memory session storage is only available when APP_RUNTIME=node and APP_ENV=development",
-    );
-  });
-  setRuntimeCapability("databaseFactory", (c) => getDatabase(c));
-  setRuntimeCapability("bucketFactory", (c) => getBucket(c));
+  setRuntimeCapability(
+    "databaseFactory",
+    (c) => getDatabase(c),
+    disposeDatabaseCapability,
+  );
+  setRuntimeCapability(
+    "bucketFactory",
+    (c) => getBucket(c),
+    disposeBucketCapability,
+  );
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
     async (c) =>
@@ -61,6 +61,7 @@ export function registerProcessRuntimeCapabilities() {
 
 /**
  * Creates the runtime database once request runtime env is available.
+ * Example: APP_DATABASE_PROVIDER=postgres returns the cached pg.Pool client.
  */
 function getDatabase(c: Context<AppEnv>) {
   return createDatabase(c.get("runtimeEnv"));
@@ -68,9 +69,24 @@ function getDatabase(c: Context<AppEnv>) {
 
 /**
  * Creates the runtime bucket once request runtime env is available.
+ * Example: APP_BUCKET_PROVIDER=memory returns the process memory bucket.
  */
 function getBucket(c: Context<AppEnv>) {
   return createBucket(c.get("runtimeEnv"));
+}
+
+/**
+ * Disposes cached process database infrastructure.
+ */
+function disposeDatabaseCapability() {
+  return disposeDatabase({ APP_RUNTIME: "node" });
+}
+
+/**
+ * Disposes cached process bucket infrastructure.
+ */
+function disposeBucketCapability() {
+  return disposeBucket({ APP_RUNTIME: "node" });
 }
 
 /**

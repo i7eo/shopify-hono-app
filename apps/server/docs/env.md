@@ -64,7 +64,7 @@ Cloudflare 下 `envConfig` 来自 `c.env`，其中包含 request-bound 平台 bi
 
 env provider 的签名由 `@shamt/app-env` 的 `configSchema.shape` 自动生成，不再手写字段清单。新增 env schema 文件时，只要字段被合入 `configSchema`，`getEnvProvider()` 的缓存签名就会自动包含这些字段。
 
-签名不会把平台 binding 对象整体 stringify。Cloudflare KV 这类 binding 只记录是否存在，避免把 request-bound 对象细节写入缓存 key。
+签名不会把平台 binding 对象整体 stringify。Cloudflare D1、Hyperdrive 这类 binding 只记录是否存在，避免把 request-bound 对象细节写入缓存 key。
 
 其他 provider 不直接复用全量 env 签名，而是先把 `RuntimeConfig` 投影成自己实际消费的配置 DTO，再用这个 DTO 生成签名。例如 HTTP client 只关心 `APP_REQUEST_TIMEOUT`，不会因为 `APP_FILE_UPLOAD_TIMEOUT` 变化而重建。
 
@@ -98,10 +98,12 @@ normalizeEnv(rawEnv)
 当前 Cloudflare isolate schema 允许 request-bound binding 在 bootstrap 阶段缺失：
 
 ```ts
-sofary?: KVNamespace
+i7eo_dev_shopify_app_d1?: D1Database
+i7eo_dev_shopify_app_hyperdrive?: Hyperdrive
+i7eo_dev_shopify_app_r2?: R2Bucket
 ```
 
-这不是静默放宽使用要求。真正消费 binding 的 runtime capability 必须在使用点强校验，例如 Cloudflare Shopify session storage 会通过 `requireCloudflareBinding(...)` 校验 `sofary` 存在且具备 `get`、`put`、`delete`、`list` 方法。
+这不是静默放宽使用要求。真正消费 binding 的 runtime capability 必须在使用点强校验。例如 Cloudflare D1 session storage 会校验 `i7eo_dev_shopify_app_d1`，Cloudflare PostgreSQL 会校验 `i7eo_dev_shopify_app_hyperdrive`，R2 bucket 会校验 `i7eo_dev_shopify_app_r2`。
 
 ## Env File 字段
 
@@ -112,23 +114,25 @@ sofary?: KVNamespace
 
 两份文件当前维护这些字段：
 
-| 字段                          | 示例/取值                           | 说明                                    |
-| ----------------------------- | ----------------------------------- | --------------------------------------- |
-| `APP_ENV`                     | `development`、`test`、`production` | 当前配置环境                            |
-| `APP_RUNTIME`                 | `node`、`cloudflare`、`vercel-edge` | server 执行环境，`vercel-edge` 当前预留 |
-| `APP_DATABASE_PROVIDER`       | `postgres`、`d1`                    | 数据库 provider，`d1` 当前仅预留        |
-| `APP_LOGGER_EXPIRE`           | `604800000`                         | 日志过期时间                            |
-| `APP__SERVER_PORT`            | `10001`                             | `apps/server` dev 端口                  |
-| `APP__WEB_PORT`               | `10002`                             | `apps/web` dev 端口                     |
-| `SHOPIFY_APP_MODE`            | `embedded`、`standalone`            | Shopify app-flow                        |
-| `SHOPIFY_APP_FRONTEND_TARGET` | `backend`、`frontend`               | Shopify frontend role 承载位置          |
-| `SHOPIFY_APP_KEY`             | Shopify app client ID               | Shopify app key                         |
-| `SHOPIFY_APP_SECRET`          | Shopify app secret                  | Shopify app secret                      |
-| `SHOPIFY_APP_URL`             | `https://example.com`               | Shopify app 对外 URL                    |
-| `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version               |
-| `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                   |
+| 字段                          | 示例/取值                           | 说明                                                                      |
+| ----------------------------- | ----------------------------------- | ------------------------------------------------------------------------- |
+| `APP_ENV`                     | `development`、`test`、`production` | 当前配置环境                                                              |
+| `APP_RUNTIME`                 | `node`、`cloudflare`、`vercel-edge` | server 执行环境，`vercel-edge` 当前预留                                   |
+| `APP_DATABASE_PROVIDER`       | `postgres`、`d1`                    | 数据库 provider；`d1` 当前用于 Cloudflare file 与 Shopify session storage |
+| `APP_LOGGER_EXPIRE`           | `604800000`                         | 日志过期时间                                                              |
+| `APP__SERVER_PORT`            | `10001`                             | `apps/server` dev 端口                                                    |
+| `APP__WEB_PORT`               | `10002`                             | `apps/web` dev 端口                                                       |
+| `SHOPIFY_APP_MODE`            | `embedded`、`standalone`            | Shopify app-flow                                                          |
+| `SHOPIFY_APP_FRONTEND_TARGET` | `backend`、`frontend`               | Shopify frontend role 承载位置                                            |
+| `SHOPIFY_APP_KEY`             | Shopify app client ID               | Shopify app key                                                           |
+| `SHOPIFY_APP_SECRET`          | Shopify app secret                  | Shopify app secret                                                        |
+| `SHOPIFY_APP_URL`             | `https://example.com`               | Shopify app 对外 URL                                                      |
+| `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version                                                 |
+| `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                                                     |
 
 其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_PROVIDER`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_KEY`、`APP_BUCKET_R2_VALUE`、`APP_DATABASE_URL`、`APP_DATABASE_D1_URL`、`APP_DATABASE_D1_KEY`、`APP_DATABASE_D1_VALUE`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
+
+`APP_DATABASE_D1_URL`、`APP_DATABASE_D1_KEY`、`APP_DATABASE_D1_VALUE` 当前是为了后续 D1 HTTP/remote 路线预留的 schema 字段。现阶段 `apps/server` 的 Cloudflare D1 运行路径使用 Wrangler binding `i7eo_dev_shopify_app_d1`，不是通过这三个 env 直连。
 
 ## 部署期 Env
 

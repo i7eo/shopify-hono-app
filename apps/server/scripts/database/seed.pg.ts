@@ -1,11 +1,19 @@
-import { files, users } from "@shamt/database";
-import { eq } from "drizzle-orm";
+import {
+  files,
+  postgresShopifySessions,
+} from "@shamt/database/models/postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 const SEED_SHOP_DOMAIN = "seed-shop.myshopify.com";
 const SEED_FILE_ID = "seed-file-00000000-0000-4000-8000-000000000001";
+const SEED_SESSION_ID = `offline_${SEED_SHOP_DOMAIN}`;
 
+/**
+ * Seeds one Shopify offline session and one file metadata row into PostgreSQL.
+ *
+ * Example: pnpm --dir apps/server run db:pg:seed
+ */
 async function main() {
   const databaseUrl = getDatabaseUrl();
   const pool = new Pool({ connectionString: databaseUrl });
@@ -13,37 +21,34 @@ async function main() {
     client: pool,
     schema: {
       files,
-      users,
+      shopifySessions: postgresShopifySessions,
     },
   });
 
   try {
-    const [existingUser] = await db
-      .select({
-        email: users.email,
-        id: users.id,
-        name: users.name,
-      })
-      .from(users)
-      .where(eq(users.email, "seed@example.com"))
-      .limit(1);
-    const user =
-      existingUser ??
-      (
-        await db
-          .insert(users)
-          .values({
-            email: "seed@example.com",
-            name: "Seed User",
-          })
-          .returning({
-            email: users.email,
-            id: users.id,
-            name: users.name,
-          })
-      )[0];
-
     const now = new Date();
+    const [session] = await db
+      .insert(postgresShopifySessions)
+      .values({
+        accessToken: "",
+        id: SEED_SESSION_ID,
+        isOnline: false,
+        shop: SEED_SHOP_DOMAIN,
+        state: "seed-state",
+      })
+      .onConflictDoUpdate({
+        target: postgresShopifySessions.id,
+        set: {
+          accessToken: "",
+          isOnline: false,
+          shop: SEED_SHOP_DOMAIN,
+          state: "seed-state",
+        },
+      })
+      .returning({
+        id: postgresShopifySessions.id,
+        shop: postgresShopifySessions.shop,
+      });
     const [file] = await db
       .insert(files)
       .values({
@@ -85,7 +90,7 @@ async function main() {
         {
           file,
           ok: true,
-          user,
+          session,
         },
         null,
         2,
@@ -96,6 +101,9 @@ async function main() {
   }
 }
 
+/**
+ * Reads the local Postgres connection string from app env or DATABASE_URL.
+ */
 function getDatabaseUrl(): string {
   const databaseUrl = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
 
@@ -106,4 +114,7 @@ function getDatabaseUrl(): string {
   return databaseUrl;
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

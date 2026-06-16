@@ -12,10 +12,14 @@ runtime capability 负责注入平台相关能力：
 
 - `runtimeLoggerSetup`
 - `runtimeEnvSourceResolver`
-- `processDiskHealthChecker`
-- `shopifySessionStorageFactory`
+- `moduleHealthProcessDiskChecker`
+- `databaseFactory`
+- `bucketFactory`
+- `moduleFileDownloadResolverFactory`
+- `moduleFileTaskDispatcherFactory`
 
-共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。
+共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。文件模块与 Shopify session storage 都通过统一的 `databaseFactory` 获取 Drizzle client，各模块再在自己的业务边界内实现 store/adapter。
+file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream 或 R2 signed redirect。
 
 对应文件：
 
@@ -43,6 +47,8 @@ provider registry 缓存跨请求可复用的基础设施实例：
 - `src/infra/provider/client.ts`
 
 每个 provider 都有 reset/disposer 入口，测试和 lifecycle 可以清理全局状态，避免 provider cache 污染下一轮运行。
+
+database 与 bucket 没有放入 provider registry，而是作为 runtime capability 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool 和 memory/r2 bucket cache，Cloudflare 需要 request-bound D1/Hyperdrive binding。capability disposer 会在 process runtime 释放 cached pg pool 和 bucket adapter，isolate runtime 当前保持 no-op。
 
 ### Shopify Mode Capability
 
@@ -98,15 +104,15 @@ runtime-specific 行为只放在两个地方：
 
 ## Binding Optional + 使用点强校验
 
-Cloudflare platform binding 在 schema 中允许 optional，例如 `sofary?: KVNamespace`。原因是 Worker 模块 import 阶段可能只拿到 `process.env` 中的字符串配置，还没进入 request-bound `c.env`。
+Cloudflare platform binding 在 schema 中允许 optional，例如 `i7eo_dev_shopify_app_d1?: D1Database`。原因是 Worker 模块 import 阶段可能只拿到 `process.env` 中的字符串配置，还没进入 request-bound `c.env`。
 
 真正需要 binding 的地方必须强校验：
 
 ```ts
-const namespace = requireCloudflareBinding(
-  context.env.sofary,
-  "sofary",
-  isCloudflareKVNamespace,
+const d1 = requireCloudflareBinding(
+  context.env.i7eo_dev_shopify_app_d1,
+  "i7eo_dev_shopify_app_d1",
+  isCloudflareD1Database,
 );
 ```
 

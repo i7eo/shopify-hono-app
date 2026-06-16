@@ -1,5 +1,5 @@
 import type { RuntimeConfig } from "@/infra/env";
-import type { SelectFile } from "@shamt/database";
+import type { SelectFile } from "@shamt/database/sql-schemas/postgres";
 import type { Context } from "hono";
 
 export type FileStatus = SelectFile["status"];

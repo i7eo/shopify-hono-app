@@ -32,6 +32,10 @@ import type {
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
+/**
+ * Creates one file resource by first writing metadata, then streaming bytes to
+ * the active bucket, and finally marking the metadata as available.
+ */
 export async function createFile(
   c: Context<AppEnv>,
   input: CreateFileInput,
@@ -105,6 +109,11 @@ export async function createFile(
   }
 }
 
+/**
+ * Creates multiple file resources from one multipart request.
+ * All files in the request share the same bucket directory id while keeping
+ * independent file resource ids.
+ */
 export async function createFiles(
   c: Context<AppEnv>,
   input: CreateFilesInput,
@@ -144,6 +153,9 @@ export async function createFiles(
   return { files };
 }
 
+/**
+ * Lists non-deleted and non-failed files for the current shop.
+ */
 export async function listFiles(
   c: Context<AppEnv>,
   input: ListFilesInput,
@@ -160,6 +172,9 @@ export async function listFiles(
   };
 }
 
+/**
+ * Returns one available file metadata resource for the current shop.
+ */
 export async function getFile(
   c: Context<AppEnv>,
   shopDomain: string,
@@ -169,6 +184,9 @@ export async function getFile(
   return toPublicFile(file);
 }
 
+/**
+ * Resolves a file download into either a stream response or signed redirect.
+ */
 export async function downloadFile(
   c: Context<AppEnv>,
   shopDomain: string,
@@ -178,6 +196,9 @@ export async function downloadFile(
   return (await getFileDownloadResolver(c)).resolve({ file });
 }
 
+/**
+ * Deletes the bucket object and then soft-deletes its metadata row.
+ */
 export async function deleteFile(
   c: Context<AppEnv>,
   shopDomain: string,
@@ -193,6 +214,9 @@ export async function deleteFile(
   await store.delete({ id, shopDomain });
 }
 
+/**
+ * Loads an available, non-expired file and enforces shop isolation.
+ */
 async function getAvailableFile(
   c: Context<AppEnv>,
   shopDomain: string,
@@ -217,16 +241,25 @@ async function getAvailableFile(
   return file;
 }
 
+/**
+ * Builds the module-owned files store from the shared database capability.
+ */
 function getFilesStore(c: Context<AppEnv>): FilesStore {
   return createDatabaseFilesStoreFromPromise(
     Promise.resolve(getFactory("databaseFactory")(c)),
   );
 }
 
+/**
+ * Resolves the active object bucket through the shared bucket capability.
+ */
 function getFileBucket(c: Context<AppEnv>): Bucket | Promise<Bucket> {
   return getFactory("bucketFactory")(c);
 }
 
+/**
+ * Resolves the runtime download resolver for stream or signed URL downloads.
+ */
 function getFileDownloadResolver(c: Context<AppEnv>) {
   return getFactory("moduleFileDownloadResolverFactory")(c);
 }

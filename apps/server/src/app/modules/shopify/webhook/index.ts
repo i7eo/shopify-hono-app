@@ -14,7 +14,7 @@ export const createWebhookRoutes = () => {
 
   webhookRoutes.post("/app/uninstalled", async (c) => {
     const shop = c.var.webhookShop;
-    const sessionStorage = getShopifySessionStorage(c);
+    const sessionStorage = await getShopifySessionStorage(c);
     const sessions = await sessionStorage.findSessionsByShop(shop);
     await sessionStorage.deleteSessions(sessions.map((session) => session.id));
     const logger = c.get("runtimeLogger");

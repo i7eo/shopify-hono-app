@@ -88,7 +88,8 @@ Multipart 解析当前由 `apps/server/src/app/modules/file/upload-stream-parser
 
 ```text
 apps/server/src/app/modules/file/stores/database.ts
-packages/database/src/models/files.ts
+packages/database/src/models/postgres/files.ts
+packages/database/src/models/sqlite/files.ts
 ```
 
 当前 provider 规则：
@@ -97,9 +98,26 @@ packages/database/src/models/files.ts
 | ------------ | ----------------------- | -------------------------------------------------- |
 | `node`       | `postgres`              | `pg.Pool` + `drizzle-orm/node-postgres`            |
 | `cloudflare` | `postgres`              | Hyperdrive `connectionString` + PostgreSQL Drizzle |
-| any          | `d1`                    | 仅预留；当前返回 runtime unsupported               |
+| `cloudflare` | `d1`                    | Cloudflare D1 + `drizzle-orm/d1`                   |
+| `node`       | `d1`                    | 预留；当前返回 runtime unsupported                 |
 
 Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare PostgreSQL 需要 `i7eo_dev_shopify_app_hyperdrive` binding。
+Cloudflare D1 需要 `i7eo_dev_shopify_app_d1` binding。PostgreSQL migration 使用 `apps/server/drizzle.pg.config.ts` 与 `apps/server/drizzle.pg`，D1 migration 使用 `apps/server/drizzle.d1.config.ts` 与 `apps/server/drizzle.d1`。
+
+常用数据库命令：
+
+```bash
+pnpm --dir apps/server run db:pg:generate
+pnpm --dir apps/server run db:d1:generate
+pnpm --dir apps/server run db:pg:migrate
+pnpm --dir apps/server run db:d1:migrate
+pnpm --dir apps/server run db:d1:migrate:remote
+pnpm --dir apps/server run db:pg:seed
+pnpm --dir apps/server run db:d1:seed
+pnpm --dir apps/server run db:d1:seed:remote
+```
+
+`db:pg:seed` 会通过 `scripts/database/seed.pg.ts` 写入一条 Shopify offline session 和一条 file metadata。`db:d1:seed` / `db:d1:seed:remote` 会通过 `scripts/database/seed.d1.ts` 调用 Wrangler D1 执行同等 seed SQL。
 
 ## Runtime Capabilities
 
@@ -112,9 +130,9 @@ file module 使用这些 runtime capabilities：
 | `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
 | `moduleFileTaskDispatcherFactory`   | 预留后台 file task 投递能力  |
 
-file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前注册 PostgreSQL Drizzle database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher。
+file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher；`node + d1` 会在 database factory 层返回 `runtimeNotSupported`。
 
-Cloudflare 当前注册 PostgreSQL Drizzle database、R2 bucket factory 和 R2 signed redirect 下载 resolver。task dispatcher 在 Cloudflare file 路线完成前保持显式 unsupported placeholder。
+Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder。
 
 ## 下载与删除
 
@@ -146,7 +164,7 @@ R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `GetObjec
 - 后台过期清理尚未实现。
 - Cloudflare Queue-backed tasks 尚未实现。
 - R2 custom-domain signed download 尚未实现；当前返回 S3-compatible endpoint 的短期签名 URL。
-- D1 已在 env 和 strategy code 中预留，但还没有 schema 或 driver 实现。
+- Node + D1 暂不支持。
 - Multipart 解析当前只支持文件字段，不接收普通表单字段。
 
 ## 测试

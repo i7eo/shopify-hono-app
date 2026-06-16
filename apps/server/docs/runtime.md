@@ -4,11 +4,11 @@
 
 ## 当前支持状态
 
-| Runtime       | 执行模型 | 状态     | 说明                                      |
-| ------------- | -------- | -------- | ----------------------------------------- |
-| `node`        | process  | 正式支持 | 本地开发、普通 Node 服务、Node build 目标 |
-| `cloudflare`  | isolate  | 正式支持 | Cloudflare Workers、KV session storage    |
-| `vercel-edge` | isolate  | 预留     | 只有类型预留，没有完整入口和部署配置      |
+| Runtime       | 执行模型 | 状态     | 说明                                              |
+| ------------- | -------- | -------- | ------------------------------------------------- |
+| `node`        | process  | 正式支持 | 本地开发、普通 Node 服务、Node build 目标         |
+| `cloudflare`  | isolate  | 正式支持 | Cloudflare Workers、PostgreSQL/D1 session storage |
+| `vercel-edge` | isolate  | 预留     | 只有类型预留，没有完整入口和部署配置              |
 
 项目只让用户配置事实型变量 `APP_RUNTIME`，不再额外配置 `APP_RUNTIME_MODE`。执行模型由代码根据 `APP_RUNTIME` 推导。
 
@@ -29,28 +29,52 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 
 - `runtimeLoggerSetup`
 - `runtimeEnvSourceResolver`
-- `processDiskHealthChecker`
-- `shopifySessionStorageFactory`
+- `moduleHealthProcessDiskChecker`
+- `databaseFactory`
+- `bucketFactory`
+- `moduleFileDownloadResolverFactory`
+- `moduleFileTaskDispatcherFactory`
 
 对应文件：
 
 - `src/app/runtime/capabilities.ts`
 - `src/app/runtime/process/capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/infra/database`
+- `src/infra/bucket`
 
 共享业务代码只读取 capability，不直接 import Node-only 或 Cloudflare-only 实现。这样可以保护 Cloudflare bundle 的 import graph。
+
+### Database Factory
+
+`databaseFactory` 是 file module 与 Shopify session storage 的统一数据库入口。各模块只接收 Drizzle database result，再在自己的模块内选择对应 store 或 adapter，不再注册独立的 module-specific database capability。
+
+当前策略：
+
+| Runtime      | Provider   | 行为                                               |
+| ------------ | ---------- | -------------------------------------------------- |
+| `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres`            |
+| `node`       | `d1`       | 预留，当前 `runtimeNotSupported`                   |
+| `cloudflare` | `postgres` | Hyperdrive `connectionString` + PostgreSQL Drizzle |
+| `cloudflare` | `d1`       | Cloudflare D1 + `drizzle-orm/d1`                   |
+
+PostgreSQL 使用 `drizzle.pg.config.ts` 和 `drizzle.pg`。D1 使用 `drizzle.d1.config.ts` 和 `drizzle.d1`，Wrangler binding 的 `migrations_dir` 指向 `drizzle.d1`。
+
+### Bucket Factory
+
+`bucketFactory` 是 file module 的统一 object bucket 入口。Node 支持 `memory` 和 `r2`，Cloudflare 当前只支持 `r2`。R2 在两个 runtime 中都使用 `@aws-sdk/client-s3` 的 S3-compatible 实现，以保持上传、删除和签名下载逻辑一致。
 
 ### Cloudflare Binding 校验
 
 Cloudflare request-bound binding 不要求在 bootstrap 阶段存在。schema 允许这类字段 optional，runtime capability 在真正使用时负责强校验。
 
-例如 Shopify session storage 在 Cloudflare capability 中读取 `c.env.sofary`，并通过 `requireCloudflareBinding(...)` 校验：
+例如 Cloudflare D1 database factory 在 capability 中读取 `c.env.i7eo_dev_shopify_app_d1`，并通过 `requireCloudflareBinding(...)` 校验：
 
 ```ts
-const namespace = requireCloudflareBinding(
-  context.env.sofary,
-  "sofary",
-  isCloudflareKVNamespace,
+const d1 = requireCloudflareBinding(
+  context.env.i7eo_dev_shopify_app_d1,
+  "i7eo_dev_shopify_app_d1",
+  isCloudflareD1Database,
 );
 ```
 
@@ -80,7 +104,7 @@ Shopify mode capability 只负责 app-flow 差异，例如 App Shell、OAuth cal
 
 - `src/app/modules/shopify/mode`
 
-runtime capability 仍只负责平台差异，例如 logger、env source、KV/memory session storage。
+runtime capability 仍只负责平台差异，例如 logger、env source、database、bucket。
 
 ## Shopify Frontend Target
 
@@ -214,4 +238,6 @@ pnpm --dir apps/server run cf:type
 
 - Env 解析和 provider 缓存见 [env.md](./env.md)。
 - Logger 在不同 runtime 下的 sink 策略见 [logger.md](./logger.md)。
+- Bucket provider 策略见 [bucket.md](./bucket.md)。
+- File module 的下载和元数据策略见 [file.md](./file.md)。
 - Shopify session storage 的 runtime 差异见 [shopify.md](./shopify.md)。

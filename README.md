@@ -87,7 +87,7 @@ The server app provides:
 - Standalone account-session cookie handling.
 - Admin GraphQL-backed shop and product API routes.
 - Shopify webhook endpoints.
-- Cloudflare KV session storage integration.
+- D1 and Hyperdrive-backed Shopify session storage integration.
 - Health checks and OpenAPI route registration.
 - Cloudflare Worker and Node process runtime adapters.
 
@@ -163,18 +163,26 @@ files first, then writes `apps/server/shopify.web.toml` and, when
 
 After linking, find your **Client Secret** in the [Shopify Dev Dashboard](https://dev.shopify.com/) under your app's **Client credentials** section — you'll need it for the next steps.
 
-### 3. Create a KV namespace
+### 3. Configure database bindings
 
 ```bash
-npx wrangler kv namespace create SESSION_KV
+pnpm --dir apps/server wrangler d1 create i7eo-dev-shopify-app-d1
+pnpm --dir apps/server wrangler hyperdrive create i7eo-dev-shopify-app-hyperdrive \
+  --connection-string="postgresql://user:password@public-postgres.example.com:5432/postgres"
 ```
 
-Copy the output `id` and update [wrangler.toml](wrangler.toml):
+Copy the generated IDs into [apps/server/wrangler.json](apps/server/wrangler.json). Hyperdrive local development can point at local Postgres with `localConnectionString`:
 
-```toml
-[[kv_namespaces]]
-binding = "SESSION_KV"
-id = "your-actual-kv-namespace-id"
+```json
+{
+  "hyperdrive": [
+    {
+      "binding": "i7eo_dev_shopify_app_hyperdrive",
+      "id": "your-hyperdrive-id",
+      "localConnectionString": "postgresql://i7eo:123456@localhost:5432/postgres"
+    }
+  ]
+}
 ```
 
 ### 4. Configure environment variables
@@ -208,7 +216,7 @@ This project uses **two tools** during local development, and understanding thei
 
 | Tool            | Role                                                                                                                                                                         |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Wrangler**    | Runs the Cloudflare Worker locally (your actual app code), simulates KV bindings, reads `.dev.vars` for secrets                                                              |
+| **Wrangler**    | Runs the Cloudflare Worker locally (your actual app code), simulates local D1 and Hyperdrive bindings, reads `.dev.vars` for secrets                                         |
 | **Shopify CLI** | Creates an HTTPS tunnel, updates your app's URLs in the Partner Dashboard, injects env vars (`SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `APP_URL`, etc.), opens your dev store |
 
 You do **not** run them separately. Shopify CLI starts Wrangler for you.
@@ -394,10 +402,10 @@ pnpm clean
 
 ## Deployment
 
-Prepare production config from `.env.production`:
+Prepare production config from `.env.production` and make sure the Cloudflare database bindings in [apps/server/wrangler.json](apps/server/wrangler.json) point at production resources.
 
 ```bash
-npx wrangler kv namespace create SESSION_KV
+pnpm deploy:prepare
 ```
 
 Deploy the selected production runtime and then sync Shopify app
@@ -440,17 +448,17 @@ is copied to `/etc/nginx/conf.d/<host>.conf`, and the web build is synced to
 
 ## Configuration Files
 
-| File                                                             | Purpose                                                      |
-| ---------------------------------------------------------------- | ------------------------------------------------------------ |
-| [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)                   | Workspace globs, catalogs, Node version, and pnpm policy.    |
-| [`shopify.app.toml`](./shopify.app.toml)                         | Shopify app client id, app URL, scopes, and redirects.       |
-| [`apps/server/shopify.web.toml`](./apps/server/shopify.web.toml) | Shopify CLI web target for the server app.                   |
-| [`apps/web/shopify.web.toml`](./apps/web/shopify.web.toml)       | Shopify CLI web target for the Vite frontend when generated. |
-| [`apps/server/wrangler.json`](./apps/server/wrangler.json)       | Cloudflare Worker entry, compatibility date, and KV binding. |
-| [`apps/server/Dockerfile`](./apps/server/Dockerfile)             | Node runtime container image with PM2 runtime.               |
-| [`scripts/deploy`](./scripts/deploy)                             | Root runtime deploy dispatcher.                              |
-| [`apps/server/scripts/deploy`](./apps/server/scripts/deploy)     | Server-owned Cloudflare and Node deploy implementations.     |
-| [`scripts/write-shopify-file`](./scripts/write-shopify-file)     | Env-driven writer for Shopify app and web TOML files.        |
+| File                                                             | Purpose                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)                   | Workspace globs, catalogs, Node version, and pnpm policy.                |
+| [`shopify.app.toml`](./shopify.app.toml)                         | Shopify app client id, app URL, scopes, and redirects.                   |
+| [`apps/server/shopify.web.toml`](./apps/server/shopify.web.toml) | Shopify CLI web target for the server app.                               |
+| [`apps/web/shopify.web.toml`](./apps/web/shopify.web.toml)       | Shopify CLI web target for the Vite frontend when generated.             |
+| [`apps/server/wrangler.json`](./apps/server/wrangler.json)       | Cloudflare Worker entry, compatibility date, and D1/Hyperdrive bindings. |
+| [`apps/server/Dockerfile`](./apps/server/Dockerfile)             | Node runtime container image with PM2 runtime.                           |
+| [`scripts/deploy`](./scripts/deploy)                             | Root runtime deploy dispatcher.                                          |
+| [`apps/server/scripts/deploy`](./apps/server/scripts/deploy)     | Server-owned Cloudflare and Node deploy implementations.                 |
+| [`scripts/write-shopify-file`](./scripts/write-shopify-file)     | Env-driven writer for Shopify app and web TOML files.                    |
 
 ### Custom domains
 
@@ -466,8 +474,9 @@ To use a custom domain instead of `*.workers.dev`, add a Custom Domain in the Cl
 | `SCOPES`              | Comma-separated Shopify access scopes                           |
 | `SHOPIFY_API_VERSION` | Shopify API version (set in `wrangler.toml`, default `2025-10`) |
 
-## KV Bindings
+## Database Bindings
 
-| Binding      | Purpose                                                      |
-| ------------ | ------------------------------------------------------------ |
-| `SESSION_KV` | Stores offline tokens, online tokens, and OAuth state nonces |
+| Binding                           | Purpose                                                    |
+| --------------------------------- | ---------------------------------------------------------- |
+| `i7eo_dev_shopify_app_d1`         | Local or remote D1 database binding                        |
+| `i7eo_dev_shopify_app_hyperdrive` | Hyperdrive PostgreSQL binding for Postgres-backed app data |

@@ -1,3 +1,4 @@
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { expect, vi } from "vitest";
 import { getRuntimeConfig } from "@/infra/env";
 
@@ -16,7 +17,7 @@ export const runtimeConfig = getRuntimeConfig({
   APP_CACHE_EXPIRE: 60,
   APP_CACHE_MAX_SIZE: 100,
   APP_BUCKET_PROVIDER: "memory",
-  APP_DATABASE_PROVIDER: "postgres",
+  APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
   APP_FILE_DIR: "files",
   APP_FILE_EXPIRE: 1000 * 60 * 60 * 24,
   APP_FILE_MAX_SIZE: 1024 * 1024 * 10,

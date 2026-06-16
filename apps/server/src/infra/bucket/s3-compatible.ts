@@ -144,6 +144,9 @@ export class S3CompatibleBucketDownloadSigner implements BucketDownloadSigner {
   }
 }
 
+/**
+ * Creates an AWS SDK S3 client configured for Cloudflare R2 compatibility.
+ */
 async function createS3CompatibleClient(config: S3CompatibleBucketConfig) {
   const { S3Client } = await import("@aws-sdk/client-s3");
 
@@ -158,6 +161,9 @@ async function createS3CompatibleClient(config: S3CompatibleBucketConfig) {
   });
 }
 
+/**
+ * Normalizes AWS SDK response bodies into Web streams for Hono responses.
+ */
 function toWebReadableStream(body: unknown): ReadableStream<Uint8Array> {
   if (body instanceof ReadableStream) return body;
 
@@ -173,6 +179,9 @@ function toWebReadableStream(body: unknown): ReadableStream<Uint8Array> {
   throw internalServerError("Unsupported R2 response body type");
 }
 
+/**
+ * Builds an RFC 5987 attachment disposition for signed download responses.
+ */
 function getAttachmentDisposition(filename: string): string {
   return `attachment; filename*=UTF-8''${encodeRFC5987Value(filename)}`;
 }

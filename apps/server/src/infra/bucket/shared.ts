@@ -58,6 +58,10 @@ export interface BucketDownloadSigner {
 /**
  * Returns the configured bucket strategy and rejects runtime/provider pairs
  * that cannot be executed by the current infrastructure.
+ *
+ * Example:
+ * - node defaults to memory and may opt into r2.
+ * - cloudflare defaults to r2 and rejects memory.
  */
 export function getBucketEnvConfig(
   config: RuntimeConfig,
@@ -97,7 +101,8 @@ export function getBucketEnvConfig(
 }
 
 /**
- * Reads the required Cloudflare R2 S3-compatible config for process runtimes.
+ * Reads the required Cloudflare R2 S3-compatible config for any runtime that
+ * uses the shared S3-compatible bucket implementation.
  */
 export function getR2BucketConfig(config: RuntimeConfig) {
   const missing = [

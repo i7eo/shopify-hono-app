@@ -14,7 +14,11 @@ const ISOLATE_BUCKET_MODULE = "./isolate";
 const PROCESS_BUCKET_MODULE = "./process";
 
 /**
- * Creates the runtime-specific bucket implementation.
+ * Creates the runtime-specific bucket implementation through a dynamic import.
+ *
+ * Example:
+ * - node + memory -> process disk-backed memory bucket
+ * - node/cloudflare + r2 -> shared S3-compatible bucket
  */
 export async function createBucket(config: RuntimeConfig): Promise<Bucket> {
   if (isIsolateRuntime(config.APP_RUNTIME)) {
@@ -24,6 +28,19 @@ export async function createBucket(config: RuntimeConfig): Promise<Bucket> {
 
   const { getProcessBucket } = await import(PROCESS_BUCKET_MODULE);
   return getProcessBucket(config);
+}
+
+/**
+ * Disposes cached runtime bucket adapters when the implementation keeps any.
+ * Isolate buckets are request-bound today, so their disposer is a no-op.
+ */
+export async function disposeBucket(
+  config: Pick<RuntimeConfig, "APP_RUNTIME">,
+): Promise<void> {
+  if (isIsolateRuntime(config.APP_RUNTIME)) return;
+
+  const { disposeProcessBucket } = await import(PROCESS_BUCKET_MODULE);
+  disposeProcessBucket();
 }
 
 /**

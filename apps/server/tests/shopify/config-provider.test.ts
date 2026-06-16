@@ -217,7 +217,7 @@ describe("Shopify provider and HTTP client", () => {
       await import("@/constants/shopify");
 
     expect(DEFAULT_APP_ACCOUNT_SESSION_COOKIE).toBe(
-      "custom-app:account_session_cookie",
+      "custom-app:shopify_session_id",
     );
   });
 });

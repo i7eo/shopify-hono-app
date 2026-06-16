@@ -206,7 +206,7 @@ describe("Shopify app mode capabilities", () => {
       "https://app.example.com/app",
     );
     expect((await callbackResponse).headers.get("Set-Cookie")).toContain(
-      ":account_session_cookie=offline_shop.myshopify.com",
+      ":shopify_session_id=offline_shop.myshopify.com",
     );
 
     expect(() =>

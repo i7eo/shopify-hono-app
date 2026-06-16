@@ -1,3 +1,4 @@
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
@@ -26,6 +27,7 @@ import type {
   BucketStoredObject,
 } from "@/infra/bucket";
 import type { Database } from "@/infra/database";
+import type { RuntimeConfig } from "@/infra/env";
 
 describe("file service", () => {
   afterEach(() => {
@@ -77,6 +79,55 @@ describe("file service", () => {
     await deleteFile(c, "test-shop.myshopify.com", created.id);
     await expect(
       getFile(c, "test-shop.myshopify.com", created.id),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: "File not found",
+    });
+  });
+
+  it("supports Cloudflare D1 database-backed file metadata", async () => {
+    const store = createMemoryMetadataStore(DEFAULT_APP_DATABASE_PROVIDERS.D1);
+    const bucket = createMemoryBucket();
+    const c = createServiceContext({
+      bucket,
+      store,
+      runtimeEnv: {
+        ...runtimeConfig,
+        APP_BUCKET_PROVIDER: "r2",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+        APP_RUNTIME: "cloudflare",
+      },
+    });
+
+    const created = await createFile(c, {
+      body: streamFromText("hello d1"),
+      contentType: "text/plain",
+      originalName: "cloudflare-d1.txt",
+      runtimeEnv: {
+        ...runtimeConfig,
+        APP_BUCKET_PROVIDER: "r2",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+        APP_RUNTIME: "cloudflare",
+      },
+      shopDomain: "cloudflare-shop.myshopify.com",
+    });
+
+    expect(created).toMatchObject({
+      byteSize: 8,
+      originalName: "cloudflare-d1.txt",
+      status: "available",
+    });
+
+    await expect(
+      getFile(c, "cloudflare-shop.myshopify.com", created.id),
+    ).resolves.toMatchObject({
+      id: created.id,
+      status: "available",
+    });
+
+    await deleteFile(c, "cloudflare-shop.myshopify.com", created.id);
+    await expect(
+      getFile(c, "cloudflare-shop.myshopify.com", created.id),
     ).rejects.toMatchObject({
       status: 404,
       message: "File not found",
@@ -247,6 +298,7 @@ function createServiceContext(options: {
   bucket?: Bucket;
   database?: Database;
   store?: TestFilesStore;
+  runtimeEnv?: RuntimeConfig;
 }) {
   const database =
     options.database ?? options.store?.database ?? createMemoryFilesDatabase();
@@ -271,7 +323,7 @@ function createServiceContext(options: {
 
   const context: Pick<Parameters<typeof createFile>[0], "get"> = {
     get: (key: string) => {
-      if (key === "runtimeEnv") return runtimeConfig;
+      if (key === "runtimeEnv") return options.runtimeEnv ?? runtimeConfig;
       if (key === "requestId") return "req_test";
       return;
     },
@@ -284,17 +336,21 @@ type TestFilesStore = FilesStore & {
   database: Database;
 };
 
-function createMemoryMetadataStore(): TestFilesStore {
-  const database = createMemoryFilesDatabase();
+function createMemoryMetadataStore(
+  provider: Database["provider"] = DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+): TestFilesStore {
+  const database = createMemoryFilesDatabase(provider);
   const store = createDatabaseFilesStore(database);
 
   return Object.assign(store, { database });
 }
 
-function createMemoryFilesDatabase(): Database {
+function createMemoryFilesDatabase(
+  provider: Database["provider"] = DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+): Database {
   const rows = new Map<string, FileRecord>();
 
-  return {
+  const db = {
     insert: () => ({
       values: (value: FileRecord) => ({
         onConflictDoUpdate: () => {
@@ -347,7 +403,18 @@ function createMemoryFilesDatabase(): Database {
         },
       }),
     }),
-  } as unknown as Database;
+  };
+
+  return {
+    db: db as never,
+    dialect:
+      provider === DEFAULT_APP_DATABASE_PROVIDERS.D1 ? "sqlite" : "postgres",
+    provider,
+    runtime:
+      provider === DEFAULT_APP_DATABASE_PROVIDERS.D1
+        ? "cloudflare"
+        : runtimeConfig.APP_RUNTIME,
+  };
 }
 
 function cloneFile(file: FileRecord): FileRecord {
@@ -370,7 +437,7 @@ function createMemoryBucket(overrides: Partial<Bucket> = {}): Bucket {
       return {
         byteSize: bytes.byteLength,
         key: input.key,
-        provider: "memory",
+        provider: input.shopDomain.includes("cloudflare") ? "r2" : "memory",
       };
     },
     open(input): Promise<BucketReadableObject> {

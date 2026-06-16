@@ -70,8 +70,9 @@ export async function loadShopifySessionForAccount(
     throw unauthorizedError("Missing app account session");
   }
 
-  const session =
-    await getShopifySessionStorage(c).loadSession(accountSessionId);
+  const session = await (
+    await getShopifySessionStorage(c)
+  ).loadSession(accountSessionId);
   if (!session?.accessToken) {
     throw unauthorizedError("Invalid app account session");
   }

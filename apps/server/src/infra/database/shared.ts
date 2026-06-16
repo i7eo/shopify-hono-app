@@ -1,21 +1,35 @@
-import { files, users } from "@shamt/database/models";
+import {
+  files,
+  postgresShopifySessions,
+} from "@shamt/database/models/postgres";
+import {
+  sqliteFiles,
+  sqliteShopifySessions,
+} from "@shamt/database/models/sqlite";
 import { internalServerError } from "@/shared/exceptions";
 import type { RuntimeConfig } from "@/infra/env";
 
-export const databaseSchema = {
+export const postgresDatabaseSchema = {
   files,
-  users,
+  shopifySessions: postgresShopifySessions,
 };
 
-export type DatabaseSchema = typeof databaseSchema;
+export const sqliteDatabaseSchema = {
+  files: sqliteFiles,
+  shopifySessions: sqliteShopifySessions,
+};
+
+export type PostgresDatabaseSchema = typeof postgresDatabaseSchema;
+export type SqliteDatabaseSchema = typeof sqliteDatabaseSchema;
 export type DatabaseRuntimeStrategy = {
   provider: RuntimeConfig["APP_DATABASE_PROVIDER"];
   runtime: RuntimeConfig["APP_RUNTIME"];
 };
 
 /**
- * Returns the configured database strategy and rejects runtime/provider pairs
- * that cannot be executed by the current infrastructure.
+ * Returns the configured database strategy without opening a connection.
+ * Runtime factories own support checks because each runtime has different
+ * required bindings and connection setup.
  */
 export function getDatabaseEnvConfig(
   config: RuntimeConfig,

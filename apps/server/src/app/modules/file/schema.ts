@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { selectFileSchema } from "@shamt/database";
+import { selectFileSchema } from "@shamt/database/sql-schemas/postgres";
 
 export const FileStatusSchema = selectFileSchema.shape.status;
 

@@ -1,6 +1,5 @@
 import { createResponse } from "@/shared/models";
 import {
-  getCloudflareKvHealthRoute,
   getDatabaseHealthRoute,
   getDiskHealthRoute,
   getHealthRoute,
@@ -72,16 +71,6 @@ export function registerHealthController(app: AppOpenAPI) {
     c.json(
       createResponse({
         data: getReservedHealthStatus("redis"),
-        requestId: c.get("requestId"),
-      }),
-      200,
-    ),
-  );
-
-  app.openapi(getCloudflareKvHealthRoute, (c) =>
-    c.json(
-      createResponse({
-        data: getReservedHealthStatus("cloudflare-kv"),
         requestId: c.get("requestId"),
       }),
       200,

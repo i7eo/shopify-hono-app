@@ -177,7 +177,7 @@ export const ReservedHealthDataSchema = z.object({
     description: "Reserved health check status.",
     example: "reserved",
   }),
-  target: z.enum(["database", "redis", "cloudflare-kv"]).openapi({
+  target: z.enum(["database", "redis"]).openapi({
     description: "Reserved health check target.",
     example: "database",
   }),
@@ -191,11 +191,6 @@ export const getRedisHealthRoute = createReservedHealthRoute(
   `${apiPath}/redis`,
   "Redis health check",
   "Reserved Redis health check endpoint.",
-);
-export const getCloudflareKvHealthRoute = createReservedHealthRoute(
-  `${apiPath}/cloudflare-kv`,
-  "Cloudflare KV health check",
-  "Reserved Cloudflare KV health check endpoint.",
 );
 function createReservedHealthRoute(
   routePath: string,

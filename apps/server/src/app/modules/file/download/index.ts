@@ -18,6 +18,10 @@ export class BucketFileDownloadResolver implements FileDownloadResolver {
     private readonly signer?: BucketDownloadSigner,
   ) {}
 
+  /**
+   * Returns a short-lived redirect for R2 files and a private stream response
+   * for memory files.
+   */
   async resolve(input: FileDownloadInput): Promise<FileDownload> {
     if (input.file.bucketProvider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
       if (!this.signer) {

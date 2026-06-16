@@ -1,6 +1,6 @@
 # @shamt/database
 
-`@shamt/database` is the workspace package for shared Drizzle PostgreSQL table
+`@shamt/database` is the workspace package for shared Drizzle table
 definitions, Drizzle-Zod schemas, and inferred database types.
 
 Applications should import schema objects from this package and create their own
@@ -9,22 +9,16 @@ connections and does not read environment variables.
 
 ## Exports
 
-| Entry                          | Purpose                                |
-| ------------------------------ | -------------------------------------- |
-| `@shamt/database`              | Models, Drizzle-Zod schemas, and types |
-| `@shamt/database/models`       | Drizzle table models only              |
-| `@shamt/database/package.json` | Package metadata                       |
+| Entry                                  | Purpose                                |
+| -------------------------------------- | -------------------------------------- |
+| `@shamt/database`                      | Models, Drizzle-Zod schemas, and types |
+| `@shamt/database/models/postgres`      | PostgreSQL Drizzle table models        |
+| `@shamt/database/models/sqlite`        | SQLite/D1 Drizzle table models         |
+| `@shamt/database/sql-schemas/postgres` | PostgreSQL Drizzle-Zod schemas         |
+| `@shamt/database/sql-schemas/sqlite`   | SQLite/D1 Drizzle-Zod schemas          |
+| `@shamt/database/package.json`         | Package metadata                       |
 
 ## Models
-
-`users`
-
-| Column       | Type      | Notes           |
-| ------------ | --------- | --------------- |
-| `id`         | serial    | primary key     |
-| `name`       | text      | required        |
-| `email`      | text      | required        |
-| `created_at` | timestamp | defaults to now |
 
 `files`
 
@@ -58,6 +52,46 @@ File indexes:
 - `files_shop_status_idx` on `shop_domain`, `status`
 - `files_expires_at_idx` on `expires_at`
 
+`sqliteFiles`
+
+SQLite/D1 file metadata table. It mirrors `files` with SQLite-compatible
+types: enum values are stored as text, byte size as integer, and date columns as
+integer `timestamp_ms` values.
+
+`postgresShopifySessions`
+
+PostgreSQL Shopify session table for
+`@shopify/shopify-app-session-storage-drizzle`.
+
+| Column                | Type      | Notes                       |
+| --------------------- | --------- | --------------------------- |
+| `id`                  | text      | primary key                 |
+| `shop`                | text      | required                    |
+| `state`               | text      | required                    |
+| `isOnline`            | boolean   | required, defaults `false`  |
+| `scope`               | text      | nullable                    |
+| `expires`             | timestamp | nullable, date mode         |
+| `accessToken`         | text      | required by adapter `4.0.0` |
+| `userId`              | bigint    | nullable, number mode       |
+| `firstName`           | text      | nullable                    |
+| `lastName`            | text      | nullable                    |
+| `email`               | text      | nullable                    |
+| `accountOwner`        | boolean   | nullable                    |
+| `locale`              | text      | nullable                    |
+| `collaborator`        | boolean   | nullable                    |
+| `emailVerified`       | boolean   | nullable                    |
+| `refreshToken`        | text      | nullable                    |
+| `refreshTokenExpires` | timestamp | nullable, date mode         |
+
+`sqliteShopifySessions`
+
+SQLite/D1 Shopify session table for
+`@shopify/shopify-app-session-storage-drizzle`.
+
+The columns mirror `postgresShopifySessions`, using SQLite-compatible column
+types: boolean values are stored as integer booleans, `expires` values as text,
+and `userId` as a bigint blob.
+
 ## Zod Schemas
 
 The package exports Drizzle-Zod schemas for inserts and selects:
@@ -65,21 +99,30 @@ The package exports Drizzle-Zod schemas for inserts and selects:
 ```ts
 import {
   insertFileSchema,
+  insertPostgresShopifySessionSchema,
+  insertSqliteFileSchema,
+  insertSqliteShopifySessionSchema,
   selectFileSchema,
-  insertUserSchema,
-  selectUserSchema,
+  selectPostgresShopifySessionSchema,
+  selectSqliteFileSchema,
+  selectSqliteShopifySessionSchema,
 } from "@shamt/database";
 ```
 
 It also exports inferred types such as `InsertFile`, `SelectFile`,
-`InsertUser`, and `User`.
+`InsertSqliteFile`, `SelectSqliteFile`, `InsertPostgresShopifySession`,
+`SelectPostgresShopifySession`, `InsertSqliteShopifySession`, and
+`SelectSqliteShopifySession`.
 
 ## Usage
 
 Create a Drizzle client in an app and pass the shared schema:
 
 ```ts
-import { files, users } from "@shamt/database";
+import {
+  files,
+  postgresShopifySessions,
+} from "@shamt/database/models/postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
@@ -88,7 +131,7 @@ const db = drizzle({
   client: pool,
   schema: {
     files,
-    users,
+    shopifySessions: postgresShopifySessions,
   },
 });
 ```
@@ -96,7 +139,7 @@ const db = drizzle({
 Use models in queries:
 
 ```ts
-import { files } from "@shamt/database";
+import { files } from "@shamt/database/models/postgres";
 import { eq } from "drizzle-orm";
 
 const rows = await db
@@ -110,5 +153,5 @@ const rows = await db
 - This package is schema-only.
 - Runtime strategy belongs in apps, such as `apps/server/src/infra/database`.
 - Migrations are generated from app-owned Drizzle config.
-- D1 is not implemented in this package yet; the current schema uses
-  `drizzle-orm/pg-core`.
+- File metadata has PostgreSQL and SQLite/D1 schemas.
+- Shopify session storage has PostgreSQL and SQLite/D1 schemas.

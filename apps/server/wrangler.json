@@ -7,17 +7,19 @@
     "enabled": true
   },
   "vars": {},
-  "kv_namespaces": [
-    {
-      "binding": "i7eo_dev_shopify_app_kv",
-      "id": "27e6f187cc914ef789a205393aa87909"
-    }
-  ],
   "d1_databases": [
     {
       "binding": "i7eo_dev_shopify_app_d1",
       "database_name": "i7eo-dev-shopify-app-d1",
-      "database_id": "974c35a2-bc15-403b-b08c-2f7137517f4a"
+      "database_id": "974c35a2-bc15-403b-b08c-2f7137517f4a",
+      "migrations_dir": "drizzle.d1"
+    }
+  ],
+  "hyperdrive": [
+    {
+      "binding": "i7eo_dev_shopify_app_hyperdrive",
+      "id": "d559a6b5c722412481d80f9754030123",
+      "localConnectionString": "postgresql://i7eo:123456@localhost:5432/postgres"
     }
   ],
   "queues": {

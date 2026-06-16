@@ -12,7 +12,7 @@ export async function loadActiveShopifyOnlineSession(
 ): Promise<Session | undefined> {
   const config = c.get("runtimeEnv");
   const shopify = await getShopifyConfigProvider(config);
-  const sessionStorage = getShopifySessionStorage(c);
+  const sessionStorage = await getShopifySessionStorage(c);
   const sessionId = await shopify.session.getCurrentId({
     isOnline: true,
     rawRequest: c.req.raw,
@@ -56,7 +56,7 @@ export async function exchangeShopifyOnlineSession(
     throw new Error("Token exchange did not return an access token");
   }
 
-  await getShopifySessionStorage(c).storeSession(session);
+  await (await getShopifySessionStorage(c)).storeSession(session);
 
   return session;
 }
@@ -87,7 +87,7 @@ export function setShopifySessionContext(c: Context<AppEnv>, session: Session) {
  * Deletes any stored online session IDs associated with the current request.
  */
 async function deleteCurrentShopifyOnlineSession(c: Context<AppEnv>) {
-  const sessionStorage = getShopifySessionStorage(c);
+  const sessionStorage = await getShopifySessionStorage(c);
   const sessionIds = new Set<string>();
 
   if (c.var.shopifySession?.id) {

@@ -11,10 +11,25 @@
       "import": "./src/index.ts",
       "require": "./src/index.ts"
     },
-    "./models": {
-      "types": "./src/models/index.ts",
-      "import": "./src/models/index.ts",
-      "require": "./src/models/index.ts"
+    "./models/postgres": {
+      "types": "./src/models/postgres/index.ts",
+      "import": "./src/models/postgres/index.ts",
+      "require": "./src/models/postgres/index.ts"
+    },
+    "./models/sqlite": {
+      "types": "./src/models/sqlite/index.ts",
+      "import": "./src/models/sqlite/index.ts",
+      "require": "./src/models/sqlite/index.ts"
+    },
+    "./sql-schemas/postgres": {
+      "types": "./src/sql-schemas/postgres/index.ts",
+      "import": "./src/sql-schemas/postgres/index.ts",
+      "require": "./src/sql-schemas/postgres/index.ts"
+    },
+    "./sql-schemas/sqlite": {
+      "types": "./src/sql-schemas/sqlite/index.ts",
+      "import": "./src/sql-schemas/sqlite/index.ts",
+      "require": "./src/sql-schemas/sqlite/index.ts"
     },
     "./package.json": "./package.json"
   },
@@ -33,10 +48,25 @@
         "import": "./dist/esm/index.mjs",
         "require": "./dist/cjs/index.cjs"
       },
-      "./models": {
-        "types": "./dist/esm/models/index.d.mts",
-        "import": "./dist/esm/models/index.mjs",
-        "require": "./dist/cjs/models/index.cjs"
+      "./models/postgres": {
+        "types": "./dist/esm/models/postgres.d.mts",
+        "import": "./dist/esm/models/postgres.mjs",
+        "require": "./dist/cjs/models/postgres.cjs"
+      },
+      "./models/sqlite": {
+        "types": "./dist/esm/models/sqlite.d.mts",
+        "import": "./dist/esm/models/sqlite.mjs",
+        "require": "./dist/cjs/models/sqlite.cjs"
+      },
+      "./sql-schemas/postgres": {
+        "types": "./dist/esm/sql-schemas/postgres.d.mts",
+        "import": "./dist/esm/sql-schemas/postgres.mjs",
+        "require": "./dist/cjs/sql-schemas/postgres.cjs"
+      },
+      "./sql-schemas/sqlite": {
+        "types": "./dist/esm/sql-schemas/sqlite.d.mts",
+        "import": "./dist/esm/sql-schemas/sqlite.mjs",
+        "require": "./dist/cjs/sql-schemas/sqlite.cjs"
       },
       "./package.json": "./package.json"
     }

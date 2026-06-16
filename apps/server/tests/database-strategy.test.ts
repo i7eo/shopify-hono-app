@@ -1,3 +1,4 @@
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { describe, expect, it } from "vitest";
 import { getDatabaseEnvConfig } from "@/infra/database";
 import { createIsolateDatabase } from "@/infra/database/isolate";
@@ -10,11 +11,11 @@ describe("database runtime strategy", () => {
     expect(
       getDatabaseEnvConfig({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "postgres",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
         APP_RUNTIME: "node",
       } as RuntimeConfig),
     ).toEqual({
-      provider: "postgres",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
       runtime: "node",
     });
   });
@@ -23,11 +24,11 @@ describe("database runtime strategy", () => {
     expect(
       getDatabaseEnvConfig({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "d1",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
         APP_RUNTIME: "node",
       } as RuntimeConfig),
     ).toEqual({
-      provider: "d1",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
       runtime: "node",
     });
   });
@@ -36,11 +37,11 @@ describe("database runtime strategy", () => {
     expect(
       getDatabaseEnvConfig({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "postgres",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
         APP_RUNTIME: "cloudflare",
       } as RuntimeConfig),
     ).toEqual({
-      provider: "postgres",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
       runtime: "cloudflare",
     });
   });
@@ -49,11 +50,11 @@ describe("database runtime strategy", () => {
     expect(
       getDatabaseEnvConfig({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "d1",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
         APP_RUNTIME: "cloudflare",
       } as RuntimeConfig),
     ).toEqual({
-      provider: "d1",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
       runtime: "cloudflare",
     });
   });
@@ -62,7 +63,7 @@ describe("database runtime strategy", () => {
     await expect(
       createProcessDatabase({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "d1",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
         APP_RUNTIME: "node",
       } as RuntimeConfig),
     ).rejects.toMatchObject({
@@ -71,16 +72,35 @@ describe("database runtime strategy", () => {
     });
   });
 
-  it("reserves but does not implement cloudflare d1 yet", async () => {
+  it("requires d1 binding for cloudflare d1", async () => {
     await expect(
       createIsolateDatabase({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "d1",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
         APP_RUNTIME: "cloudflare",
       } as RuntimeConfig),
     ).rejects.toMatchObject({
-      status: 503,
-      message: "D1 database is reserved but not implemented yet",
+      status: 500,
+      message: "Cloudflare D1 binding is required",
+    });
+  });
+
+  it("supports cloudflare d1 with a binding", async () => {
+    const database = await createIsolateDatabase(
+      {
+        ...runtimeConfig,
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+        APP_RUNTIME: "cloudflare",
+      } as RuntimeConfig,
+      {
+        d1: createD1Binding(),
+      },
+    );
+
+    expect(database).toMatchObject({
+      dialect: "sqlite",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "cloudflare",
     });
   });
 
@@ -88,7 +108,7 @@ describe("database runtime strategy", () => {
     await expect(
       createIsolateDatabase({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: "postgres",
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
         APP_RUNTIME: "cloudflare",
       } as RuntimeConfig),
     ).rejects.toMatchObject({
@@ -97,3 +117,34 @@ describe("database runtime strategy", () => {
     });
   });
 });
+
+function createD1Binding(): D1Database {
+  return {
+    batch: () => Promise.resolve([]),
+    dump: () => Promise.resolve(new ArrayBuffer(0)),
+    exec: () =>
+      Promise.resolve({
+        count: 0,
+        duration: 0,
+      }),
+    prepare: () =>
+      ({
+        all: () =>
+          Promise.resolve({
+            meta: {},
+            results: [],
+            success: true,
+          }),
+        bind() {
+          return this;
+        },
+        first: () => Promise.resolve(null),
+        raw: () => Promise.resolve([]),
+        run: () =>
+          Promise.resolve({
+            meta: {},
+            success: true,
+          }),
+      }) as unknown as D1PreparedStatement,
+  } as unknown as D1Database;
+}

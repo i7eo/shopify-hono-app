@@ -51,7 +51,17 @@ export function createProcessBucket(config: RuntimeConfig): Bucket {
 }
 
 /**
- * Stores bucket objects on memory disk for Node runtimes.
+ * Clears the cached process bucket adapter.
+ */
+export function disposeProcessBucket(): void {
+  processBucket = undefined;
+  processBucketCacheKey = undefined;
+}
+
+/**
+ * Stores bucket objects on the Node filesystem for the memory provider.
+ * The public provider name remains "memory" even though the development
+ * implementation persists bytes under public/{APP_FILE_DIR}.
  */
 export class ProcessMemoryBucket implements Bucket {
   readonly rootDir: string;
@@ -147,6 +157,9 @@ export class ProcessMemoryBucket implements Bucket {
     await rm(await this.getPath(input.key), { force: true });
   }
 
+  /**
+   * Resolves a bucket key under the configured root and rejects path traversal.
+   */
   private async getPath(key: string): Promise<string> {
     const { join, normalize, resolve, sep } = await import("node:path");
     const rootDir = this.resolvedRootDir ?? resolve(this.rootDir);
@@ -166,6 +179,9 @@ export class ProcessMemoryBucket implements Bucket {
   }
 }
 
+/**
+ * Builds the process bucket cache key from the fields that change adapters.
+ */
 function getProcessBucketCacheKey(config: RuntimeConfig): string {
   const strategy = getBucketEnvConfig(config);
 
@@ -180,6 +196,9 @@ function getProcessBucketCacheKey(config: RuntimeConfig): string {
   return [strategy.provider, config.APP_FILE_DIR].join(":");
 }
 
+/**
+ * Converts a Web stream into a Node stream while enforcing the max byte limit.
+ */
 async function createLimitedNodeUploadBody(
   stream: ReadableStream<Uint8Array>,
   maxBytes: number,
@@ -210,6 +229,9 @@ async function createLimitedNodeUploadBody(
   };
 }
 
+/**
+ * Creates the shared payload-too-large error used by streaming upload guards.
+ */
 function createPayloadTooLargeError(maxBytes: number) {
   return payloadTooLargeError("Upload request body overflow maxsize", {
     details: {

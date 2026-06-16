@@ -6,7 +6,13 @@ export interface FileTaskDispatcher {
   dispatch: (task: FileTask) => Promise<void>;
 }
 
+/**
+ * Placeholder dispatcher used before BullMQ or Cloudflare Queues are wired in.
+ */
 export class NoopFileTaskDispatcher implements FileTaskDispatcher {
+  /**
+   * Logs the task and resolves without enqueueing side effects.
+   */
   async dispatch(_task: FileTask): Promise<void> {
     await console.info(_task);
     return;
