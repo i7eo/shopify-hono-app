@@ -10,6 +10,10 @@ export interface Bucket {
   open: (input: BucketOpenInput) => Promise<BucketReadableObject>;
   delete: (input: BucketDeleteInput) => Promise<void>;
 }
+
+export interface BucketDownloadSigner {
+  signDownloadUrl: (input: BucketDownloadSignInput) => Promise<string>;
+}
 ```
 
 `put` 接收 `ReadableStream<Uint8Array>`，在 streaming 写入时统计字节数，并在超过 `APP_FILE_MAX_SIZE` 时返回 payload-too-large。
@@ -80,6 +84,13 @@ endpoint: https://<account-id>.r2.cloudflarestorage.com
 bucketName: <bucket-name>
 ```
 
+R2 download 使用 `S3CompatibleBucketDownloadSigner` 和 `@aws-sdk/s3-request-presigner` 生成短期 `GetObjectCommand` 签名 URL。签名 URL 默认由 file module 使用 `300000ms` TTL，并带上：
+
+```text
+ResponseContentType: <file.contentType>
+ResponseContentDisposition: attachment; filename*=UTF-8''<encoded originalName>
+```
+
 ## Runtime Upload Body Adapters
 
 S3 bucket 会接收一个 runtime-specific upload body adapter：
@@ -94,7 +105,7 @@ S3 bucket 会接收一个 runtime-specific upload body adapter：
 ## 当前边界
 
 - R2 当前在两个 runtime 中都使用 S3-compatible API，以保持一致性。
-- R2 custom-domain signed download 不在 bucket 层实现；它属于 file download resolver capability。
+- R2 custom-domain signed download 尚未实现；当前返回 S3-compatible endpoint 的短期签名 URL。
 - 生命周期清理不在这里实现。后续 BullMQ 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
 
 ## 测试

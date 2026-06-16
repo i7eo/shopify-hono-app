@@ -1,21 +1,6 @@
 import { badRequestError, payloadTooLargeError } from "@/shared/exceptions";
+import type { FileUploadStreamParser, ParseFileUploadInput } from "../types";
 import type { Context } from "hono";
-
-export type ParsedFileUpload = {
-  body: ReadableStream<Uint8Array>;
-  contentType?: string;
-  originalName?: string;
-};
-
-export type ParseFileUploadInput = {
-  fieldNames: string[];
-  maxFiles: number;
-  onFile: (file: ParsedFileUpload) => Promise<void>;
-};
-
-export interface FileUploadStreamParser {
-  parse: (context: Context, input: ParseFileUploadInput) => Promise<void>;
-}
 
 /**
  * Parses file-only multipart uploads with formidable@4's Fetch Request API.

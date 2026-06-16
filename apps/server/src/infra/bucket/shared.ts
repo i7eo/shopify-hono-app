@@ -38,10 +38,21 @@ export type BucketDeleteInput = {
   key: string;
 };
 
+export type BucketDownloadSignInput = {
+  contentType: string;
+  expiresInMilliseconds: number;
+  key: string;
+  originalName: string;
+};
+
 export interface Bucket {
   put: (input: BucketPutInput) => Promise<BucketStoredObject>;
   open: (input: BucketOpenInput) => Promise<BucketReadableObject>;
   delete: (input: BucketDeleteInput) => Promise<void>;
+}
+
+export interface BucketDownloadSigner {
+  signDownloadUrl: (input: BucketDownloadSignInput) => Promise<string>;
 }
 
 /**

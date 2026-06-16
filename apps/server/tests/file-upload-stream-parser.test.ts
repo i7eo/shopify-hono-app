@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  FormidableFileUploadStreamParser,
-  type ParsedFileUpload,
-} from "@/app/modules/file/upload-stream-parser";
+import { FormidableFileUploadStreamParser } from "@/app/modules/file/upload-stream-parser";
+import type { ParsedFileUpload } from "@/app/modules/file/types";
 import type { Context } from "hono";
 
 describe("FormidableFileUploadStreamParser", () => {

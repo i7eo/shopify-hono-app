@@ -150,6 +150,11 @@ minimumReleaseAgeExclude:
   - "@img/sharp-win32-x64@0.35.0"
   - semver@7.8.4
   - sharp@0.35.0
+  - "@aws-sdk/core@3.974.21"
+  - "@aws-sdk/s3-request-presigner@3.1069.0"
+  - "@aws-sdk/signature-v4-multi-region@3.996.35"
+  - "@aws-sdk/types@3.973.13"
+  - "@aws-sdk/xml-builder@3.972.30"
 
 allowBuilds:
   esbuild: true

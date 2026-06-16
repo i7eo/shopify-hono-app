@@ -81,7 +81,13 @@ export function registerFileController(app: AppOpenAPI) {
     );
 
     if (download.type === "redirect") {
-      return c.redirect(download.url, 302);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...download.headers,
+          Location: download.url,
+        },
+      });
     }
 
     return new Response(download.body, {

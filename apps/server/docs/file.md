@@ -87,7 +87,7 @@ Multipart 解析当前由 `apps/server/src/app/modules/file/upload-stream-parser
 文件元数据通过 Drizzle-backed files store 存储：
 
 ```text
-apps/server/src/app/modules/file/stores/database-files-store.ts
+apps/server/src/app/modules/file/stores/database.ts
 packages/database/src/models/files.ts
 ```
 
@@ -107,20 +107,28 @@ file module 使用这些 runtime capabilities：
 
 | Capability                          | 作用                         |
 | ----------------------------------- | ---------------------------- |
-| `moduleFileFilesStoreFactory`       | 创建 files metadata store    |
-| `moduleFileBucketFactory`           | 创建 object bucket           |
+| `databaseFactory`                   | 创建通用 Drizzle database    |
+| `bucketFactory`                     | 创建通用 object bucket       |
 | `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
 | `moduleFileTaskDispatcherFactory`   | 预留后台 file task 投递能力  |
 
-Node 当前注册 Drizzle files store、process memory bucket、直接 stream 下载 resolver 和 noop task dispatcher。
+file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前注册 PostgreSQL Drizzle database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher。
 
-Cloudflare 当前注册 Drizzle files store 和 bucket factory。download resolver 和 task dispatcher 在 Cloudflare file 路线完成前保持显式 unsupported placeholder。
+Cloudflare 当前注册 PostgreSQL Drizzle database、R2 bucket factory 和 R2 signed redirect 下载 resolver。task dispatcher 在 Cloudflare file 路线完成前保持显式 unsupported placeholder。
 
 ## 下载与删除
 
 下载前会先调用 `getAvailableFile`。不存在、已删除、非 available 状态或跨 shop 的文件都会返回 not found。过期文件会被标记为 `expired` 并返回 gone。
 
-Node memory download 返回：
+下载行为：
+
+| Runtime      | Provider | 行为                  |
+| ------------ | -------- | --------------------- |
+| `node`       | `memory` | `200` stream          |
+| `node`       | `r2`     | `302` signed redirect |
+| `cloudflare` | `r2`     | `302` signed redirect |
+
+Memory download 返回：
 
 ```text
 Content-Type: <file.contentType>
@@ -129,12 +137,15 @@ Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>
 Cache-Control: private, no-store
 ```
 
+R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `GetObjectCommand` 带上 `ResponseContentType` 与 `ResponseContentDisposition`。
+
 删除时会先删除 bucket object，然后把数据库记录标记为 `deleted`。
 
 ## 当前边界
 
 - 后台过期清理尚未实现。
-- Cloudflare download redirect 和 Queue-backed tasks 尚未实现。
+- Cloudflare Queue-backed tasks 尚未实现。
+- R2 custom-domain signed download 尚未实现；当前返回 S3-compatible endpoint 的短期签名 URL。
 - D1 已在 env 和 strategy code 中预留，但还没有 schema 或 driver 实现。
 - Multipart 解析当前只支持文件字段，不接收普通表单字段。
 
@@ -145,6 +156,7 @@ Cache-Control: private, no-store
 ```bash
 pnpm --dir apps/server exec vitest run \
   tests/file-service.test.ts \
+  tests/file-download-runtime-capability.test.ts \
   tests/file-upload-stream-parser.test.ts \
   tests/process-memory-bucket.test.ts \
   tests/isolate-s3-compatible-bucket.test.ts

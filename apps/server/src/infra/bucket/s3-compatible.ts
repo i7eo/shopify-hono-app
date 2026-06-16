@@ -3,6 +3,8 @@ import { internalServerError } from "@/shared/exceptions";
 import type {
   Bucket,
   BucketDeleteInput,
+  BucketDownloadSigner,
+  BucketDownloadSignInput,
   BucketOpenInput,
   BucketPutInput,
   BucketReadableObject,
@@ -103,6 +105,45 @@ export class S3CompatibleBucket implements Bucket {
   }
 }
 
+/**
+ * Creates short-lived S3-compatible download URLs for R2 objects.
+ */
+export class S3CompatibleBucketDownloadSigner implements BucketDownloadSigner {
+  private clientPromise:
+    | Promise<import("@aws-sdk/client-s3").S3Client>
+    | undefined;
+
+  constructor(private readonly config: S3CompatibleBucketConfig) {}
+
+  async signDownloadUrl(input: BucketDownloadSignInput): Promise<string> {
+    const [{ GetObjectCommand }, { getSignedUrl }] = await Promise.all([
+      import("@aws-sdk/client-s3"),
+      import("@aws-sdk/s3-request-presigner"),
+    ]);
+    const client = await this.getClient();
+
+    return getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: input.key,
+        ResponseContentDisposition: getAttachmentDisposition(
+          input.originalName,
+        ),
+        ResponseContentType: input.contentType,
+      }),
+      {
+        expiresIn: Math.ceil(input.expiresInMilliseconds / 1000),
+      },
+    );
+  }
+
+  private getClient() {
+    this.clientPromise ??= createS3CompatibleClient(this.config);
+    return this.clientPromise;
+  }
+}
+
 async function createS3CompatibleClient(config: S3CompatibleBucketConfig) {
   const { S3Client } = await import("@aws-sdk/client-s3");
 
@@ -130,4 +171,17 @@ function toWebReadableStream(body: unknown): ReadableStream<Uint8Array> {
   }
 
   throw internalServerError("Unsupported R2 response body type");
+}
+
+function getAttachmentDisposition(filename: string): string {
+  return `attachment; filename*=UTF-8''${encodeRFC5987Value(filename)}`;
+}
+
+function encodeRFC5987Value(value: string): string {
+  return encodeURIComponent(value).replaceAll(/['()*]/g, (char) => {
+    const codePoint = char.codePointAt(0);
+    return codePoint === undefined
+      ? ""
+      : `%${codePoint.toString(16).toUpperCase()}`;
+  });
 }

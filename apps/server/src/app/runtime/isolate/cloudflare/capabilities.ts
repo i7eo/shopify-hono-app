@@ -1,10 +1,10 @@
 import { KVSessionStorage } from "@shopify/shopify-app-session-storage-kv";
-import { createDatabaseFilesStoreFromPromise } from "@/app/modules/file/stores/database-files-store";
+import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
   setRuntimeCapability,
   type ModuleHealthDiskCheckResult,
 } from "@/app/runtime/capabilities";
-import { createBucket } from "@/infra/bucket";
+import { createBucket, createBucketDownloadSigner } from "@/infra/bucket";
 import { createDatabase } from "@/infra/database";
 import { setupIsolateLogger } from "@/infra/logger/isolate";
 import { runtimeNotSupported } from "@/utils/runtime";
@@ -34,20 +34,34 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
 
     return new KVSessionStorage(namespace);
   });
-  setRuntimeCapability("moduleFileFilesStoreFactory", (c) =>
-    createDatabaseFilesStoreFromPromise(createCloudflareDatabase(c)),
-  );
-  setRuntimeCapability("moduleFileBucketFactory", (c) =>
-    createBucket(c.get("runtimeEnv")),
-  );
+  setRuntimeCapability("databaseFactory", (c) => getDatabase(c));
+  setRuntimeCapability("bucketFactory", (c) => getBucket(c));
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
-    fileModuleNotSupported,
+    async (c) =>
+      new BucketFileDownloadResolver(
+        await getBucket(c),
+        await createBucketDownloadSigner(c.get("runtimeEnv")),
+      ),
   );
   setRuntimeCapability(
     "moduleFileTaskDispatcherFactory",
     fileModuleNotSupported,
   );
+}
+
+/**
+ * Creates the runtime database once request runtime env is available.
+ */
+function getDatabase(c: Context<AppEnv>) {
+  return createDatabase(c.get("runtimeEnv"));
+}
+
+/**
+ * Creates the runtime bucket once request runtime env is available.
+ */
+function getBucket(c: Context<AppEnv>) {
+  return createBucket(c.get("runtimeEnv"));
 }
 
 /**
@@ -80,16 +94,4 @@ function getRuntimeName(context: Context<AppEnv>) {
   const cloudflareContext = context as Context<RuntimeAppEnv<"cloudflare">>;
 
   return cloudflareContext.env.APP_RUNTIME ?? "cloudflare";
-}
-
-/**
- * Creates the Cloudflare database with request-bound platform bindings.
- */
-function createCloudflareDatabase(context: Context<AppEnv>) {
-  const cloudflareContext = context as Context<RuntimeAppEnv<"cloudflare">>;
-
-  return createDatabase(context.get("runtimeEnv"), {
-    d1: cloudflareContext.env.i7eo_dev_shopify_app_d1,
-    hyperdrive: cloudflareContext.env.i7eo_dev_shopify_app_hyperdrive,
-  });
 }

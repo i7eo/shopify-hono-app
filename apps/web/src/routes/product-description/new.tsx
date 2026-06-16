@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { uploadFile } from "@/apis/files";
-// import type { InsertFile } from "@shamt/database";
+// import type { SelectFile } from "@shamt/database";
 
 export const Route = createFileRoute("/product-description/new")({
   component: NewProductExport,

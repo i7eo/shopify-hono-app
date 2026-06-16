@@ -1,13 +1,12 @@
 import { checkProcessDiskAccess } from "@shamt/node-utils/disk";
 import { MemorySessionStorage } from "@shopify/shopify-app-session-storage-memory";
-import { MemoryBucketFileDownloadResolver } from "@/app/modules/file/download";
-import { createDatabaseFilesStoreFromPromise } from "@/app/modules/file/stores/database-files-store";
+import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import { NoopFileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
 import {
   setRuntimeCapability,
   type ModuleHealthDiskCheckResult,
 } from "@/app/runtime/capabilities";
-import { createBucket } from "@/infra/bucket";
+import { createBucket, createBucketDownloadSigner } from "@/infra/bucket";
 import { createDatabase } from "@/infra/database";
 import { setupProcessLogger } from "@/infra/logger/process";
 import { isDev } from "@/utils";
@@ -44,13 +43,15 @@ export function registerProcessRuntimeCapabilities() {
       "Shopify memory session storage is only available when APP_RUNTIME=node and APP_ENV=development",
     );
   });
-  setRuntimeCapability("moduleFileFilesStoreFactory", (c) =>
-    createDatabaseFilesStoreFromPromise(createDatabase(c.get("runtimeEnv"))),
-  );
-  setRuntimeCapability("moduleFileBucketFactory", (c) => getFileBucket(c));
+  setRuntimeCapability("databaseFactory", (c) => getDatabase(c));
+  setRuntimeCapability("bucketFactory", (c) => getBucket(c));
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
-    async (c) => new MemoryBucketFileDownloadResolver(await getFileBucket(c)),
+    async (c) =>
+      new BucketFileDownloadResolver(
+        await getBucket(c),
+        await createBucketDownloadSigner(c.get("runtimeEnv")),
+      ),
   );
   setRuntimeCapability(
     "moduleFileTaskDispatcherFactory",
@@ -59,9 +60,16 @@ export function registerProcessRuntimeCapabilities() {
 }
 
 /**
- * Lazily creates the process-memory file bucket once runtime env is available.
+ * Creates the runtime database once request runtime env is available.
  */
-function getFileBucket(c: Context<AppEnv>) {
+function getDatabase(c: Context<AppEnv>) {
+  return createDatabase(c.get("runtimeEnv"));
+}
+
+/**
+ * Creates the runtime bucket once request runtime env is available.
+ */
+function getBucket(c: Context<AppEnv>) {
   return createBucket(c.get("runtimeEnv"));
 }
 

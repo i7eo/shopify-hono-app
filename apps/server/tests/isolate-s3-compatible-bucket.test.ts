@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createBucketDownloadSigner } from "@/infra/bucket";
 import { createIsolateBucket } from "@/infra/bucket/isolate";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { runtimeConfig } from "./shopify/test-utils";
@@ -6,6 +7,10 @@ import { runtimeConfig } from "./shopify/test-utils";
 const objects = new Map<string, Uint8Array>();
 const sentCommands: Array<{ input: Record<string, unknown>; type: string }> =
   [];
+const signedRequests: Array<{
+  commandInput: Record<string, unknown>;
+  expiresIn?: number;
+}> = [];
 
 vi.mock("@aws-sdk/client-s3", () => {
   class PutObjectCommand {
@@ -66,10 +71,28 @@ vi.mock("@aws-sdk/client-s3", () => {
   };
 });
 
+vi.mock("@aws-sdk/s3-request-presigner", () => ({
+  getSignedUrl: vi.fn(
+    async (
+      _client: unknown,
+      command: { input: Record<string, unknown> },
+      options: { expiresIn?: number },
+    ) => {
+      await signedRequests.push({
+        commandInput: command.input,
+        expiresIn: options.expiresIn,
+      });
+
+      return `https://signed.example.com/${command.input.Key as string}`;
+    },
+  ),
+}));
+
 describe("isolate S3-compatible bucket", () => {
   beforeEach(() => {
     objects.clear();
     sentCommands.length = 0;
+    signedRequests.length = 0;
   });
 
   it("uses S3-compatible commands for R2 uploads, reads, and deletes", async () => {
@@ -134,6 +157,30 @@ describe("isolate S3-compatible bucket", () => {
     });
 
     expect(objects.has("test-shop/hello.txt")).toBe(false);
+  });
+
+  it("creates short-lived R2 signed download URLs", async () => {
+    const signer = await createBucketDownloadSigner(createCloudflareR2Config());
+    const url = await signer?.signDownloadUrl({
+      contentType: "text/csv",
+      expiresInMilliseconds: 300_000,
+      key: "test-shop/report.csv",
+      originalName: "export report.csv",
+    });
+
+    expect(url).toBe("https://signed.example.com/test-shop/report.csv");
+    expect(signedRequests).toEqual([
+      {
+        commandInput: {
+          Bucket: "product-export",
+          Key: "test-shop/report.csv",
+          ResponseContentDisposition:
+            "attachment; filename*=UTF-8''export%20report.csv",
+          ResponseContentType: "text/csv",
+        },
+        expiresIn: 300,
+      },
+    ]);
   });
 });
 

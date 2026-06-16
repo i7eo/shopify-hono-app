@@ -1,9 +1,7 @@
-import type {
-  FileDownloadResolver,
-  FilesStore,
-} from "@/app/modules/file/domain/files";
 import type { FileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
+import type { FileDownloadResolver } from "@/app/modules/file/types";
 import type { Bucket } from "@/infra/bucket";
+import type { Database } from "@/infra/database";
 import type { RuntimeConfig } from "@/infra/env";
 import type { LoggerSetupOptions } from "@/infra/logger/shared";
 import type { AppEnv } from "@/typings";
@@ -68,10 +66,10 @@ export interface ShopifySessionStorage {
 export type ModuleShopifySessionStorageFactory = (
   context: Context<AppEnv>,
 ) => ShopifySessionStorage;
-export type ModuleFileFilesStoreFactory = (
+export type DatabaseFactory = (
   context: Context<AppEnv>,
-) => FilesStore;
-export type ModuleFileBucketFactory = (
+) => Database | Promise<Database>;
+export type BucketFactory = (
   context: Context<AppEnv>,
 ) => Bucket | Promise<Bucket>;
 export type ModuleFileDownloadResolverFactory = (
@@ -93,13 +91,13 @@ export interface RuntimeCapabilityInstances {
    */
   moduleShopifySessionStorageFactory: ModuleShopifySessionStorageFactory;
   /**
-   * Module File: returns the metadata store used by file services.
+   * Infra Database: returns the runtime-specific Drizzle database client.
    */
-  moduleFileFilesStoreFactory: ModuleFileFilesStoreFactory;
+  databaseFactory: DatabaseFactory;
   /**
-   * Module File: returns the binary object storage adapter.
+   * Infra Bucket: returns the runtime-specific object bucket adapter.
    */
-  moduleFileBucketFactory: ModuleFileBucketFactory;
+  bucketFactory: BucketFactory;
   /**
    * Module File: resolves a file download into a stream or redirect.
    */

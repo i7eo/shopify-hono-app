@@ -3,6 +3,7 @@ import {
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
+import { DEFAULT_PAGE_SIZE } from "@/constants";
 import { getBucketEnvConfig, type Bucket } from "@/infra/bucket";
 import {
   badRequestError,
@@ -10,41 +11,26 @@ import {
   internalServerError,
   notFoundError,
 } from "@/shared/exceptions";
-import {
-  toPublicFile,
-  type FileDownload,
-  type FileRecord,
-  type FilesStore,
-  type PublicFile,
-} from "./domain/files";
+import { createDatabaseFilesStoreFromPromise } from "./stores/database";
 import { getFileUploadStreamParser } from "./upload-stream-parser";
-import type { RuntimeConfig } from "@/infra/env";
+import {
+  createBucketKey,
+  normalizeContentType,
+  normalizeOriginalName,
+  sanitizeFilename,
+  toPublicFile,
+} from "./utils";
+import type {
+  CreateFileInput,
+  CreateFilesInput,
+  FileDownload,
+  FileRecord,
+  FilesStore,
+  ListFilesInput,
+  PublicFile,
+} from "./types";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
-
-const DEFAULT_LIST_LIMIT = 20;
-const LAST_C0_CONTROL_CODE_POINT = 31;
-const DELETE_CONTROL_CODE_POINT = 127;
-
-export type CreateFileInput = {
-  batchId?: string;
-  body: ReadableStream<Uint8Array> | null;
-  contentType?: string;
-  originalName?: string;
-  runtimeEnv: RuntimeConfig;
-  shopDomain: string;
-};
-
-export type CreateFilesInput = {
-  runtimeEnv: RuntimeConfig;
-  shopDomain: string;
-};
-
-export type ListFilesInput = {
-  cursor?: string;
-  limit?: number;
-  shopDomain: string;
-};
 
 export async function createFile(
   c: Context<AppEnv>,
@@ -82,6 +68,7 @@ export async function createFile(
     expiresAt,
     createdAt: now,
     updatedAt: now,
+    deletedAt: null,
   };
 
   await store.create(initialFile);
@@ -163,7 +150,7 @@ export async function listFiles(
 ): Promise<{ files: PublicFile[]; nextCursor?: string }> {
   const page = await getFilesStore(c).list({
     cursor: input.cursor,
-    limit: input.limit ?? DEFAULT_LIST_LIMIT,
+    limit: input.limit ?? DEFAULT_PAGE_SIZE,
     shopDomain: input.shopDomain,
   });
 
@@ -231,11 +218,13 @@ async function getAvailableFile(
 }
 
 function getFilesStore(c: Context<AppEnv>): FilesStore {
-  return getFactory("moduleFileFilesStoreFactory")(c);
+  return createDatabaseFilesStoreFromPromise(
+    Promise.resolve(getFactory("databaseFactory")(c)),
+  );
 }
 
 function getFileBucket(c: Context<AppEnv>): Bucket | Promise<Bucket> {
-  return getFactory("moduleFileBucketFactory")(c);
+  return getFactory("bucketFactory")(c);
 }
 
 function getFileDownloadResolver(c: Context<AppEnv>) {
@@ -256,63 +245,4 @@ function getFactory<K extends RuntimeCapabilityName>(
   }
 
   return factory;
-}
-
-function normalizeOriginalName(value: string | undefined): string {
-  const trimmed = value?.trim();
-  if (!trimmed) throw badRequestError("X-File-Name header is required");
-  if (trimmed.length > 255) throw badRequestError("Filename is too long");
-  return trimmed;
-}
-
-function normalizeContentType(value: string | undefined): string {
-  const contentType = value?.split(";", 1)[0]?.trim().toLowerCase();
-  if (!contentType) throw badRequestError("Content-Type header is required");
-  return contentType;
-}
-
-export function sanitizeFilename(value: string): string {
-  const sanitized = value
-    .normalize("NFKC")
-    .replaceAll(/[\\/]/g, "-")
-    .split("")
-    .filter((character) => {
-      const codePoint = character.codePointAt(0);
-      return (
-        codePoint !== undefined &&
-        codePoint > LAST_C0_CONTROL_CODE_POINT &&
-        codePoint !== DELETE_CONTROL_CODE_POINT
-      );
-    })
-    .join("")
-    .replaceAll(/\s+/g, " ")
-    .trim()
-    .replace(/^\.+$/, "");
-
-  return stripTrailingTimestamp(sanitized).slice(0, 255) || "file";
-}
-
-function stripTrailingTimestamp(value: string): string {
-  const extensionIndex = value.lastIndexOf(".");
-  const hasExtension = extensionIndex > 0 && extensionIndex < value.length - 1;
-  const stem = hasExtension ? value.slice(0, extensionIndex) : value;
-  const extension = hasExtension ? value.slice(extensionIndex) : "";
-  const normalizedStem = stem
-    .replace(/[-_ ]\d{4}[-_]?\d{2}[-_]?\d{2}[-_]?\d{6}$/u, "")
-    .trim();
-
-  return `${normalizedStem || stem}${extension}`;
-}
-
-function createBucketKey(input: {
-  id: string;
-  now: Date;
-  safeName: string;
-  shopDomain: string;
-}): string {
-  const year = String(input.now.getUTCFullYear());
-  const month = String(input.now.getUTCMonth() + 1).padStart(2, "0");
-  const safeShopDomain = input.shopDomain.replaceAll(/[^a-z0-9.-]/gi, "-");
-
-  return `${safeShopDomain}/${year}/${month}/${input.id}/${input.safeName}`;
 }

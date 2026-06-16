@@ -1,6 +1,6 @@
-import { files, type SelectFile } from "@shamt/database";
+import { files } from "@shamt/database";
 import { and, desc, eq, isNull, ne } from "drizzle-orm";
-import type { FileRecord, FilesPage, FilesStore } from "../domain/files";
+import type { FileRecord, FilesPage, FilesStore } from "../types";
 import type { IsolateDatabase, ProcessDatabase } from "@/infra/database";
 
 type FilesDatabase = ProcessDatabase | IsolateDatabase;
@@ -22,13 +22,10 @@ export function createDatabaseFilesStoreFromPromise(
   return {
     async create(file): Promise<void> {
       const db = await dbPromise;
-      await db
-        .insert(files)
-        .values(toDatabaseFile(file))
-        .onConflictDoUpdate({
-          target: files.id,
-          set: toDatabaseFile(file),
-        });
+      await db.insert(files).values(file).onConflictDoUpdate({
+        target: files.id,
+        set: file,
+      });
     },
 
     async findById(input): Promise<FileRecord | null> {
@@ -41,7 +38,7 @@ export function createDatabaseFilesStoreFromPromise(
         )
         .limit(1);
 
-      return file ? fromDatabaseFile(file) : null;
+      return file ?? null;
     },
 
     async list(input): Promise<FilesPage> {
@@ -66,7 +63,7 @@ export function createDatabaseFilesStoreFromPromise(
       const next = rows[start + input.limit];
 
       return {
-        files: page.map(fromDatabaseFile),
+        files: page,
         nextCursor: next?.id,
       };
     },
@@ -100,41 +97,5 @@ export function createDatabaseFilesStoreFromPromise(
           and(eq(files.id, input.id), eq(files.shopDomain, input.shopDomain)),
         );
     },
-  };
-}
-
-function toDatabaseFile(file: FileRecord): typeof files.$inferInsert {
-  return {
-    bucketKey: file.bucketKey,
-    bucketProvider: file.bucketProvider,
-    byteSize: file.byteSize,
-    contentType: file.contentType,
-    createdAt: file.createdAt,
-    deletedAt: file.deletedAt,
-    expiresAt: file.expiresAt,
-    id: file.id,
-    originalName: file.originalName,
-    safeName: file.safeName,
-    shopDomain: file.shopDomain,
-    status: file.status,
-    updatedAt: file.updatedAt,
-  };
-}
-
-function fromDatabaseFile(file: SelectFile): FileRecord {
-  return {
-    bucketKey: file.bucketKey,
-    bucketProvider: file.bucketProvider,
-    byteSize: file.byteSize,
-    contentType: file.contentType,
-    createdAt: file.createdAt,
-    deletedAt: file.deletedAt ?? undefined,
-    expiresAt: file.expiresAt,
-    id: file.id,
-    originalName: file.originalName,
-    safeName: file.safeName,
-    shopDomain: file.shopDomain,
-    status: file.status,
-    updatedAt: file.updatedAt,
   };
 }
