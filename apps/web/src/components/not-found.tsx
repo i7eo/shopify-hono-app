@@ -1,4 +1,4 @@
-import notFoundImage from "@/assets/images/404.png";
+import notFoundImage from "@/assets/images/error.404.png";
 
 type FeedbackScope = "inline" | "page";
 

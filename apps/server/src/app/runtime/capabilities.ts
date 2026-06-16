@@ -1,3 +1,10 @@
+import type {
+  FileDownloadResolver,
+  FilesStore,
+} from "@/app/modules/file/domain/files";
+import type { FileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
+import type { FileMultipartUploadParser } from "@/app/modules/file/upload/file-multipart-upload-parser";
+import type { Bucket } from "@/infra/bucket";
 import type { RuntimeConfig } from "@/infra/env";
 import type { LoggerSetupOptions } from "@/infra/logger/shared";
 import type { AppEnv } from "@/typings";
@@ -8,7 +15,14 @@ export type RuntimeLoggerSetup = (
   config: RuntimeConfig,
   options: LoggerSetupOptions,
 ) => Promise<void>;
-export type ProcessDiskHealthChecker = () => Promise<string>;
+export type ModuleHealthDiskCheckResult = {
+  path?: string;
+  runtime: string;
+  status: "ok" | "unsupported";
+};
+export type ModuleHealthProcessDiskChecker = (
+  context: Context<AppEnv>,
+) => Promise<ModuleHealthDiskCheckResult> | ModuleHealthDiskCheckResult;
 export type RuntimeEnvSourceResolver = (
   context: Context<AppEnv>,
 ) => Record<string, unknown>;
@@ -52,15 +66,56 @@ export interface ShopifySessionStorage {
    */
   findSessionsByShop: (shop: string) => Promise<Session[]>;
 }
-export type ShopifySessionStorageFactory = (
+export type ModuleShopifySessionStorageFactory = (
   context: Context<AppEnv>,
 ) => ShopifySessionStorage;
+export type ModuleFileFilesStoreFactory = (
+  context: Context<AppEnv>,
+) => FilesStore;
+export type ModuleFileBucketFactory = (
+  context: Context<AppEnv>,
+) => Bucket | Promise<Bucket>;
+export type ModuleFileDownloadResolverFactory = (
+  context: Context<AppEnv>,
+) => FileDownloadResolver | Promise<FileDownloadResolver>;
+export type ModuleFileMultipartUploadParserFactory = (
+  context: Context<AppEnv>,
+) => FileMultipartUploadParser;
+export type ModuleFileTaskDispatcherFactory = (
+  context: Context<AppEnv>,
+) => FileTaskDispatcher;
 
 export interface RuntimeCapabilityInstances {
   runtimeLoggerSetup: RuntimeLoggerSetup;
-  processDiskHealthChecker: ProcessDiskHealthChecker;
   runtimeEnvSourceResolver: RuntimeEnvSourceResolver;
-  shopifySessionStorageFactory: ShopifySessionStorageFactory;
+  /**
+   * Module Health: checks process disk access when the runtime can touch disk.
+   */
+  moduleHealthProcessDiskChecker: ModuleHealthProcessDiskChecker;
+  /**
+   * Module Shopify: creates the runtime-specific Shopify session storage.
+   */
+  moduleShopifySessionStorageFactory: ModuleShopifySessionStorageFactory;
+  /**
+   * Module File: returns the metadata store used by file services.
+   */
+  moduleFileFilesStoreFactory: ModuleFileFilesStoreFactory;
+  /**
+   * Module File: returns the binary object storage adapter.
+   */
+  moduleFileBucketFactory: ModuleFileBucketFactory;
+  /**
+   * Module File: resolves a file download into a stream or redirect.
+   */
+  moduleFileDownloadResolverFactory: ModuleFileDownloadResolverFactory;
+  /**
+   * Module File: parses multipart uploads for the active runtime.
+   */
+  moduleFileMultipartUploadParserFactory: ModuleFileMultipartUploadParserFactory;
+  /**
+   * Module File: dispatches background file tasks to the runtime queue.
+   */
+  moduleFileTaskDispatcherFactory: ModuleFileTaskDispatcherFactory;
 }
 
 export type RuntimeCapabilityName = keyof RuntimeCapabilityInstances;

@@ -3,11 +3,11 @@ import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
 /**
- * Resolves the runtime-specific Shopify session storage adapter.
+ * Resolves the Module Shopify session storage adapter for the active runtime.
  */
 export function getShopifySessionStorage(c: Context<AppEnv>) {
   const sessionStorageFactory = getRuntimeCapability(
-    "shopifySessionStorageFactory",
+    "moduleShopifySessionStorageFactory",
   );
 
   if (sessionStorageFactory) {

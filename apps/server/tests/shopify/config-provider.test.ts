@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logger, runtimeConfig } from "./test-utils";
 
-const shopifyApi = vi.fn((options) => ({ options }));
+const { shopifyApi } = vi.hoisted(() => ({
+  shopifyApi: vi.fn((options) => ({ options })),
+}));
 
 vi.mock("@shopify/shopify-api", () => ({
   ApiVersion: {

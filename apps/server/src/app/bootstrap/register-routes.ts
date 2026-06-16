@@ -1,3 +1,4 @@
+import { registerFileController } from "@/app/modules/file";
 import { registerHealthController } from "@/app/modules/health";
 import { registerProductController } from "@/app/modules/product";
 import { registerShopController } from "@/app/modules/shop";
@@ -10,6 +11,7 @@ import type { AppOpenAPI } from "./register-openapi";
 export function registerRoutes(app: AppOpenAPI) {
   registerHealthController(app);
   registerShopifyRoutes(app);
+  registerFileController(app);
   registerShopController(app);
   registerProductController(app);
 }

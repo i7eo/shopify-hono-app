@@ -1,6 +1,6 @@
-import { DEFAULT_WEBHOOK_MAX_SIZE } from "@shamt/app-env";
 import { deserializeValue } from "@shamt/utils";
 import { createMiddleware } from "hono/factory";
+import { DEFAULT_WEBHOOK_MAX_SIZE } from "@/constants";
 import { getShopifyConfigProvider } from "@/infra/provider";
 import { payloadTooLargeError, unauthorizedError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";

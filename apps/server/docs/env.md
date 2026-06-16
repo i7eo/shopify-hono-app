@@ -116,7 +116,7 @@ sofary?: KVNamespace
 | ----------------------------- | ----------------------------------- | --------------------------------------- |
 | `APP_ENV`                     | `development`、`test`、`production` | 当前配置环境                            |
 | `APP_RUNTIME`                 | `node`、`cloudflare`、`vercel-edge` | server 执行环境，`vercel-edge` 当前预留 |
-| `APP_DATABASE_PROVIDER`       | `postgres`、`neon`                  | 数据库 provider                         |
+| `APP_DATABASE_PROVIDER`       | `postgres`、`d1`                    | 数据库 provider，`d1` 当前仅预留        |
 | `APP_LOGGER_EXPIRE`           | `604800000`                         | 日志过期时间                            |
 | `APP__SERVER_PORT`            | `10001`                             | `apps/server` dev 端口                  |
 | `APP__WEB_PORT`               | `10002`                             | `apps/web` dev 端口                     |
@@ -128,7 +128,7 @@ sofary?: KVNamespace
 | `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version               |
 | `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                   |
 
-其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_DATABASE_URL`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
+其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_PROVIDER`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_KEY`、`APP_BUCKET_R2_VALUE`、`APP_DATABASE_URL`、`APP_DATABASE_D1_URL`、`APP_DATABASE_D1_KEY`、`APP_DATABASE_D1_VALUE`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
 
 ## 部署期 Env
 

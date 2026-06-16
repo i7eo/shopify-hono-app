@@ -1,12 +1,27 @@
 import { expect, vi } from "vitest";
+import { getRuntimeConfig } from "@/infra/env";
 
-export const runtimeConfig = {
+export const runtimeConfig = getRuntimeConfig({
+  APP_NAME: "Test App",
   APP_RUNTIME: "node",
   APP_ENV: "test",
   APP_API_PREFIX: "api",
+  APP_REQUEST_TIMEOUT: 30_000,
+  APP_LOCALE: "en",
+  APP_USE_CLUSTER: false,
   APP__SERVER_PORT: 3000,
   APP__WEB_PORT: 3001,
+  APP_LOGGER_DIR: "logs",
+  APP_LOGGER_LEVEL: "info",
+  APP_CACHE_EXPIRE: 60,
+  APP_CACHE_MAX_SIZE: 100,
+  APP_BUCKET_PROVIDER: "memory",
   APP_DATABASE_PROVIDER: "postgres",
+  APP_FILE_DIR: "files",
+  APP_FILE_EXPIRE: 1000 * 60 * 60 * 24,
+  APP_FILE_MAX_SIZE: 1024 * 1024 * 10,
+  APP_FILE_UPLOAD_MULTIPLE_SIZE: 10,
+  APP_FILE_UPLOAD_TIMEOUT: 1000 * 60 * 5,
   SHOPIFY_APP_MODE: "embedded",
   SHOPIFY_APP_FRONTEND_TARGET: "backend",
   SHOPIFY_APP_KEY: "test_app_key",
@@ -14,7 +29,7 @@ export const runtimeConfig = {
   SHOPIFY_APP_URL: "https://app.example.com",
   SHOPIFY_API_VERSION: "2026-04",
   SCOPES: "read_products, write_products",
-};
+});
 
 type TestLogger = {
   debug: (message: string) => void;

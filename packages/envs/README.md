@@ -14,7 +14,7 @@
 
 ## Overview
 
-`@shamt/envs` is the workspace package for base environment constants and Zod configuration schemas. It centralizes reusable defaults, environment names, runtime names, HTTP status codes, response defaults, logger configuration, cache configuration, database configuration, Redis configuration, request limits, and related types.
+`@shamt/envs` is the workspace package for base environment constants and Zod configuration schemas. It centralizes reusable defaults, environment names, runtime names, HTTP status codes, response defaults, logger configuration, cache configuration, database URL configuration, Redis configuration, file upload limits, request limits, and related types.
 
 This package does not read `process.env`, does not decide the current deployment platform, and does not contain Shopify-specific app schema. It only provides reusable constants, types, and schemas. Applications should parse actual raw env values in their own bootstrap flow, runtime env provider, or middleware.
 
@@ -71,7 +71,7 @@ Inputs:
 
 Outputs:
 
-- Zod schemas for app, cache, database, env, logger, and Redis configuration.
+- Zod schemas for app, cache, database URL, env, file, logger, and Redis configuration.
 - TypeScript inferred types such as `AppConfigSchema`, `EnvConfigSchema`, and `LogConfigSchema`.
 - Shared constants for HTTP status codes, response defaults, content types, runtime names, env names, request limits, timeouts, and size limits.
 
@@ -137,6 +137,18 @@ import { DEFAULT_RUNTIMES, type DEFAULT_RUNTIMES_VALUES } from "@shamt/envs";
 function isCloudflare(runtime: DEFAULT_RUNTIMES_VALUES) {
   return runtime === DEFAULT_RUNTIMES.CLOUDFLARE;
 }
+```
+
+Use file upload defaults:
+
+```ts
+import { fileConfigSchema } from "@shamt/envs";
+
+const fileConfig = fileConfigSchema.parse({});
+
+fileConfig.APP_FILE_DIR; // "files"
+fileConfig.APP_FILE_MAX_SIZE; // 10485760
+fileConfig.APP_FILE_UPLOAD_MULTIPLE_SIZE; // 10
 ```
 
 ## Unit Conventions

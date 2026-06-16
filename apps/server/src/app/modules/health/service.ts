@@ -1,5 +1,6 @@
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { getClientProvider } from "@/infra/provider";
+import { internalServerError } from "@/shared/exceptions";
 import type {
   DiskHealthDataSchema,
   HealthDataSchema,
@@ -8,7 +9,9 @@ import type {
   ReservedHealthDataSchema,
 } from "./meta";
 import type { RuntimeConfig } from "@/infra/env";
+import type { AppEnv } from "@/typings";
 import type { z } from "@hono/zod-openapi";
+import type { Context } from "hono";
 
 export type HealthData = z.infer<typeof HealthDataSchema>;
 export type DiskHealthData = z.infer<typeof DiskHealthDataSchema>;
@@ -24,28 +27,29 @@ export function getHealthStatus(): HealthData {
   return { status: "ok" };
 }
 
+/**
+ * Runs the module health disk check through the active runtime capability.
+ */
 export async function checkDiskHealth(
-  runtimeConfig: RuntimeConfig,
+  c: Context<AppEnv>,
 ): Promise<DiskHealthData> {
-  const processDiskHealthChecker = getRuntimeCapability(
-    "processDiskHealthChecker",
+  const moduleHealthProcessDiskChecker = getRuntimeCapability(
+    "moduleHealthProcessDiskChecker",
   );
 
-  if (!processDiskHealthChecker) {
-    return {
-      status: "unsupported",
-      target: "disk",
-      runtime: runtimeConfig.APP_RUNTIME,
-    };
+  if (!moduleHealthProcessDiskChecker) {
+    throw internalServerError(
+      "Module health disk checker capability is not registered",
+    );
   }
 
-  const diskPath = await processDiskHealthChecker();
+  const result = await moduleHealthProcessDiskChecker(c);
 
   return {
-    status: "ok",
+    status: result.status,
     target: "disk",
-    runtime: runtimeConfig.APP_RUNTIME,
-    path: diskPath,
+    runtime: result.runtime,
+    path: result.path,
   };
 }
 

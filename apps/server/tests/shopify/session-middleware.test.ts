@@ -827,7 +827,7 @@ describe("verifyWebhook middleware", () => {
   });
 
   it("rejects webhook bodies that exceed the configured size limit", async () => {
-    const { DEFAULT_WEBHOOK_MAX_SIZE } = await import("@shamt/app-env");
+    const { DEFAULT_WEBHOOK_MAX_SIZE } = await import("@/constants");
     const { verifyWebhook } =
       await import("@/shared/middlewares/shopify/verify-webhook");
 

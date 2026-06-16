@@ -8,31 +8,38 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
     },
     "./disk": {
       "types": "./src/disk.ts",
-      "import": "./src/disk.ts"
+      "import": "./src/disk.ts",
+      "require": "./src/disk.ts"
     },
     "./execute-command": {
       "types": "./src/execute-command.ts",
-      "import": "./src/execute-command.ts"
+      "import": "./src/execute-command.ts",
+      "require": "./src/execute-command.ts"
     },
     "./graceful-exit": {
       "types": "./src/graceful-exit.ts",
-      "import": "./src/graceful-exit.ts"
+      "import": "./src/graceful-exit.ts",
+      "require": "./src/graceful-exit.ts"
     },
     "./monorepo": {
       "types": "./src/monorepo.ts",
-      "import": "./src/monorepo.ts"
+      "import": "./src/monorepo.ts",
+      "require": "./src/monorepo.ts"
     },
     "./net": {
       "types": "./src/net.ts",
-      "import": "./src/net.ts"
+      "import": "./src/net.ts",
+      "require": "./src/net.ts"
     },
     "./unified-spawn": {
       "types": "./src/unified-spawn.ts",
-      "import": "./src/unified-spawn.ts"
+      "import": "./src/unified-spawn.ts",
+      "require": "./src/unified-spawn.ts"
     },
     "./package.json": "./package.json"
   },

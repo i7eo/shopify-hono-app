@@ -9,7 +9,8 @@ import {
   redisSchema,
 } from "@shamt/envs";
 import { appEnvConfigSchema as $appConfigSchema } from "./app";
-import { dataBaseSchema as $dataBaseSchema } from "./database";
+import { bucketSchema } from "./bucket";
+import { appDatabaseConfigSchema } from "./database";
 import type { z } from "zod";
 
 export const configSchema = extendConfigSchema(
@@ -22,6 +23,7 @@ export const configSchema = extendConfigSchema(
   .extend(logConfigSchema.shape)
   .extend(redisSchema.shape)
   .extend(fileConfigSchema.shape)
-  .extend($dataBaseSchema.shape);
+  .extend(bucketSchema.shape)
+  .extend(appDatabaseConfigSchema.shape);
 
 export type ConfigSchema = z.infer<typeof configSchema>;

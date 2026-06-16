@@ -2,5 +2,5 @@ roles = ["backend"]
 port = 10001
 
 [commands]
-dev = "pnpm cf:dev"
-build = "pnpm cf:deploy"
+dev = "pnpm node:dev"
+build = "pnpm node:deploy"

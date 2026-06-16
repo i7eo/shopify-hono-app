@@ -2,9 +2,10 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "composite": false,
-    "lib": ["ES2022", "DOM"],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "rootDir": "..",
     "types": ["node", "vitest", "@cloudflare/workers-types"],
+    "allowJs": true,
     "noEmit": true
   },
   "include": ["../vitest.config.ts", "./**/*.ts", "../typings/**/*"],

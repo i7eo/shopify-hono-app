@@ -31,7 +31,7 @@ export function registerHealthController(app: AppOpenAPI) {
   app.openapi(getDiskHealthRoute, async (c) =>
     c.json(
       createResponse({
-        data: await checkDiskHealth(c.get("runtimeEnv")),
+        data: await checkDiskHealth(c),
         requestId: c.get("requestId"),
       }),
       200,

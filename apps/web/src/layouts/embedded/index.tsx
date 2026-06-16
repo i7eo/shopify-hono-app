@@ -1,11 +1,13 @@
-import { EmbeddedHeader } from "./header";
+import { EmbeddedFooter } from "./footer";
 import { EmbeddedMain } from "./main";
+import { EmbeddedSider } from "./sider";
 
 export function EmbeddedLayout() {
   return (
     <>
-      <EmbeddedHeader />
+      <EmbeddedSider />
       <EmbeddedMain />
+      <EmbeddedFooter />
     </>
   );
 }

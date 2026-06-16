@@ -8,6 +8,7 @@
 
     { "path": "./packages/app-env" },
     { "path": "./packages/cache" },
+    { "path": "./packages/database" },
     { "path": "./packages/envs" },
     { "path": "./packages/node-utils" },
     { "path": "./packages/oh-my-fetch" },

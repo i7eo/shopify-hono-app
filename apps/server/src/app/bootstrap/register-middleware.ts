@@ -41,7 +41,7 @@ export function registerMiddleware(app: Hono<AppEnv>) {
       policies: [
         {
           bodyLimit: {
-            maxSize: env.APP_FILE_MAX_SIZE,
+            maxSize: env.APP_FILE_MAX_SIZE * env.APP_FILE_UPLOAD_MULTIPLE_SIZE,
           },
           method: "POST",
           path: apiFilesPath,

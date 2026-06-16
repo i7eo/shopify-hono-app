@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ProductExportIndexRouteImport } from './routes/product-export/index'
 import { Route as ProductDescriptionIndexRouteImport } from './routes/product-description/index'
+import { Route as ProductExportNewRouteImport } from './routes/product-export/new'
+import { Route as ProductDescriptionNewRouteImport } from './routes/product-description/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,15 +36,29 @@ const ProductDescriptionIndexRoute = ProductDescriptionIndexRouteImport.update({
   path: '/product-description/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductExportNewRoute = ProductExportNewRouteImport.update({
+  id: '/product-export/new',
+  path: '/product-export/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductDescriptionNewRoute = ProductDescriptionNewRouteImport.update({
+  id: '/product-description/new',
+  path: '/product-description/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/product-description/new': typeof ProductDescriptionNewRoute
+  '/product-export/new': typeof ProductExportNewRoute
   '/product-description/': typeof ProductDescriptionIndexRoute
   '/product-export/': typeof ProductExportIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/product-description/new': typeof ProductDescriptionNewRoute
+  '/product-export/new': typeof ProductExportNewRoute
   '/product-description': typeof ProductDescriptionIndexRoute
   '/product-export': typeof ProductExportIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -50,18 +66,34 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/product-description/new': typeof ProductDescriptionNewRoute
+  '/product-export/new': typeof ProductExportNewRoute
   '/product-description/': typeof ProductDescriptionIndexRoute
   '/product-export/': typeof ProductExportIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/product-description/' | '/product-export/' | '/settings/'
+  fullPaths:
+    | '/'
+    | '/product-description/new'
+    | '/product-export/new'
+    | '/product-description/'
+    | '/product-export/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/product-description' | '/product-export' | '/settings'
+  to:
+    | '/'
+    | '/product-description/new'
+    | '/product-export/new'
+    | '/product-description'
+    | '/product-export'
+    | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/product-description/new'
+    | '/product-export/new'
     | '/product-description/'
     | '/product-export/'
     | '/settings/'
@@ -69,6 +101,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProductDescriptionNewRoute: typeof ProductDescriptionNewRoute
+  ProductExportNewRoute: typeof ProductExportNewRoute
   ProductDescriptionIndexRoute: typeof ProductDescriptionIndexRoute
   ProductExportIndexRoute: typeof ProductExportIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -104,11 +138,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductDescriptionIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/product-export/new': {
+      id: '/product-export/new'
+      path: '/product-export/new'
+      fullPath: '/product-export/new'
+      preLoaderRoute: typeof ProductExportNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product-description/new': {
+      id: '/product-description/new'
+      path: '/product-description/new'
+      fullPath: '/product-description/new'
+      preLoaderRoute: typeof ProductDescriptionNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProductDescriptionNewRoute: ProductDescriptionNewRoute,
+  ProductExportNewRoute: ProductExportNewRoute,
   ProductDescriptionIndexRoute: ProductDescriptionIndexRoute,
   ProductExportIndexRoute: ProductExportIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,

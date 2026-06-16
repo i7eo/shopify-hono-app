@@ -3,8 +3,7 @@ import runtimeLogger, {
   setupBootstrapLogger,
   setupLogger,
 } from "@/infra/logger";
-import { getIsolateLoggerEnvConfig } from "../logger/isolate";
-import { getProcessLoggerEnvConfig } from "../logger/process";
+import { getLoggerEnvConfig } from "../logger/config";
 import { providerDisposers, providers } from "./constants";
 import { createProviderSignature } from "./signature";
 import type { RuntimeConfig } from "@/infra/env";
@@ -70,8 +69,5 @@ function setLoggerProvider(signature: string) {
 }
 
 function getLoggerProviderSignature(config: RuntimeConfig): string {
-  return createProviderSignature({
-    ...getIsolateLoggerEnvConfig(config),
-    ...getProcessLoggerEnvConfig(config),
-  });
+  return createProviderSignature(getLoggerEnvConfig(config));
 }

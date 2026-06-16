@@ -76,6 +76,20 @@ export function notFoundError(
 }
 
 /**
+ * Use when a resource used to exist but is no longer available.
+ * Example: throw goneError("File expired");
+ */
+export function goneError(
+  message: string = HTTP_STATUS_CODES.GONE.phrase,
+  options?: ErrorOptions,
+) {
+  return createHttpError(HTTP_STATUS_CODES.GONE.code, message, {
+    ...options,
+    expose: options?.expose ?? true,
+  });
+}
+
+/**
  * Use when a request times out before the operation can complete.
  * Example: throw timeoutError("Shopify request timed out");
  */

@@ -1,0 +1,152 @@
+# 文件模块
+
+`apps/server` 的 file module 为当前 Shopify shop 提供文件上传、列表、元数据查询、下载与删除 REST 接口。runtime 差异被收口在 capability 里，所以模块代码不直接判断 Node 或 Cloudflare。
+
+## 接口
+
+所有路由都注册在 `/{APP_API_PREFIX}/files` 下，并且需要 `shopifyAdminSession()`。
+
+| 方法   | 路径                       | 响应                               |
+| ------ | -------------------------- | ---------------------------------- |
+| POST   | `/api/files`               | `201` JSON file 或 files list      |
+| GET    | `/api/files`               | `200` JSON list，包含 `nextCursor` |
+| GET    | `/api/files/{id}`          | `200` JSON file metadata           |
+| GET    | `/api/files/{id}/download` | `200` stream 或 `302` redirect     |
+| DELETE | `/api/files/{id}`          | `204` empty response               |
+
+`GET /api/files/{id}/download` 会直接下载文件。模块不提供独立的“获取下载链接”接口。
+
+## 上传模式
+
+Raw upload：
+
+```text
+POST /api/files
+Content-Type: application/pdf
+X-File-Name: invoice.pdf
+```
+
+Multipart upload：
+
+```text
+POST /api/files
+Content-Type: multipart/form-data
+fields: files or files[]
+```
+
+Multipart 解析当前通过 `moduleFileMultipartUploadParserFactory` 使用 Hono 原生的 `request.parseBody({ all: true })`。解析器被隔离在 `FileMultipartUploadParser` 接口后面，后续阶段可以在验证 `formidable@next` 跨 runtime 的 stream 和 backpressure 行为后替换实现。
+
+配置：
+
+| Env                             | 默认值  | 说明                                |
+| ------------------------------- | ------- | ----------------------------------- |
+| `APP_FILE_MAX_SIZE`             | `10MB`  | 单个上传文件的最大字节数            |
+| `APP_FILE_UPLOAD_MULTIPLE_SIZE` | `10`    | 单次 multipart 上传允许的最大文件数 |
+| `APP_FILE_UPLOAD_TIMEOUT`       | `5min`  | 上传请求超时时间                    |
+| `APP_FILE_EXPIRE`               | `24h`   | 文件过期时间                        |
+| `APP_FILE_DIR`                  | `files` | process memory bucket 目录名        |
+
+同一次请求上传的多个文件会共享一个生成的 batch directory ID，但每个文件仍然拥有独立的 file resource ID。
+
+## 文件记录
+
+公开响应包含：
+
+- `id`
+- `originalName`
+- `safeName`
+- `contentType`
+- `byteSize`
+- `status`
+- `expiresAt`
+- `createdAt`
+- `updatedAt`
+
+内部 `FileRecord` 还保存 `shopDomain`、`bucketProvider`、`bucketKey` 和可选的 `deletedAt`。`shopDomain` 始终参与 lookup、list、download 和 delete 操作。
+
+状态：
+
+- `uploading`
+- `available`
+- `expired`
+- `deleted`
+- `failed`
+
+## 存储 Key
+
+模块会清洗用户文件名，并按下面的格式生成 bucket key：
+
+```text
+{shopDomain}/{yyyy}/{mm}/{fileOrBatchId}/{safeName}
+```
+
+类似 `import-report-2026-06-03-112151.csv` 的时间戳后缀会被移除，最终得到更稳定的名字，例如 `import-report.csv`。路径分隔符、控制字符、连续空白、全点文件名和超长文件名都会在写入前被规范化。
+
+## 数据库
+
+文件元数据通过 Drizzle-backed files store 存储：
+
+```text
+apps/server/src/app/modules/file/stores/database-files-store.ts
+packages/database/src/models/files.ts
+```
+
+当前 provider 规则：
+
+| Runtime      | `APP_DATABASE_PROVIDER` | 实现                                               |
+| ------------ | ----------------------- | -------------------------------------------------- |
+| `node`       | `postgres`              | `pg.Pool` + `drizzle-orm/node-postgres`            |
+| `cloudflare` | `postgres`              | Hyperdrive `connectionString` + PostgreSQL Drizzle |
+| any          | `d1`                    | 仅预留；当前返回 runtime unsupported               |
+
+Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare PostgreSQL 需要 `i7eo_dev_shopify_app_hyperdrive` binding。
+
+## Runtime Capabilities
+
+file module 使用这些 runtime capabilities：
+
+| Capability                               | 作用                         |
+| ---------------------------------------- | ---------------------------- |
+| `moduleFileFilesStoreFactory`            | 创建 files metadata store    |
+| `moduleFileBucketFactory`                | 创建 object bucket           |
+| `moduleFileDownloadResolverFactory`      | 解析 stream 或 redirect 下载 |
+| `moduleFileMultipartUploadParserFactory` | 解析 multipart 上传          |
+| `moduleFileTaskDispatcherFactory`        | 预留后台 file task 投递能力  |
+
+Node 当前注册 Drizzle files store、process memory bucket、直接 stream 下载 resolver、Hono multipart parser 和 noop task dispatcher。
+
+Cloudflare 当前注册 Drizzle files store 和 bucket factory。download resolver、multipart parser 和 task dispatcher 在 Cloudflare file 路线完成前保持显式 unsupported placeholder。
+
+## 下载与删除
+
+下载前会先调用 `getAvailableFile`。不存在、已删除、非 available 状态或跨 shop 的文件都会返回 not found。过期文件会被标记为 `expired` 并返回 gone。
+
+Node memory download 返回：
+
+```text
+Content-Type: <file.contentType>
+Content-Length: <object.byteSize>
+Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>
+Cache-Control: private, no-store
+```
+
+删除时会先删除 bucket object，然后把数据库记录标记为 `deleted`。
+
+## 当前边界
+
+- 后台过期清理尚未实现。
+- Cloudflare download redirect 和 Queue-backed tasks 尚未实现。
+- D1 已在 env 和 strategy code 中预留，但还没有 schema 或 driver 实现。
+- Multipart 解析当前 MVP 使用 Hono 原生解析，不是专用 streaming multipart parser。
+
+## 测试
+
+常用聚焦检查：
+
+```bash
+pnpm --dir apps/server exec vitest run \
+  tests/file-service.test.ts \
+  tests/hono-file-multipart-upload-parser.test.ts \
+  tests/process-memory-bucket.test.ts \
+  tests/isolate-s3-compatible-bucket.test.ts
+```

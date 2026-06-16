@@ -9,8 +9,28 @@
   "vars": {},
   "kv_namespaces": [
     {
-      "binding": "sofary",
-      "id": "b5a86d0381b54d3787bc0a53c2bb3198"
+      "binding": "i7eo_dev_shopify_app_kv",
+      "id": "27e6f187cc914ef789a205393aa87909"
     }
-  ]
+  ],
+  "d1_databases": [
+    {
+      "binding": "i7eo_dev_shopify_app_d1",
+      "database_name": "i7eo-dev-shopify-app-d1",
+      "database_id": "974c35a2-bc15-403b-b08c-2f7137517f4a"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "i7eo_dev_shopify_app_queue",
+        "queue": "i7eo-dev-shopify-app-queue"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "i7eo-dev-shopify-app-queue"
+      }
+    ]
+  }
 }

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchProductsMock = vi.hoisted(() => vi.fn());
 const fetchShopInfoMock = vi.hoisted(() => vi.fn());
+const uploadFileMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/utils/public-env", () => ({
   DEFAULT_APP_API_PREFIX: "api",
@@ -36,6 +37,10 @@ vi.mock("@/apis/shopify", () => ({
 
     override name = "ShopifyAuthRedirectError";
   },
+}));
+
+vi.mock("@/apis/files", () => ({
+  uploadFile: uploadFileMock,
 }));
 
 vi.mock("sonner", () => ({
@@ -93,10 +98,33 @@ describe("route components", () => {
     fetchShopInfoMock.mockResolvedValue({
       data: { shop: { myshopifyDomain: "shop.myshopify.com", name: "Shop" } },
     });
+    uploadFileMock.mockReset();
+    uploadFileMock.mockResolvedValue({
+      data: {
+        byteSize: 128,
+        contentType: "image/png",
+        createdAt: "2026-06-14T00:00:00.000Z",
+        expiresAt: "2026-06-15T00:00:00.000Z",
+        id: "file-1",
+        originalName: "catalog.png",
+        safeName: "catalog.png",
+        status: "available",
+        updatedAt: "2026-06-14T00:00:00.000Z",
+      },
+    });
+    globalThis.shopify = {
+      loading: vi.fn(),
+      toast: { show: vi.fn() },
+    } as unknown as ShopifyGlobal;
+    vi.stubGlobal("__PUBLIC_ENV__", {
+      APP_FILE_MAX_SIZE: 1024,
+      APP_FILE_UPLOAD_MULTIPLE_SIZE: 2,
+    });
   });
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
 
   it("renders the root shell, app nav, devtools fallback, and not-found component", async () => {
@@ -110,8 +138,8 @@ describe("route components", () => {
     expect(document.querySelector("s-app-nav")).toBeTruthy();
     expect(readAppNavLinks()).toEqual([
       { href: "/", label: "Home" },
-      { href: "/product-export", label: "Product export" },
-      { href: "/product-description", label: "Product description" },
+      { href: "/product-export", label: "Product Export" },
+      { href: "/product-description", label: "Product Description" },
       { href: "/settings", label: "Settings" },
     ]);
     expect(await screen.findByTestId("toaster")).toBeTruthy();
@@ -160,38 +188,166 @@ describe("route components", () => {
     expect(screen.getByText("Approve selected")).toBeTruthy();
   });
 
-  it("loads and renders the product export resource index", async () => {
+  it("renders the product export resource index", async () => {
     const { Route } = await import("../src/routes/product-export");
     const Component = Route.options.component as React.ComponentType;
 
     render(<Component />);
 
+    expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+      "Product export",
+    );
     expect(
       document.querySelector(
-        's-spinner[accessibilitylabel="Loading products"]',
+        's-spinner[accessibilitylabel="Loading product export actions"]',
       ),
     ).toBeTruthy();
-    await waitFor(() => {
-      expect(screen.getByText("Cotton tee")).toBeTruthy();
-    });
-    expect(screen.getByText("Shop")).toBeTruthy();
-    expect(document.querySelector("#shop-info")?.textContent).toContain(
-      "shop.myshopify.com",
+
+    expect(await screen.findByText("Summer catalog")).toBeTruthy();
+    expect(screen.getByText("price-review.csv")).toBeTruthy();
+    expect(screen.getByText("Processing")).toBeTruthy();
+    expect(
+      document.querySelectorAll("s-button[slot='primary-action']"),
+    ).toHaveLength(1);
+    expect(document.querySelector("s-button")?.getAttribute("href")).toBe(
+      "/product-export/new",
     );
-    expect(fetchShopInfoMock).toHaveBeenCalledOnce();
-    expect(fetchProductsMock).toHaveBeenCalledOnce();
+    expect(fetchShopInfoMock).not.toHaveBeenCalled();
+    expect(fetchProductsMock).not.toHaveBeenCalled();
   });
 
-  it("renders generic error states on product export", async () => {
-    fetchShopInfoMock.mockRejectedValueOnce(new Error("Server unavailable"));
-    const { Route } = await import("../src/routes/product-export");
+  it("renders the new product export details form", async () => {
+    const { Route } = await import("../src/routes/product-export/new");
     const Component = Route.options.component as React.ComponentType;
 
     render(<Component />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Server unavailable")).toBeTruthy();
+    expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+      "Create product export",
+    );
+    expect(document.querySelector('s-text-field[name="name"]')).toBeTruthy();
+    expect(document.querySelector('s-drop-zone[name="file"]')).toBeTruthy();
+    expect(screen.getByText("Save")).toBeTruthy();
+  });
+
+  it("uploads the selected product export images", async () => {
+    const { Route } = await import("../src/routes/product-export/new");
+    const Component = Route.options.component as React.ComponentType;
+    const file = new File(["image"], "catalog.png", {
+      type: "image/png",
     });
+
+    render(<Component />);
+
+    const form = document.querySelector("form")!;
+    const formData = new FormData();
+    formData.set("file", file);
+    const formDataSpy = vi
+      .spyOn(globalThis, "FormData")
+      .mockImplementation(function FormDataMock() {
+        return formData;
+      } as unknown as typeof FormData);
+
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(uploadFileMock).toHaveBeenCalledWith(
+        file,
+        expect.any(AbortSignal),
+      );
+    });
+    expect(globalThis.shopify.loading).toHaveBeenNthCalledWith(1, true);
+    expect(globalThis.shopify.loading).toHaveBeenLastCalledWith(false);
+    expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
+      "Export action images uploaded.",
+      undefined,
+    );
+    expect(screen.getByText("More actions")).toBeTruthy();
+    expect(document.querySelector("s-menu")).toBeTruthy();
+    expect(screen.getByText("Delete")).toBeTruthy();
+
+    formDataSpy.mockRestore();
+  });
+
+  it("renders selected image previews", async () => {
+    const { Route } = await import("../src/routes/product-export/new");
+    const Component = Route.options.component as React.ComponentType;
+    const file = new File(["image"], "catalog-preview.png", {
+      type: "image/png",
+    });
+
+    render(<Component />);
+
+    const dropZone = document.querySelector("s-drop-zone")!;
+    Object.defineProperty(dropZone, "files", {
+      configurable: true,
+      value: [file],
+    });
+    fireEvent.change(dropZone);
+
+    expect(await screen.findByText("catalog-preview...")).toBeTruthy();
+    expect(screen.getByText("PNG")).toBeTruthy();
+    expect(document.querySelector("s-image")).toBeTruthy();
+  });
+
+  it("rejects more images than the public upload limit", async () => {
+    const { Route } = await import("../src/routes/product-export/new");
+    const Component = Route.options.component as React.ComponentType;
+    const files = [
+      new File(["image"], "one.png", { type: "image/png" }),
+      new File(["image"], "two.png", { type: "image/png" }),
+      new File(["image"], "three.png", { type: "image/png" }),
+    ];
+
+    render(<Component />);
+
+    const form = document.querySelector("form")!;
+    const formData = new FormData();
+    for (const file of files) formData.append("file", file);
+    const formDataSpy = vi
+      .spyOn(globalThis, "FormData")
+      .mockImplementation(function FormDataMock() {
+        return formData;
+      } as unknown as typeof FormData);
+
+    fireEvent.submit(form);
+
+    expect(uploadFileMock).not.toHaveBeenCalled();
+    expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
+      "Upload up to 2 images at once.",
+      { isError: true },
+    );
+
+    formDataSpy.mockRestore();
+  });
+
+  it("rejects images larger than the public file size limit", async () => {
+    const { Route } = await import("../src/routes/product-export/new");
+    const Component = Route.options.component as React.ComponentType;
+    const file = new File(["x".repeat(1025)], "large.png", {
+      type: "image/png",
+    });
+
+    render(<Component />);
+
+    const form = document.querySelector("form")!;
+    const formData = new FormData();
+    formData.set("file", file);
+    const formDataSpy = vi
+      .spyOn(globalThis, "FormData")
+      .mockImplementation(function FormDataMock() {
+        return formData;
+      } as unknown as typeof FormData);
+
+    fireEvent.submit(form);
+
+    expect(uploadFileMock).not.toHaveBeenCalled();
+    expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
+      "large.png is larger than 1.0 KB.",
+      { isError: true },
+    );
+
+    formDataSpy.mockRestore();
   });
 
   it("renders and submits the settings form", async () => {
@@ -215,7 +371,7 @@ describe("route components", () => {
 });
 
 function sectionHeading(heading: string) {
-  return document.querySelector(`s-section[heading="${heading}"]`);
+  return document.querySelector(`s-section[heading="${CSS.escape(heading)}"]`);
 }
 
 function readAppNavLinks() {

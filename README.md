@@ -144,7 +144,7 @@ SHOPIFY_APP_MODE=embedded
 SHOPIFY_APP_FRONTEND_TARGET=frontend
 SHOPIFY_APP_KEY=...
 SHOPIFY_APP_SECRET=...
-SHOPIFY_APP_URL=https://sofary-app-dev-server.i7eo.com
+SHOPIFY_APP_URL=https://i7eo-dev-shopify-app.i7eo.com
 SHOPIFY_API_VERSION=2026-04
 SCOPES=read_products,write_products,read_orders
 ```
@@ -247,11 +247,11 @@ Use the named Cloudflare Tunnel `sofary` only when you need the fixed public
 hostname:
 
 ```text
-https://sofary-app-dev-server.i7eo.com
+https://i7eo-dev-shopify-app.i7eo.com
 ```
 
 For the named tunnel flow, Cloudflare Zero Trust must point the Public Hostname
-for `sofary-app-dev-server.i7eo.com` to the Shopify CLI local proxy:
+for `i7eo-dev-shopify-app.i7eo.com` to the Shopify CLI local proxy:
 
 ```text
 http://[::1]:10101

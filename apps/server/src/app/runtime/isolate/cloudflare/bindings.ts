@@ -4,15 +4,15 @@
  * bindings stay optional in schema and become required where they are used.
  */
 export function requireCloudflareBinding<T>(
-  value: T | undefined,
+  value: unknown,
   name: string,
-  isValid?: (value: T) => boolean,
+  isValid?: (value: unknown) => value is T,
 ): T {
   if (value === undefined || (isValid && !isValid(value))) {
     throw new Error(`Cloudflare binding is invalid or missing: ${name}`);
   }
 
-  return value;
+  return value as T;
 }
 
 /**

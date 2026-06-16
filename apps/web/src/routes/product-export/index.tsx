@@ -1,150 +1,155 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  fetchProducts,
-  fetchShopInfo,
-  type ProductNode,
-  type ShopInfo,
-} from "@/apis/shopify";
-import { ShopifyAuthRedirectError } from "@/utils/client.shopify";
+import { Empty } from "@/components/empty";
 
 export const Route = createFileRoute("/product-export/")({
   component: ProductExport,
 });
 
-interface ProductExportState {
-  error?: string;
-  products: ProductNode[];
-  shop?: ShopInfo;
-  status: "loading" | "ready" | "redirecting" | "error";
-}
+const EXPORT_ACTION_DELAY_MS = 500;
+
+const exportActionRows = [
+  {
+    createdAt: "Today",
+    fileName: "summer-catalog.csv",
+    id: "summer-catalog",
+    name: "Summer catalog",
+    status: "Ready",
+    tone: "success",
+  },
+  {
+    createdAt: "Yesterday",
+    fileName: "price-review.csv",
+    id: "price-review",
+    name: "Price review",
+    status: "Processing",
+    tone: "info",
+  },
+  {
+    createdAt: "Last week",
+    fileName: "archive-export.csv",
+    id: "archive-export",
+    name: "Archive export",
+    status: "Failed",
+    tone: "critical",
+  },
+] as const;
+
+type ExportActionRow = (typeof exportActionRows)[number];
 
 function ProductExport() {
-  const [state, setState] = useState<ProductExportState>({
-    products: [],
-    status: "loading",
-  });
+  const [rows, setRows] = useState<ExportActionRow[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready">("loading");
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadProductExportData() {
-      try {
-        const [shop, products] = await Promise.all([
-          fetchShopInfo(controller.signal),
-          fetchProducts(controller.signal),
-        ]);
-
-        setState({
-          products:
-            products.data?.products?.edges?.map((edge) => edge.node) ?? [],
-          shop: shop.data?.shop,
-          status: "ready",
-        });
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setState({
-          error: error instanceof Error ? error.message : String(error),
-          products: [],
-          status: isAuthRedirectError(error) ? "redirecting" : "error",
-        });
-      }
-    }
-
-    loadProductExportData();
+    const timer = globalThis.setTimeout(() => {
+      setRows([...exportActionRows]);
+      setStatus("ready");
+    }, EXPORT_ACTION_DELAY_MS);
 
     return () => {
-      controller.abort();
+      globalThis.clearTimeout(timer);
     };
   }, []);
 
   return (
-    <s-page heading="Product export">
-      <s-button slot="primary-action" variant="primary">
-        Export catalog
+    <s-page heading="Product Export">
+      <s-button
+        href="/product-export/new"
+        slot="primary-action"
+        variant="primary"
+      >
+        Create
       </s-button>
-      <s-button slot="secondary-actions" variant="secondary">
-        Schedule export
-      </s-button>
 
-      {state.status === "redirecting" ? (
+      {status === "loading" ? (
         <s-section>
-          <s-banner tone="info">Redirecting to Shopify authorization.</s-banner>
+          <s-spinner
+            accessibilityLabel="Loading product export actions"
+            size="base"
+          ></s-spinner>
         </s-section>
-      ) : null}
-
-      {state.status === "error" ? (
-        <s-section>
-          <s-banner tone="critical">{state.error}</s-banner>
-        </s-section>
-      ) : null}
-
-      <s-section heading="Shop">
-        <s-box id="shop-info" border="base" borderRadius="base" padding="base">
-          {state.status === "loading" ? (
-            <s-spinner
-              accessibilityLabel="Loading shop info"
-              size="base"
-            ></s-spinner>
-          ) : state.shop ? (
-            <>
-              <s-text type="strong">{state.shop.name}</s-text>
-              <s-text color="subdued"> ({state.shop.myshopifyDomain})</s-text>
-            </>
-          ) : (
-            <s-text color="subdued">No shop info found.</s-text>
-          )}
-        </s-box>
-      </s-section>
-
-      <s-section heading="Export queue">
-        <s-text color="subdued">
-          Select products to include in your next catalog export.
-        </s-text>
-      </s-section>
-
-      <s-section padding="none" accessibilityLabel="Products export table">
-        {state.status === "loading" ? (
-          <s-box padding="base">
-            <s-spinner
-              accessibilityLabel="Loading products"
-              size="base"
-            ></s-spinner>
-          </s-box>
-        ) : state.products.length > 0 ? (
+      ) : rows.length === 0 ? (
+        <Empty
+          heading="No export actions"
+          message="Create an export action to upload and process a product export file."
+          scope="inline"
+        />
+      ) : (
+        <s-section padding="none" accessibilityLabel="Product export actions">
           <s-table>
+            <s-grid
+              slot="filters"
+              gap="small-200"
+              gridTemplateColumns="1fr auto"
+            >
+              <s-text-field
+                label="Search export actions"
+                labelAccessibilityVisibility="exclusive"
+                icon="search"
+                placeholder="Searching all export actions"
+              ></s-text-field>
+              <s-button
+                icon="sort"
+                variant="secondary"
+                accessibilityLabel="Sort"
+                interestFor="export-actions-sort-tooltip"
+                commandFor="export-actions-sort"
+              ></s-button>
+              <s-tooltip id="export-actions-sort-tooltip">
+                <s-text>Sort</s-text>
+              </s-tooltip>
+              <s-popover id="export-actions-sort">
+                <s-stack gap="none">
+                  <s-box padding="small">
+                    <s-choice-list label="Sort by" name="Sort by">
+                      <s-choice value="name" selected>
+                        Export action
+                      </s-choice>
+                      <s-choice value="file">File</s-choice>
+                      <s-choice value="created">Created</s-choice>
+                      <s-choice value="status">Status</s-choice>
+                    </s-choice-list>
+                  </s-box>
+                  <s-divider></s-divider>
+                  <s-box padding="small">
+                    <s-choice-list label="Order by" name="Order by">
+                      <s-choice value="ascending" selected>
+                        A-Z
+                      </s-choice>
+                      <s-choice value="descending">Z-A</s-choice>
+                    </s-choice-list>
+                  </s-box>
+                </s-stack>
+              </s-popover>
+            </s-grid>
+
             <s-table-header-row>
-              <s-table-header listSlot="primary">Product</s-table-header>
-              <s-table-header>Format</s-table-header>
-              <s-table-header>Status</s-table-header>
+              <s-table-header listSlot="primary">Export action</s-table-header>
+              <s-table-header>File</s-table-header>
+              <s-table-header>Created</s-table-header>
+              <s-table-header listSlot="secondary">Status</s-table-header>
             </s-table-header-row>
             <s-table-body>
-              {state.products.map((product) => (
-                <s-table-row key={product.id}>
+              {rows.map((row) => (
+                <s-table-row clickDelegate={`${row.id}-checkbox`} key={row.id}>
                   <s-table-cell>
-                    <s-link href="#">{product.title}</s-link>
+                    <s-stack direction="inline" gap="small" alignItems="center">
+                      <s-checkbox id={`${row.id}-checkbox`}></s-checkbox>
+                      <s-link href="/product-export/new">{row.name}</s-link>
+                    </s-stack>
                   </s-table-cell>
-                  <s-table-cell>CSV</s-table-cell>
+                  <s-table-cell>{row.fileName}</s-table-cell>
+                  <s-table-cell>{row.createdAt}</s-table-cell>
                   <s-table-cell>
-                    <s-badge tone="success">Ready</s-badge>
+                    <s-badge tone={row.tone}>{row.status}</s-badge>
                   </s-table-cell>
                 </s-table-row>
               ))}
             </s-table-body>
           </s-table>
-        ) : (
-          <s-box padding="base">
-            <s-text color="subdued">No products found.</s-text>
-          </s-box>
-        )}
-      </s-section>
+        </s-section>
+      )}
     </s-page>
   );
-}
-
-function isAuthRedirectError(error: unknown) {
-  return error instanceof ShopifyAuthRedirectError;
 }

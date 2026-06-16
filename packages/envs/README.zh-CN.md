@@ -14,7 +14,7 @@
 
 ## 介绍
 
-`@shamt/envs` 是基础环境常量与 Zod 配置 schema 包。它集中维护跨应用共享的默认值、运行环境枚举、运行时枚举、HTTP 状态码、响应默认结构、日志配置、缓存配置、数据库配置、Redis 配置、请求限制等。
+`@shamt/envs` 是基础环境常量与 Zod 配置 schema 包。它集中维护跨应用共享的默认值、运行环境枚举、运行时枚举、HTTP 状态码、响应默认结构、日志配置、缓存配置、数据库 URL 配置、Redis 配置、文件上传限制、请求限制等。
 
 这个包不读取 `process.env`，也不负责判断当前部署平台，也不包含 Shopify app 专属 schema。它只提供可复用的常量、类型和 schema，让业务应用在自己的 bootstrap、runtime env provider 或中间件中完成实际解析。
 
@@ -92,7 +92,7 @@ const config = configSchema.parse(process.env);
 
 输出：
 
-- app、cache、database、env、logger、Redis 等配置的 Zod schema。
+- app、cache、database URL、env、file、logger、Redis 等配置的 Zod schema。
 - `AppConfigSchema`、`EnvConfigSchema`、`LogConfigSchema` 等 TypeScript 推导类型。
 - HTTP 状态码、响应默认值、content type、runtime 名称、env 名称、请求限制、超时时间、大小限制等共享常量。
 
@@ -158,6 +158,18 @@ import { DEFAULT_RUNTIMES, type DEFAULT_RUNTIMES_VALUES } from "@shamt/envs";
 function isCloudflare(runtime: DEFAULT_RUNTIMES_VALUES) {
   return runtime === DEFAULT_RUNTIMES.CLOUDFLARE;
 }
+```
+
+使用文件上传默认配置：
+
+```ts
+import { fileConfigSchema } from "@shamt/envs";
+
+const fileConfig = fileConfigSchema.parse({});
+
+fileConfig.APP_FILE_DIR; // "files"
+fileConfig.APP_FILE_MAX_SIZE; // 10485760
+fileConfig.APP_FILE_UPLOAD_MULTIPLE_SIZE; // 10
 ```
 
 ## 单位约定

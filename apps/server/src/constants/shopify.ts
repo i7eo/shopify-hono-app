@@ -7,3 +7,4 @@ const appName =
 
 export const DEFAULT_APP_ACCOUNT_SESSION_COOKIE = `${appName}:account_session_cookie`;
 export const DEFAULT_APP_ACCOUNT_SESSION_EXPIRE = 60 * 60 * 24 * 30;
+export const DEFAULT_WEBHOOK_MAX_SIZE = 1024 * 1024; // limit webhook body size to 1mb

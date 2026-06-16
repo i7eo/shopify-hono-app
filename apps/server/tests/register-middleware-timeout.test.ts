@@ -26,6 +26,7 @@ async function createTestApp(timeoutMs: number) {
     getEnvProvider: vi.fn(() => ({
       ...runtimeConfig,
       APP_FILE_MAX_SIZE: 200 * 1024,
+      APP_FILE_UPLOAD_MULTIPLE_SIZE: 10,
       APP_FILE_UPLOAD_TIMEOUT: uploadTimeoutMs,
       APP_REQUEST_TIMEOUT: timeoutMs,
     })),
@@ -106,13 +107,14 @@ describe("registerMiddleware timeout", () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
-  it("limits upload request bodies to 200kb", async () => {
+  it("limits upload request bodies to the multi-file request size", async () => {
     const app = await createTestApp(5);
+    const maxSize = runtimeConfig.APP_FILE_UPLOAD_MULTIPLE_SIZE * 200 * 1024;
 
     const response = await app.request(
       "/api/files",
       {
-        body: "x".repeat(200 * 1024 + 1),
+        body: "x".repeat(maxSize + 1),
         method: "POST",
       },
       runtimeConfig as never,
@@ -127,7 +129,7 @@ describe("registerMiddleware timeout", () => {
       success: false,
     });
     expect(body.details).toMatchObject({
-      maxSize: 200 * 1024,
+      maxSize,
     });
   });
 

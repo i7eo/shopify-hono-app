@@ -24,8 +24,10 @@ clean.
 `configSchema` combines:
 
 - base app defaults from `@shamt/envs`
-- cache, database, Redis, logger, env, and runtime schemas
+- cache, database URL, Redis, logger, env, runtime, and file schemas
 - Shopify app fields defined in this package
+- app-level database provider fields
+- bucket provider fields
 
 Shopify fields:
 
@@ -41,6 +43,30 @@ Shopify fields:
 | `APP__SERVER_PORT`            | coerced number             |
 | `APP__WEB_PORT`               | coerced number             |
 
+App database fields:
+
+| Field                   | Values / shape     |
+| ----------------------- | ------------------ |
+| `APP_DATABASE_PROVIDER` | `postgres` or `d1` |
+| `APP_DATABASE_D1_URL`   | optional string    |
+| `APP_DATABASE_D1_KEY`   | optional string    |
+| `APP_DATABASE_D1_VALUE` | optional string    |
+
+`postgres` is the implemented main path. `d1` and the D1 fields are reserved
+for a future Cloudflare-stack database path.
+
+Bucket fields:
+
+| Field                 | Values / shape   |
+| --------------------- | ---------------- |
+| `APP_BUCKET_PROVIDER` | `memory` or `r2` |
+| `APP_BUCKET_R2_URL`   | optional URL     |
+| `APP_BUCKET_R2_KEY`   | optional string  |
+| `APP_BUCKET_R2_VALUE` | optional string  |
+
+`memory` is the Node development bucket provider. `r2` uses the S3-compatible
+R2 configuration consumed by `apps/server`.
+
 ## Usage
 
 Parse a complete app env object:
@@ -55,6 +81,8 @@ Use constants without scattering string literals:
 
 ```ts
 import {
+  DEFAULT_APP_BUCKET_PROVIDERS,
+  DEFAULT_APP_DATABASE_PROVIDERS,
   DEFAULT_RUNTIMES,
   DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS,
   DEFAULT_SHOPIFY_APP_MODES,
@@ -66,6 +94,9 @@ const isEmbedded =
 const frontendTarget =
   config.SHOPIFY_APP_FRONTEND_TARGET ===
   DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS.FRONTEND;
+const usesPostgres =
+  config.APP_DATABASE_PROVIDER === DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES;
+const usesR2 = config.APP_BUCKET_PROVIDER === DEFAULT_APP_BUCKET_PROVIDERS.R2;
 ```
 
 ## Boundaries
