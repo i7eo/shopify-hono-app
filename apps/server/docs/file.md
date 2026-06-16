@@ -1,6 +1,6 @@
 # 文件模块
 
-`apps/server` 的 file module 为当前 Shopify shop 提供文件上传、列表、元数据查询、下载与删除 REST 接口。runtime 差异被收口在 capability 里，所以模块代码不直接判断 Node 或 Cloudflare。
+`apps/server` 的 file module 为当前 Shopify shop 提供文件上传、列表、元数据查询、下载与删除 REST 接口。数据库、bucket、下载和后台任务等 runtime 差异被收口在 capability/infra 里；multipart stream parser 是模块内通用业务逻辑。
 
 ## 接口
 
@@ -34,7 +34,7 @@ Content-Type: multipart/form-data
 fields: files or files[]
 ```
 
-Multipart 解析当前通过 `moduleFileMultipartUploadParserFactory` 使用 Hono 原生的 `request.parseBody({ all: true })`。解析器被隔离在 `FileMultipartUploadParser` 接口后面，后续阶段可以在验证 `formidable@next` 跨 runtime 的 stream 和 backpressure 行为后替换实现。
+Multipart 解析当前由 `apps/server/src/app/modules/file/upload-stream-parser/index.ts` 使用 `formidable@4.0.0-rc.6` 的 Fetch `Request` API 完成。当前 `/api/files` 只接受文件字段 `files` / `files[]`，普通表单字段应在文件上传成功后通过业务接口单独提交。
 
 配置：
 
@@ -105,17 +105,16 @@ Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare PostgreSQL 需要 `i7eo_d
 
 file module 使用这些 runtime capabilities：
 
-| Capability                               | 作用                         |
-| ---------------------------------------- | ---------------------------- |
-| `moduleFileFilesStoreFactory`            | 创建 files metadata store    |
-| `moduleFileBucketFactory`                | 创建 object bucket           |
-| `moduleFileDownloadResolverFactory`      | 解析 stream 或 redirect 下载 |
-| `moduleFileMultipartUploadParserFactory` | 解析 multipart 上传          |
-| `moduleFileTaskDispatcherFactory`        | 预留后台 file task 投递能力  |
+| Capability                          | 作用                         |
+| ----------------------------------- | ---------------------------- |
+| `moduleFileFilesStoreFactory`       | 创建 files metadata store    |
+| `moduleFileBucketFactory`           | 创建 object bucket           |
+| `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
+| `moduleFileTaskDispatcherFactory`   | 预留后台 file task 投递能力  |
 
-Node 当前注册 Drizzle files store、process memory bucket、直接 stream 下载 resolver、Hono multipart parser 和 noop task dispatcher。
+Node 当前注册 Drizzle files store、process memory bucket、直接 stream 下载 resolver 和 noop task dispatcher。
 
-Cloudflare 当前注册 Drizzle files store 和 bucket factory。download resolver、multipart parser 和 task dispatcher 在 Cloudflare file 路线完成前保持显式 unsupported placeholder。
+Cloudflare 当前注册 Drizzle files store 和 bucket factory。download resolver 和 task dispatcher 在 Cloudflare file 路线完成前保持显式 unsupported placeholder。
 
 ## 下载与删除
 
@@ -137,7 +136,7 @@ Cache-Control: private, no-store
 - 后台过期清理尚未实现。
 - Cloudflare download redirect 和 Queue-backed tasks 尚未实现。
 - D1 已在 env 和 strategy code 中预留，但还没有 schema 或 driver 实现。
-- Multipart 解析当前 MVP 使用 Hono 原生解析，不是专用 streaming multipart parser。
+- Multipart 解析当前只支持文件字段，不接收普通表单字段。
 
 ## 测试
 
@@ -146,7 +145,7 @@ Cache-Control: private, no-store
 ```bash
 pnpm --dir apps/server exec vitest run \
   tests/file-service.test.ts \
-  tests/hono-file-multipart-upload-parser.test.ts \
+  tests/file-upload-stream-parser.test.ts \
   tests/process-memory-bucket.test.ts \
   tests/isolate-s3-compatible-bucket.test.ts
 ```

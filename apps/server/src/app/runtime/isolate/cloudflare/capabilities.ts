@@ -45,10 +45,6 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
     fileModuleNotSupported,
   );
   setRuntimeCapability(
-    "moduleFileMultipartUploadParserFactory",
-    fileModuleNotSupported,
-  );
-  setRuntimeCapability(
     "moduleFileTaskDispatcherFactory",
     fileModuleNotSupported,
   );

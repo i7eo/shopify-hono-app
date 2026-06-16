@@ -37,9 +37,9 @@ export default {
     "stylelint --fix --allow-empty-input",
     "prettier --write --ignore-unknown",
   ]),
-  "*.vue": createTasks([
-    "eslint --fix --max-warnings=0 --report-unused-disable-directives",
-    "prettier --write --ignore-unknown",
-  ]),
+  // "*.vue": createTasks([
+  //   "eslint --fix --max-warnings=0 --report-unused-disable-directives",
+  //   "prettier --write --ignore-unknown",
+  // ]),
   "*": createTasks(["prettier --write --ignore-unknown"]),
 };

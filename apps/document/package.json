@@ -21,12 +21,12 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
-    "@tailwindcss/vite": "catalog:tailwindcss",
     "dayjs": "catalog:",
     "tailwindcss": "catalog:tailwindcss",
     "vue": "catalog:vue"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "catalog:tailwindcss",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "catalog:vue",
     "@vitejs/plugin-vue-jsx": "catalog:vue",

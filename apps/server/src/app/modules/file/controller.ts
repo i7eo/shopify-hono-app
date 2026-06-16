@@ -12,7 +12,6 @@ import {
   deleteFile,
   downloadFile,
   getFile,
-  getFileMultipartUploadParser,
   listFiles,
 } from "./service";
 import type { AppOpenAPI } from "@/app/bootstrap/register-openapi";
@@ -23,16 +22,9 @@ export function registerFileController(app: AppOpenAPI) {
     const shopDomain = c.get("shopDomain");
 
     if (isMultipartRequest(c.req.header("Content-Type"))) {
-      const parser = getFileMultipartUploadParser(c);
-      const files = await parser.parse(c, {
-        fieldNames: ["files", "files[]"],
-        maxFiles: runtimeEnv.APP_FILE_UPLOAD_MULTIPLE_SIZE,
-      });
-
       return c.json(
         createResponse({
           data: await createFiles(c, {
-            files,
             runtimeEnv,
             shopDomain,
           }),

@@ -1,20 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { HonoFileMultipartUploadParser } from "@/app/modules/file/upload/hono-file-multipart-upload-parser";
-import type { Context, HonoRequest } from "hono";
+import {
+  FormidableFileUploadStreamParser,
+  type ParsedFileUpload,
+} from "@/app/modules/file/upload-stream-parser";
+import type { Context } from "hono";
 
-type FileFormDataEntryValue = File | string;
-
-describe("HonoFileMultipartUploadParser", () => {
-  it("parses files and files[] fields with Hono native multipart support", async () => {
-    const parser = new HonoFileMultipartUploadParser();
+describe("FormidableFileUploadStreamParser", () => {
+  it("parses files and files[] fields with formidable", async () => {
+    const parser = new FormidableFileUploadStreamParser();
     const context = createParserContext([
       ["files", new File(["hello"], "hello.txt", { type: "text/plain" })],
       ["files[]", new File(["world"], "world.txt", { type: "text/plain" })],
     ]);
+    const files: ParsedFileUpload[] = [];
 
-    const files = await parser.parse(context, {
+    await parser.parse(context, {
       fieldNames: ["files", "files[]"],
       maxFiles: 2,
+      onFile: async (file) => {
+        await files.push(file);
+      },
     });
 
     expect(files).toHaveLength(2);
@@ -26,7 +31,7 @@ describe("HonoFileMultipartUploadParser", () => {
   });
 
   it("rejects uploads over maxFiles", async () => {
-    const parser = new HonoFileMultipartUploadParser();
+    const parser = new FormidableFileUploadStreamParser();
     const context = createParserContext([
       ["files", new File(["one"], "one.txt", { type: "text/plain" })],
       ["files", new File(["two"], "two.txt", { type: "text/plain" })],
@@ -36,6 +41,9 @@ describe("HonoFileMultipartUploadParser", () => {
       parser.parse(context, {
         fieldNames: ["files"],
         maxFiles: 1,
+        onFile: async (file) => {
+          await new Response(file.body).arrayBuffer();
+        },
       }),
     ).rejects.toMatchObject({
       status: 400,
@@ -44,24 +52,41 @@ describe("HonoFileMultipartUploadParser", () => {
   });
 
   it("rejects requests without files", async () => {
-    const parser = new HonoFileMultipartUploadParser();
-    const context = createParserContext([["name", "export"]]);
+    const parser = new FormidableFileUploadStreamParser();
+    const context = createParserContext([]);
 
     await expect(
       parser.parse(context, {
         fieldNames: ["files"],
         maxFiles: 1,
+        onFile: async () => {},
       }),
     ).rejects.toMatchObject({
       status: 400,
       message: "At least one file is required",
     });
   });
+
+  it("rejects unsupported fields before they can stall parsing", async () => {
+    const parser = new FormidableFileUploadStreamParser();
+    const context = createParserContext([
+      ["avatar", new File(["bad"], "bad.txt", { type: "text/plain" })],
+    ]);
+
+    await expect(
+      parser.parse(context, {
+        fieldNames: ["files"],
+        maxFiles: 1,
+        onFile: async () => {},
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Unsupported multipart field",
+    });
+  });
 });
 
-function createParserContext(
-  entries: [string, FileFormDataEntryValue][],
-): Context {
+function createParserContext(entries: [string, File][]): Context {
   const data = new FormData();
 
   for (const [key, value] of entries) {
@@ -72,27 +97,11 @@ function createParserContext(
     method: "POST",
     body: data,
   });
-
-  const req: Pick<HonoRequest, "parseBody"> = {
-    parseBody: (options: { all: true }) =>
-      request.formData().then((form) => {
-        const body: Record<
-          string,
-          FileFormDataEntryValue | FileFormDataEntryValue[] | undefined
-        > = {};
-
-        for (const key of new Set(form.keys())) {
-          const values = form.getAll(key);
-          body[key] = options.all
-            ? (values as FileFormDataEntryValue[])
-            : (values.at(0) as FileFormDataEntryValue | undefined);
-        }
-
-        return body;
-      }),
-  };
   const context: Pick<Context, "req"> = {
-    req: req as HonoRequest,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    req: {
+      raw: request,
+    } as Context["req"],
   };
 
   return context as Context;

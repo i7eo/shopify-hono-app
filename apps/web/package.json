@@ -29,7 +29,6 @@
     "@shopify/app-bridge-react": "^4.2.11",
     "@shopify/app-bridge-types": "^0.7.1",
     "@shopify/polaris-types": "^1.0.7",
-    "@tailwindcss/vite": "catalog:tailwindcss",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-router": "^1.170.15",
     "class-variance-authority": "^0.7.1",
@@ -47,6 +46,7 @@
     "zustand": "catalog:react"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "catalog:tailwindcss",
     "@tanstack/react-query-devtools": "^5.101.0",
     "@tanstack/react-router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.18",

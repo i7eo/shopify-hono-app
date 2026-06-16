@@ -1,18 +1,14 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import { internalServerError, payloadTooLargeError } from "@/shared/exceptions";
 import { S3CompatibleBucket } from "./s3-compatible";
-import {
-  getBucketRuntimeStrategy,
-  getR2BucketConfig,
-  type Bucket,
-} from "./shared";
+import { getBucketEnvConfig, getR2BucketConfig, type Bucket } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 
 /**
  * Creates the isolate bucket implementation for the configured provider.
  */
 export function createIsolateBucket(config: RuntimeConfig): Bucket {
-  const strategy = getBucketRuntimeStrategy(config);
+  const strategy = getBucketEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
     return new S3CompatibleBucket(

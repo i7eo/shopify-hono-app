@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDatabaseRuntimeStrategy } from "@/infra/database";
+import { getDatabaseEnvConfig } from "@/infra/database";
 import { createIsolateDatabase } from "@/infra/database/isolate";
 import { createProcessDatabase } from "@/infra/database/process";
 import { runtimeConfig } from "./shopify/test-utils";
@@ -8,7 +8,7 @@ import type { RuntimeConfig } from "@/infra/env";
 describe("database runtime strategy", () => {
   it("supports node with postgres", () => {
     expect(
-      getDatabaseRuntimeStrategy({
+      getDatabaseEnvConfig({
         ...runtimeConfig,
         APP_DATABASE_PROVIDER: "postgres",
         APP_RUNTIME: "node",
@@ -21,7 +21,7 @@ describe("database runtime strategy", () => {
 
   it("supports node with d1 as a reserved provider", () => {
     expect(
-      getDatabaseRuntimeStrategy({
+      getDatabaseEnvConfig({
         ...runtimeConfig,
         APP_DATABASE_PROVIDER: "d1",
         APP_RUNTIME: "node",
@@ -34,7 +34,7 @@ describe("database runtime strategy", () => {
 
   it("supports cloudflare with postgres", () => {
     expect(
-      getDatabaseRuntimeStrategy({
+      getDatabaseEnvConfig({
         ...runtimeConfig,
         APP_DATABASE_PROVIDER: "postgres",
         APP_RUNTIME: "cloudflare",
@@ -47,7 +47,7 @@ describe("database runtime strategy", () => {
 
   it("supports cloudflare with d1 as a reserved provider", () => {
     expect(
-      getDatabaseRuntimeStrategy({
+      getDatabaseEnvConfig({
         ...runtimeConfig,
         APP_DATABASE_PROVIDER: "d1",
         APP_RUNTIME: "cloudflare",

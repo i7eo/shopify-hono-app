@@ -17,7 +17,7 @@ export type DatabaseRuntimeStrategy = {
  * Returns the configured database strategy and rejects runtime/provider pairs
  * that cannot be executed by the current infrastructure.
  */
-export function getDatabaseRuntimeStrategy(
+export function getDatabaseEnvConfig(
   config: RuntimeConfig,
 ): DatabaseRuntimeStrategy {
   return {

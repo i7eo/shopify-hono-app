@@ -2,7 +2,7 @@ import { internalServerError } from "@/shared/exceptions";
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
   databaseSchema,
-  getDatabaseRuntimeStrategy,
+  getDatabaseEnvConfig,
   type DatabaseSchema,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
@@ -21,7 +21,7 @@ export async function createIsolateDatabase(
   config: RuntimeConfig,
   options: IsolateDatabaseOptions = {},
 ): Promise<IsolateDatabase> {
-  const strategy = getDatabaseRuntimeStrategy(config);
+  const strategy = getDatabaseEnvConfig(config);
 
   if (strategy.provider === "d1") {
     return runtimeNotSupported({

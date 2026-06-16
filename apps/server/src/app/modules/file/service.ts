@@ -3,7 +3,7 @@ import {
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
-import { getBucketRuntimeStrategy, type Bucket } from "@/infra/bucket";
+import { getBucketEnvConfig, type Bucket } from "@/infra/bucket";
 import {
   badRequestError,
   goneError,
@@ -17,10 +17,7 @@ import {
   type FilesStore,
   type PublicFile,
 } from "./domain/files";
-import type {
-  FileMultipartUploadParser,
-  ParsedFileUpload,
-} from "./upload/file-multipart-upload-parser";
+import { getFileUploadStreamParser } from "./upload-stream-parser";
 import type { RuntimeConfig } from "@/infra/env";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -39,7 +36,6 @@ export type CreateFileInput = {
 };
 
 export type CreateFilesInput = {
-  files: ParsedFileUpload[];
   runtimeEnv: RuntimeConfig;
   shopDomain: string;
 };
@@ -69,7 +65,7 @@ export async function createFile(
     shopDomain: input.shopDomain,
     now,
   });
-  const bucketProvider = getBucketRuntimeStrategy(input.runtimeEnv).provider;
+  const bucketProvider = getBucketEnvConfig(input.runtimeEnv).provider;
   const store = getFilesStore(c);
   const bucket = await getFileBucket(c);
 
@@ -126,24 +122,36 @@ export async function createFiles(
   c: Context<AppEnv>,
   input: CreateFilesInput,
 ): Promise<{ files: PublicFile[] }> {
-  if (input.files.length === 0) {
-    throw badRequestError("At least one file is required");
-  }
-
   const files: PublicFile[] = [];
   const batchId = crypto.randomUUID();
+  const parser = getFileUploadStreamParser();
 
-  for (const file of input.files) {
-    files.push(
-      await createFile(c, {
-        batchId,
-        body: file.body,
-        contentType: file.contentType,
-        originalName: file.originalName,
-        runtimeEnv: input.runtimeEnv,
-        shopDomain: input.shopDomain,
-      }),
+  try {
+    await parser.parse(c, {
+      fieldNames: ["files", "files[]"],
+      maxFiles: input.runtimeEnv.APP_FILE_UPLOAD_MULTIPLE_SIZE,
+      onFile: async (file) => {
+        files.push(
+          await createFile(c, {
+            batchId,
+            body: file.body,
+            contentType: file.contentType,
+            originalName: file.originalName,
+            runtimeEnv: input.runtimeEnv,
+            shopDomain: input.shopDomain,
+          }),
+        );
+      },
+    });
+  } catch (error) {
+    await Promise.allSettled(
+      files.map((file) => deleteFile(c, input.shopDomain, file.id)),
     );
+    throw error;
+  }
+
+  if (files.length === 0) {
+    throw badRequestError("At least one file is required");
   }
 
   return { files };
@@ -232,12 +240,6 @@ function getFileBucket(c: Context<AppEnv>): Bucket | Promise<Bucket> {
 
 function getFileDownloadResolver(c: Context<AppEnv>) {
   return getFactory("moduleFileDownloadResolverFactory")(c);
-}
-
-export function getFileMultipartUploadParser(
-  c: Context<AppEnv>,
-): FileMultipartUploadParser {
-  return getFactory("moduleFileMultipartUploadParserFactory")(c);
 }
 
 /**

@@ -3,7 +3,6 @@ import { MemorySessionStorage } from "@shopify/shopify-app-session-storage-memor
 import { MemoryBucketFileDownloadResolver } from "@/app/modules/file/download";
 import { createDatabaseFilesStoreFromPromise } from "@/app/modules/file/stores/database-files-store";
 import { NoopFileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
-import { HonoFileMultipartUploadParser } from "@/app/modules/file/upload/hono-file-multipart-upload-parser";
 import {
   setRuntimeCapability,
   type ModuleHealthDiskCheckResult,
@@ -18,7 +17,6 @@ import type { Context } from "hono";
 
 const memorySessionStorage = new MemorySessionStorage();
 const fileTaskDispatcher = new NoopFileTaskDispatcher();
-const fileMultipartUploadParser = new HonoFileMultipartUploadParser();
 
 /**
  * Registers Node process implementations for runtime and module capabilities.
@@ -53,10 +51,6 @@ export function registerProcessRuntimeCapabilities() {
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
     async (c) => new MemoryBucketFileDownloadResolver(await getFileBucket(c)),
-  );
-  setRuntimeCapability(
-    "moduleFileMultipartUploadParserFactory",
-    () => fileMultipartUploadParser,
   );
   setRuntimeCapability(
     "moduleFileTaskDispatcherFactory",

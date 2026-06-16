@@ -3,7 +3,6 @@ import type {
   FilesStore,
 } from "@/app/modules/file/domain/files";
 import type { FileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
-import type { FileMultipartUploadParser } from "@/app/modules/file/upload/file-multipart-upload-parser";
 import type { Bucket } from "@/infra/bucket";
 import type { RuntimeConfig } from "@/infra/env";
 import type { LoggerSetupOptions } from "@/infra/logger/shared";
@@ -78,9 +77,6 @@ export type ModuleFileBucketFactory = (
 export type ModuleFileDownloadResolverFactory = (
   context: Context<AppEnv>,
 ) => FileDownloadResolver | Promise<FileDownloadResolver>;
-export type ModuleFileMultipartUploadParserFactory = (
-  context: Context<AppEnv>,
-) => FileMultipartUploadParser;
 export type ModuleFileTaskDispatcherFactory = (
   context: Context<AppEnv>,
 ) => FileTaskDispatcher;
@@ -108,10 +104,6 @@ export interface RuntimeCapabilityInstances {
    * Module File: resolves a file download into a stream or redirect.
    */
   moduleFileDownloadResolverFactory: ModuleFileDownloadResolverFactory;
-  /**
-   * Module File: parses multipart uploads for the active runtime.
-   */
-  moduleFileMultipartUploadParserFactory: ModuleFileMultipartUploadParserFactory;
   /**
    * Module File: dispatches background file tasks to the runtime queue.
    */

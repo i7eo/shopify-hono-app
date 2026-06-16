@@ -494,9 +494,6 @@ importers:
 
   apps/document:
     dependencies:
-      "@tailwindcss/vite":
-        specifier: catalog:tailwindcss
-        version: 4.3.1(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       dayjs:
         specifier: "catalog:"
         version: 1.11.21
@@ -507,6 +504,9 @@ importers:
         specifier: catalog:vue
         version: 3.5.38(typescript@6.0.3)
     devDependencies:
+      "@tailwindcss/vite":
+        specifier: catalog:tailwindcss
+        version: 4.3.1(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       "@types/node":
         specifier: "catalog:"
         version: 25.9.3
@@ -579,6 +579,9 @@ importers:
       drizzle-orm:
         specifier: catalog:drizzle
         version: 0.45.2(@cloudflare/workers-types@4.20260613.1)(@neondatabase/serverless@1.1.0)(@types/pg@8.20.0)(pg@8.21.0)
+      formidable:
+        specifier: ^4.0.0-rc.6
+        version: 4.0.0-rc.6
       hono:
         specifier: catalog:hono
         version: 4.12.25
@@ -655,9 +658,6 @@ importers:
       "@shopify/polaris-types":
         specifier: ^1.0.7
         version: 1.0.7
-      "@tailwindcss/vite":
-        specifier: catalog:tailwindcss
-        version: 4.3.1(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       "@tanstack/react-query":
         specifier: ^5.101.0
         version: 5.101.0(react@19.2.7)
@@ -704,6 +704,9 @@ importers:
         specifier: catalog:react
         version: 5.0.14(@types/react@19.2.17)(immer@11.1.8)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
+      "@tailwindcss/vite":
+        specifier: catalog:tailwindcss
+        version: 4.3.1(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       "@tanstack/react-query-devtools":
         specifier: ^5.101.0
         version: 5.101.0(@tanstack/react-query@5.101.0(react@19.2.7))(react@19.2.7)
@@ -3928,6 +3931,12 @@ packages:
         integrity: sha512-CEFCOGzhFdx5sIehISBRS9Ev5D1Zp+24YT1uyOkaEcY8uAKeK+kA58NChYfUwXmAFerm3zWZWYhQViUf8XhQcg==,
       }
     engines: { node: ">=20.0.0" }
+
+  "@mjackson/headers@0.10.0":
+    resolution:
+      {
+        integrity: sha512-U1Eu1gF979k7ZoIBsJyD+T5l9MjtPONsZfoXfktsQHPJD0s7SokBGx+tLKDLsOY+gzVYAWS0yRFDNY8cgbQzWQ==,
+      }
 
   "@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4":
     resolution:
@@ -7365,6 +7374,13 @@ packages:
       }
     engines: { node: ">=0.4.x" }
 
+  formidable@4.0.0-rc.6:
+    resolution:
+      {
+        integrity: sha512-W1EQaQaTbO/cQf447IAPPq3YDIYyhQtlZPC/pcI3Tf+idQpGqX3MAkJ7lLMa3UNbolxIILtp851c7Q/nh0suLA==,
+      }
+    engines: { node: ">=14.15.0" }
+
   fsevents@2.3.3:
     resolution:
       {
@@ -7561,6 +7577,12 @@ packages:
     resolution:
       {
         integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==,
+      }
+
+  headers-polyfill@4.0.3:
+    resolution:
+      {
+        integrity: sha512-IScLbePpkvO846sIwOtOTDjutRMWdXdJmXdMvk6gCBHxFO8d+QKOQedyZSxFTTFYRSmlgSTDtXqqq4pcenBXLQ==,
       }
 
   hono@4.12.25:
@@ -12184,6 +12206,8 @@ snapshots:
       js-yaml: 4.2.0
       tinyglobby: 0.2.17
 
+  "@mjackson/headers@0.10.0": {}
+
   "@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4":
     optional: true
 
@@ -14293,6 +14317,11 @@ snapshots:
 
   format@0.2.2: {}
 
+  formidable@4.0.0-rc.6:
+    dependencies:
+      "@mjackson/headers": 0.10.0
+      headers-polyfill: 4.0.3
+
   fsevents@2.3.3:
     optional: true
 
@@ -14414,6 +14443,8 @@ snapshots:
   hast-util-whitespace@3.0.0:
     dependencies:
       "@types/hast": 3.0.4
+
+  headers-polyfill@4.0.3: {}
 
   hono@4.12.25: {}
 

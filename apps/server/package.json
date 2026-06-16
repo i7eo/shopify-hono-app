@@ -48,6 +48,7 @@
     "@shopify/shopify-app-session-storage-memory": "^6.0.0",
     "bullmq": "catalog:queue",
     "drizzle-orm": "catalog:drizzle",
+    "formidable": "^4.0.0-rc.6",
     "hono": "catalog:hono",
     "pg": "catalog:pg",
     "redis": "catalog:redis",

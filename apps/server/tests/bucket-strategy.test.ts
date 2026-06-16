@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getBucketRuntimeStrategy, getR2BucketConfig } from "@/infra/bucket";
+import { getBucketEnvConfig, getR2BucketConfig } from "@/infra/bucket";
 import { runtimeConfig } from "./shopify/test-utils";
 import type { RuntimeConfig } from "@/infra/env";
 
 describe("bucket runtime strategy", () => {
   it("supports node with memory bucket", () => {
     expect(
-      getBucketRuntimeStrategy({
+      getBucketEnvConfig({
         ...runtimeConfig,
         APP_BUCKET_PROVIDER: "memory",
         APP_RUNTIME: "node",
@@ -19,7 +19,7 @@ describe("bucket runtime strategy", () => {
 
   it("supports node with r2 bucket", () => {
     expect(
-      getBucketRuntimeStrategy({
+      getBucketEnvConfig({
         ...runtimeConfig,
         APP_BUCKET_PROVIDER: "r2",
         APP_RUNTIME: "node",
@@ -60,7 +60,7 @@ describe("bucket runtime strategy", () => {
 
   it("supports cloudflare with r2 bucket", () => {
     expect(
-      getBucketRuntimeStrategy({
+      getBucketEnvConfig({
         ...runtimeConfig,
         APP_BUCKET_PROVIDER: "r2",
         APP_RUNTIME: "cloudflare",
@@ -75,7 +75,7 @@ describe("bucket runtime strategy", () => {
     const { APP_BUCKET_PROVIDER: _provider, ...config } = runtimeConfig;
 
     expect(
-      getBucketRuntimeStrategy({
+      getBucketEnvConfig({
         ...config,
         APP_RUNTIME: "node",
       } as RuntimeConfig),
@@ -89,7 +89,7 @@ describe("bucket runtime strategy", () => {
     const { APP_BUCKET_PROVIDER: _provider, ...config } = runtimeConfig;
 
     expect(
-      getBucketRuntimeStrategy({
+      getBucketEnvConfig({
         ...config,
         APP_RUNTIME: "cloudflare",
       } as RuntimeConfig),
@@ -101,7 +101,7 @@ describe("bucket runtime strategy", () => {
 
   it("rejects cloudflare with memory bucket", () => {
     expect(() =>
-      getBucketRuntimeStrategy({
+      getBucketEnvConfig({
         ...runtimeConfig,
         APP_BUCKET_PROVIDER: "memory",
         APP_RUNTIME: "cloudflare",

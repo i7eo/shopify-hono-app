@@ -1,7 +1,7 @@
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
   databaseSchema,
-  getDatabaseRuntimeStrategy,
+  getDatabaseEnvConfig,
   getDatabaseUrl,
   type DatabaseSchema,
 } from "./shared";
@@ -25,7 +25,7 @@ export async function getProcessDatabase(
 export async function createProcessDatabase(
   config: RuntimeConfig,
 ): Promise<ProcessDatabase> {
-  const strategy = getDatabaseRuntimeStrategy(config);
+  const strategy = getDatabaseEnvConfig(config);
 
   if (strategy.provider === "d1") {
     return runtimeNotSupported({

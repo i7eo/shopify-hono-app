@@ -144,20 +144,13 @@ describe("file service", () => {
   it("creates multiple files sequentially", async () => {
     const store = createMemoryMetadataStore();
     const c = createServiceContext({ store });
+    //@ts-ignore
+    c.req = createRequestContext([
+      ["files", new File(["hello"], "hello.txt", { type: "text/plain" })],
+      ["files[]", new File(["world"], "world.txt", { type: "text/plain" })],
+    ]);
 
     const result = await createFiles(c, {
-      files: [
-        {
-          body: streamFromText("hello"),
-          contentType: "text/plain",
-          originalName: "hello.txt",
-        },
-        {
-          body: streamFromText("world"),
-          contentType: "text/plain",
-          originalName: "world.txt",
-        },
-      ],
       runtimeEnv: runtimeConfig,
       shopDomain: "test-shop.myshopify.com",
     });
@@ -185,10 +178,11 @@ describe("file service", () => {
 
   it("rejects empty multi-file uploads", async () => {
     const c = createServiceContext({});
+    //@ts-ignore
+    c.req = createRequestContext([]);
 
     await expect(
       createFiles(c, {
-        files: [],
         runtimeEnv: runtimeConfig,
         shopDomain: "test-shop.myshopify.com",
       }),
@@ -355,6 +349,24 @@ function streamFromText(value: string): ReadableStream<Uint8Array> {
       controller.close();
     },
   });
+}
+
+function createRequestContext(entries: [string, File][]) {
+  const formData = new FormData();
+
+  for (const [key, value] of entries) {
+    formData.append(key, value);
+  }
+
+  const request = new Request("https://example.test/api/files", {
+    method: "POST",
+    body: formData,
+  });
+
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return {
+    raw: request,
+  } as Parameters<typeof createFile>[0]["req"];
 }
 
 async function readAllBytes(stream: ReadableStream<Uint8Array>) {

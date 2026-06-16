@@ -2,7 +2,7 @@ import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import { internalServerError, payloadTooLargeError } from "@/shared/exceptions";
 import { S3CompatibleBucket } from "./s3-compatible";
 import {
-  getBucketRuntimeStrategy,
+  getBucketEnvConfig,
   getR2BucketConfig,
   type Bucket,
   type BucketDeleteInput,
@@ -36,7 +36,7 @@ export function getProcessBucket(config: RuntimeConfig): Bucket {
  * Creates the process bucket implementation for the configured provider.
  */
 export function createProcessBucket(config: RuntimeConfig): Bucket {
-  const strategy = getBucketRuntimeStrategy(config);
+  const strategy = getBucketEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
     return new S3CompatibleBucket(
@@ -167,7 +167,7 @@ export class ProcessMemoryBucket implements Bucket {
 }
 
 function getProcessBucketCacheKey(config: RuntimeConfig): string {
-  const strategy = getBucketRuntimeStrategy(config);
+  const strategy = getBucketEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
     return [

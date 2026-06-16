@@ -48,7 +48,7 @@ export interface Bucket {
  * Returns the configured bucket strategy and rejects runtime/provider pairs
  * that cannot be executed by the current infrastructure.
  */
-export function getBucketRuntimeStrategy(
+export function getBucketEnvConfig(
   config: RuntimeConfig,
 ): BucketRuntimeStrategy {
   const strategy: BucketRuntimeStrategy = {
