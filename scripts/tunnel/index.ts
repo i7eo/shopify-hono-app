@@ -3,10 +3,9 @@ import { unifiedSpawn } from "@shamt/node-utils/unified-spawn";
 import type { ChildProcess } from "node:child_process";
 
 // When using `shopify app dev --tunnel-url=...`, manually keep
-// `shopifyProxyPort` and `tunnelName` in sync with the named Cloudflare Tunnel
-// and ensure the proxy port does not duplicate any root env port variable.
+// `shopifyProxyPort` in sync with the named Cloudflare Tunnel and ensure the
+// proxy port does not duplicate any root env port variable.
 const shopifyProxyPort = "10101";
-const tunnelName = "i7eo-shopify-app-dev-tunnel";
 
 const tunnelReadyTimeoutMs = 5 * 1000;
 const tunnelReadyPattern =
@@ -155,6 +154,12 @@ function getTunnelUrl() {
   return url.origin;
 }
 
+function getTunnelName() {
+  const config = configSchema.parse(process.env);
+
+  return config.APP_CLOUDFLARE_WORKER_NAME;
+}
+
 /**
  * Start the named Cloudflare tunnel, then run Shopify app dev against it.
  */
@@ -162,6 +167,7 @@ async function main() {
   assertUniqueShopifyProxyPort();
 
   const tunnelUrl = getTunnelUrl();
+  const tunnelName = getTunnelName();
   const tunnel = spawnProcess(
     "pnpm",
     ["exec", "wrangler", "tunnel", "run", tunnelName],

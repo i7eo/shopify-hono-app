@@ -12,10 +12,11 @@ if (!root) {
 }
 
 export const wranglerPath = path.resolve(root, "apps/server/wrangler.json");
-// must be your cloudflare worker name
-export const appBaseName = "i7eo-shopify-app";
 
-export function getCloudflareAppName(appEnv: WranglerFileConfig["APP_ENV"]) {
+export function getCloudflareAppName(
+  appEnv: WranglerFileConfig["APP_ENV"],
+  appBaseName: WranglerFileConfig["APP_CLOUDFLARE_WORKER_NAME"],
+) {
   if (appEnv === DEFAULT_ENVS.PRODUCTION) return appBaseName;
 
   return `${appBaseName}-${getCloudflareEnvironmentSuffix(appEnv)}`;

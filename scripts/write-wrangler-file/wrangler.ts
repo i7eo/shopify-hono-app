@@ -66,7 +66,10 @@ export function renderWranglerConfig(
 function renderWranglerEnvironment(
   config: WranglerFileConfig,
 ): WranglerEnvironmentConfig {
-  const appName = getCloudflareAppName(config.APP_ENV);
+  const appName = getCloudflareAppName(
+    config.APP_ENV,
+    config.APP_CLOUDFLARE_WORKER_NAME,
+  );
   const bucketProvider = getBucketProvider(config);
   const databaseProvider = getDatabaseProvider(config);
   const environment: WranglerEnvironmentConfig = {
