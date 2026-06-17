@@ -43,3 +43,18 @@ export function isCloudflareHyperdrive(value: unknown): value is Hyperdrive {
   const hyperdrive = value as Partial<Hyperdrive>;
   return typeof hyperdrive.connectionString === "string";
 }
+
+/**
+ * Runtime shape check for the R2 bucket binding used by Cloudflare bucket
+ * capabilities.
+ */
+export function isCloudflareR2Bucket(value: unknown): value is R2Bucket {
+  if (!value || typeof value !== "object") return false;
+
+  const bucket = value as Partial<R2Bucket>;
+  return (
+    typeof bucket.get === "function" &&
+    typeof bucket.put === "function" &&
+    typeof bucket.delete === "function"
+  );
+}

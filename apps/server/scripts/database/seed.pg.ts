@@ -4,6 +4,7 @@ import {
 } from "@shamt/database/models/postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { requirePostgresSeedUrl } from "./env";
 
 const SEED_SHOP_DOMAIN = "seed-shop.myshopify.com";
 const SEED_FILE_ID = "seed-file-00000000-0000-4000-8000-000000000001";
@@ -11,11 +12,9 @@ const SEED_SESSION_ID = `offline_${SEED_SHOP_DOMAIN}`;
 
 /**
  * Seeds one Shopify offline session and one file metadata row into PostgreSQL.
- *
- * Example: pnpm --dir apps/server run db:pg:seed
  */
 async function main() {
-  const databaseUrl = getDatabaseUrl();
+  const databaseUrl = requirePostgresSeedUrl();
   const pool = new Pool({ connectionString: databaseUrl });
   const db = drizzle({
     client: pool,
@@ -99,19 +98,6 @@ async function main() {
   } finally {
     await pool.end();
   }
-}
-
-/**
- * Reads the local Postgres connection string from app env or DATABASE_URL.
- */
-function getDatabaseUrl(): string {
-  const databaseUrl = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error("APP_DATABASE_URL or DATABASE_URL is required");
-  }
-
-  return databaseUrl;
 }
 
 main().catch((error: unknown) => {

@@ -6,7 +6,7 @@ import type { ChildProcess } from "node:child_process";
 // `shopifyProxyPort` and `tunnelName` in sync with the named Cloudflare Tunnel
 // and ensure the proxy port does not duplicate any root env port variable.
 const shopifyProxyPort = "10101";
-const tunnelName = "i7eo-dev-shopify-app-tunnel";
+const tunnelName = "i7eo-shopify-app-dev-tunnel";
 
 const tunnelReadyTimeoutMs = 5 * 1000;
 const tunnelReadyPattern =

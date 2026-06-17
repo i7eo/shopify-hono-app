@@ -54,24 +54,34 @@ bucket 在触碰磁盘前会把每个 key 规范化并解析到配置的 root �
 
 上传使用 `node:stream/promises.pipeline`、`Readable.fromWeb` 和 `createWriteStream(..., { flags: "wx" })`。写入失败或超出大小限制时，会删除已经部分写入的文件。
 
-## S3-Compatible R2 Bucket
+## R2 Bucket
 
-`S3CompatibleBucket` 是 Node 和 Cloudflare 在 `r2` provider 下共用的实现。它使用 `@aws-sdk/client-s3`，配置为：
+`r2` provider 会根据 runtime 选择不同 adapter：
+
+| Runtime      | Adapter           | 说明                                        |
+| ------------ | ----------------- | ------------------------------------------- |
+| `node`       | S3-compatible API | 使用 `@aws-sdk/client-s3` 访问 R2           |
+| `cloudflare` | Worker R2 binding | 使用 `APP_BUCKET_R2_BINDING` 指向的 binding |
+
+Node 下的 `S3CompatibleBucket` 使用 `@aws-sdk/client-s3`，配置为：
 
 ```text
 region: auto
 forcePathStyle: true
 ```
 
-必需 env：
+Node + R2 必需 env：
 
-| Env                   | 说明                              |
-| --------------------- | --------------------------------- |
-| `APP_BUCKET_R2_URL`   | 带 bucket path 的 S3 endpoint URL |
-| `APP_BUCKET_R2_KEY`   | R2 access key ID                  |
-| `APP_BUCKET_R2_VALUE` | R2 secret access key              |
+| Env                         | 说明                              |
+| --------------------------- | --------------------------------- |
+| `APP_BUCKET_R2_URL`         | 带 bucket path 的 S3 endpoint URL |
+| `APP_CLOUDFLARE_USER_TOKEN` | 个人 token                        |
 
-`APP_BUCKET_R2_URL` 必须在 path 中包含 bucket name：
+使用 APP_CLOUDFLARE_USER_TOKEN + verify api 的方式获取 accessid、accesskey，详情参考：
+
+<https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token>
+
+`APP_BUCKET_R2_URL` 在 path 中包含 bucket name（默认为 bucket）：
 
 ```text
 https://<account-id>.r2.cloudflarestorage.com/<bucket-name>
@@ -84,28 +94,41 @@ endpoint: https://<account-id>.r2.cloudflarestorage.com
 bucketName: <bucket-name>
 ```
 
-R2 download 使用 `S3CompatibleBucketDownloadSigner` 和 `@aws-sdk/s3-request-presigner` 生成短期 `GetObjectCommand` 签名 URL。签名 URL 默认由 file module 使用 `300000ms` TTL，并带上：
+Cloudflare + R2 不读取这些 S3 credential，而是在 runtime capability 使用点强校验 `APP_BUCKET_R2_BINDING` 指向的 Worker binding。这样 Worker 内部上传、读取和删除都通过平台内置 binding 完成，不经过 Cloudflare REST API 或 S3 HTTP endpoint。
+
+## R2 下载
+
+Node + R2 download 使用 `S3CompatibleBucketDownloadSigner` 和 `@aws-sdk/s3-request-presigner` 生成短期 `GetObjectCommand` 签名 URL。签名 URL 默认由 file module 使用 `300000ms` TTL，并带上：
 
 ```text
 ResponseContentType: <file.contentType>
 ResponseContentDisposition: attachment; filename*=UTF-8''<encoded originalName>
 ```
 
+Cloudflare + R2 download 不生成 S3 signed URL，而是通过 R2 binding `get` 读取 object 并返回私有 stream response。响应仍由 file module 设置：
+
+```text
+Content-Type: <file.contentType>
+Content-Length: <object.byteSize>
+Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>
+Cache-Control: private, no-store
+```
+
 ## Runtime Upload Body Adapters
 
-S3 bucket 会接收一个 runtime-specific upload body adapter：
+bucket 会接收一个 runtime-specific upload body adapter：
 
 | Runtime | Adapter 行为                                                                  |
 | ------- | ----------------------------------------------------------------------------- |
 | Node    | 将 Web stream 转成 Node `Readable`，并通过 byte-counting `Transform` 管道传递 |
-| Isolate | 通过 Web `TransformStream` 管道传递，并在 S3 upload 前统计字节数              |
+| Isolate | 通过 Web `TransformStream` 管道传递，并在 R2 binding upload 前统计字节数      |
 
 两个 adapter 都会暴露 `getByteLength()`，让 `put` 可以在上传完成后返回实际存储字节数。
 
 ## 当前边界
 
-- R2 当前在两个 runtime 中都使用 S3-compatible API，以保持一致性。
-- R2 custom-domain signed download 尚未实现；当前返回 S3-compatible endpoint 的短期签名 URL。
+- Node + R2 当前返回 S3-compatible endpoint 的短期签名 URL。
+- Cloudflare + R2 当前返回 Worker stream response。后续如果要改为 custom-domain signed URL，应单独实现 Cloudflare 侧签名策略。
 - 生命周期清理不在这里实现。后续 BullMQ 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
 
 ## 测试

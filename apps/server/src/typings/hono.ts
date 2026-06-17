@@ -7,7 +7,7 @@ type RuntimeBindings<TRuntime extends RuntimeConfig["APP_RUNTIME"]> =
   TRuntime extends RuntimeConfig["APP_RUNTIME"]
     ? Partial<Extract<RuntimeConfig, { APP_RUNTIME: TRuntime }>> & {
         APP_RUNTIME?: TRuntime;
-      }
+      } & (TRuntime extends "cloudflare" ? Record<string, unknown> : {})
     : never;
 
 export interface Variables {

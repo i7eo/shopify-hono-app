@@ -9,7 +9,7 @@
 - Shopify: 使用 `@shopify/shopify-api` 官方包处理 OAuth、session token、token exchange、webhook 校验和 Admin GraphQL client。
 - Shopify app mode: `SHOPIFY_APP_MODE=embedded|standalone` 必须显式配置；embedded 使用 App Bridge session token，standalone 使用 app account session cookie。
 - Shopify frontend target: `SHOPIFY_APP_FRONTEND_TARGET=backend|frontend` 决定 app shell 由 server 还是 web 承载。
-- Session storage: Cloudflare 使用 D1 或 Hyperdrive PostgreSQL；Node development 使用 memory；Node production 不允许 memory session。
+- Session storage: Node 和 Cloudflare 都通过统一 `databaseFactory` 使用 PostgreSQL 或 D1；Node D1 走 Cloudflare D1 HTTP API，Cloudflare D1 走 Worker binding。
 - Resource APIs: `shop`、`product` 已作为独立业务模块注册，复用 Shopify Admin middleware，不再放在 Shopify app-flow 模块下。
 - OpenAPI: 非 production Node 可注册 `/document` 和 `/reference`；生产和 Cloudflare isolate 默认不注册。
 - Env typing: Hono `AppEnv` 从 runtime schema 推导 bindings；runtime 入口可用 `RuntimeAppEnv<"cloudflare">` 等具体类型收窄。

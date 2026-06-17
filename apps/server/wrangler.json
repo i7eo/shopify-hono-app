@@ -1,38 +1,19 @@
 {
-  "name": "shopify-hono-app",
   "main": "src/app/runtime/isolate/cloudflare/index.ts",
   "compatibility_date": "2026-06-05",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
-  "vars": {},
-  "d1_databases": [
-    {
-      "binding": "i7eo_dev_shopify_app_d1",
-      "database_name": "i7eo-dev-shopify-app-d1",
-      "database_id": "974c35a2-bc15-403b-b08c-2f7137517f4a",
-      "migrations_dir": "drizzle.d1"
+  "env": {
+    "development": {
+      "name": "i7eo-shopify-app-dev",
+      "r2_buckets": [
+        {
+          "binding": "i7eo_shopify_app_dev_r2",
+          "bucket_name": "i7eo-shopify-app-dev-r2"
+        }
+      ]
     }
-  ],
-  "hyperdrive": [
-    {
-      "binding": "i7eo_dev_shopify_app_hyperdrive",
-      "id": "d559a6b5c722412481d80f9754030123",
-      "localConnectionString": "postgresql://i7eo:123456@localhost:5432/postgres"
-    }
-  ],
-  "queues": {
-    "producers": [
-      {
-        "binding": "i7eo_dev_shopify_app_queue",
-        "queue": "i7eo-dev-shopify-app-queue"
-      }
-    ],
-    "consumers": [
-      {
-        "queue": "i7eo-dev-shopify-app-queue"
-      }
-    ]
   }
 }

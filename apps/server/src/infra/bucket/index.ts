@@ -6,6 +6,7 @@ import {
   type Bucket,
   type BucketDownloadSigner,
 } from "./shared";
+import type { IsolateBucketOptions } from "./isolate";
 import type { RuntimeConfig } from "@/infra/env";
 
 export * from "./shared";
@@ -18,12 +19,17 @@ const PROCESS_BUCKET_MODULE = "./process";
  *
  * Example:
  * - node + memory -> process disk-backed memory bucket
- * - node/cloudflare + r2 -> shared S3-compatible bucket
+ * - node + r2 -> S3-compatible bucket
+ * - cloudflare + r2 -> request-bound R2 binding bucket
+ * - cloudflare + memory -> not support
  */
-export async function createBucket(config: RuntimeConfig): Promise<Bucket> {
+export async function createBucket(
+  config: RuntimeConfig,
+  isolateOptions?: IsolateBucketOptions,
+): Promise<Bucket> {
   if (isIsolateRuntime(config.APP_RUNTIME)) {
     const { createIsolateBucket } = await import(ISOLATE_BUCKET_MODULE);
-    return createIsolateBucket(config);
+    return createIsolateBucket(config, isolateOptions);
   }
 
   const { getProcessBucket } = await import(PROCESS_BUCKET_MODULE);
@@ -45,18 +51,22 @@ export async function disposeBucket(
 
 /**
  * Creates the configured bucket download signer when the provider supports
- * signed download URLs.
+ * signed download URLs. Cloudflare R2 binding downloads stream through the
+ * Worker, so only Node R2 uses the S3-compatible signer.
  */
 export async function createBucketDownloadSigner(
   config: RuntimeConfig,
 ): Promise<BucketDownloadSigner | undefined> {
   const strategy = getBucketEnvConfig(config);
 
-  if (strategy.provider !== DEFAULT_APP_BUCKET_PROVIDERS.R2) {
+  if (
+    strategy.provider !== DEFAULT_APP_BUCKET_PROVIDERS.R2 ||
+    isIsolateRuntime(config.APP_RUNTIME)
+  ) {
     return undefined;
   }
 
   const { S3CompatibleBucketDownloadSigner } = await import("./s3-compatible");
 
-  return new S3CompatibleBucketDownloadSigner(getR2BucketConfig(config));
+  return new S3CompatibleBucketDownloadSigner(await getR2BucketConfig(config));
 }

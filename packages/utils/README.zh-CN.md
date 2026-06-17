@@ -12,7 +12,7 @@
 
 ## 介绍
 
-`@shamt/utils` 是 workspace 的共享工具包。它提供一组小而聚焦的工具函数，覆盖 JSON 序列化、日期、字符串、运行时判断、类型守卫、cookie、树结构处理、基于 raf 的调度、随机值、sleep，以及常见 TypeScript 工具类型。
+`@shamt/utils` 是 workspace 的共享工具包。它提供一组小而聚焦的工具函数，覆盖 JSON 序列化、日期、字符串、运行时判断、类型守卫、cookie、树结构处理、基于 raf 的调度、随机值、crypto hash、sleep，以及常见 TypeScript 工具类型。
 
 这个包既可以被应用代码直接使用，也可以被其他 workspace 包复用，例如 `@shamt/cache`。
 
@@ -25,6 +25,7 @@
 - JSON 序列化边界统一放在 `json.ts`，其他包不要直接调用 `JSON.parse` / `JSON.stringify`。
 - 公共入口避免强依赖 DOM 类型，让 Node、Workers、浏览器构建都能完成类型检查。
 - 通过包入口统一 re-export 部分外部工具，例如 `es-toolkit` 和 `nanoid`。
+- crypto helper 基于 Web Crypto API，保持 Node 与 Workers 可复用。
 
 `cookie.ts`、`raf.ts` 这类浏览器能力相关工具会基于 `globalThis` 做运行时检测。它们可以被非浏览器环境 import，但当缺少对应全局 API 时，会返回空值、执行 no-op，或退化到兼容实现。
 
@@ -125,10 +126,19 @@ cancelTimeout();
 onResize.cancel();
 ```
 
+使用 Web Crypto helper：
+
+```ts
+import { sha256Hex } from "@shamt/utils";
+
+const digest = await sha256Hex("secret-token");
+```
+
 ## 运行时说明
 
 `@shamt/utils` 目标是能被 shared code 使用，但部分工具仍依赖特定运行时能力：
 
 - Cookie 工具需要浏览器式 `document.cookie`；在非浏览器环境中会返回空值或 no-op。
 - raf 工具优先使用 `requestAnimationFrame`，不存在时退化为 `setTimeout`。
+- `sha256Hex` 使用 `crypto.subtle.digest`，宿主 runtime 需要提供 Web Crypto。
 - JSON helper 与运行时无关，workspace 内其他包应优先使用它们，而不是直接调用 `JSON.parse` / `JSON.stringify`。

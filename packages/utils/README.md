@@ -12,7 +12,10 @@
 
 ## Overview
 
-`@shamt/utils` is the shared utility package for the workspace. It provides small and focused helpers for JSON serialization, dates, strings, runtime checks, type guards, cookies, tree processing, raf-based scheduling, random values, sleep, and common TypeScript utility types.
+`@shamt/utils` is the shared utility package for the workspace. It provides
+small and focused helpers for JSON serialization, dates, strings, runtime
+checks, type guards, cookies, tree processing, raf-based scheduling, random
+values, crypto hashes, sleep, and common TypeScript utility types.
 
 This package can be used directly by application code and reused by other workspace packages, such as `@shamt/cache`.
 
@@ -25,6 +28,8 @@ This package can be used directly by application code and reused by other worksp
 - Keep JSON serialization boundaries in `json.ts`; other packages should avoid direct `JSON.parse` / `JSON.stringify` calls.
 - Avoid hard DOM type dependencies from the public entry, so Node, Workers, and browser builds can all type-check.
 - Re-export selected external utilities such as `es-toolkit` and `nanoid` from the package entry.
+- Keep runtime-neutral crypto helpers on Web Crypto APIs so they work in Node
+  and Workers.
 
 Browser-related helpers such as `cookie.ts` and `raf.ts` use runtime checks based on `globalThis`. They can be imported in non-browser environments, but when the required global API is missing, they return empty values, no-op, or fall back to compatible behavior.
 
@@ -125,10 +130,20 @@ cancelTimeout();
 onResize.cancel();
 ```
 
+Use Web Crypto helpers:
+
+```ts
+import { sha256Hex } from "@shamt/utils";
+
+const digest = await sha256Hex("secret-token");
+```
+
 ## Runtime Notes
 
 `@shamt/utils` is designed for shared code, but some helpers still depend on specific runtime capabilities:
 
 - Cookie helpers require browser-like `document.cookie`; in non-browser environments they return empty values or no-op.
 - raf helpers prefer `requestAnimationFrame` and fall back to `setTimeout` when it is unavailable.
+- `sha256Hex` uses `crypto.subtle.digest`, so the host runtime must provide Web
+  Crypto.
 - JSON helpers are runtime-neutral. Other workspace packages should prefer them over direct `JSON.parse` / `JSON.stringify` calls.

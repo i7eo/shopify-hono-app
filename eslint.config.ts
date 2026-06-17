@@ -35,7 +35,7 @@ export default defineConfig([
       ],
     },
   },
-  globalIgnores(["**/public/"]),
+  globalIgnores(["**/public/", "**/drizzle.*/*", "**/drizzle.*/**/*"]),
   {
     files: ["**/*.config.ts"],
     rules: {

@@ -54,26 +54,28 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 | Runtime      | Provider   | 行为                                               |
 | ------------ | ---------- | -------------------------------------------------- |
 | `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres`            |
-| `node`       | `d1`       | 预留，当前 `runtimeNotSupported`                   |
+| `node`       | `d1`       | Cloudflare D1 HTTP API + `drizzle-orm/d1`          |
 | `cloudflare` | `postgres` | Hyperdrive `connectionString` + PostgreSQL Drizzle |
 | `cloudflare` | `d1`       | Cloudflare D1 + `drizzle-orm/d1`                   |
 
 PostgreSQL 使用 `drizzle.pg.config.ts` 和 `drizzle.pg`。D1 使用 `drizzle.d1.config.ts` 和 `drizzle.d1`，Wrangler binding 的 `migrations_dir` 指向 `drizzle.d1`。
+Node D1 不依赖 Worker binding，而是通过 Cloudflare D1 HTTP API 访问。它需要 `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` 和 `APP_CLOUDFLARE_USER_TOKEN`。
 
 ### Bucket Factory
 
-`bucketFactory` 是 file module 的统一 object bucket 入口。Node 支持 `memory` 和 `r2`，Cloudflare 当前只支持 `r2`。R2 在两个 runtime 中都使用 `@aws-sdk/client-s3` 的 S3-compatible 实现，以保持上传、删除和签名下载逻辑一致。
+`bucketFactory` 是 file module 的统一 object bucket 入口。Node 支持 `memory` 和 `r2`，Cloudflare 当前只支持 `r2`。Node + R2 使用 `@aws-sdk/client-s3` 的 S3-compatible 实现；Cloudflare + R2 使用 request-bound Worker R2 binding。
 
 ### Cloudflare Binding 校验
 
 Cloudflare request-bound binding 不要求在 bootstrap 阶段存在。schema 允许这类字段 optional，runtime capability 在真正使用时负责强校验。
 
-例如 Cloudflare D1 database factory 在 capability 中读取 `c.env.i7eo_dev_shopify_app_d1`，并通过 `requireCloudflareBinding(...)` 校验：
+例如 Cloudflare D1 database factory 在 capability 中读取 `APP_DATABASE_D1_BINDING` 指向的 `c.env[binding]`，并通过 `requireCloudflareBinding(...)` 校验：
 
 ```ts
+const binding = config.APP_DATABASE_D1_BINDING;
 const d1 = requireCloudflareBinding(
-  context.env.i7eo_dev_shopify_app_d1,
-  "i7eo_dev_shopify_app_d1",
+  context.env[binding],
+  binding,
   isCloudflareD1Database,
 );
 ```

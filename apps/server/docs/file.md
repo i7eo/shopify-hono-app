@@ -97,12 +97,12 @@ packages/database/src/models/sqlite/files.ts
 | Runtime      | `APP_DATABASE_PROVIDER` | 实现                                               |
 | ------------ | ----------------------- | -------------------------------------------------- |
 | `node`       | `postgres`              | `pg.Pool` + `drizzle-orm/node-postgres`            |
+| `node`       | `d1`                    | Cloudflare D1 HTTP API + `drizzle-orm/d1`          |
 | `cloudflare` | `postgres`              | Hyperdrive `connectionString` + PostgreSQL Drizzle |
 | `cloudflare` | `d1`                    | Cloudflare D1 + `drizzle-orm/d1`                   |
-| `node`       | `d1`                    | 预留；当前返回 runtime unsupported                 |
 
-Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare PostgreSQL 需要 `i7eo_dev_shopify_app_hyperdrive` binding。
-Cloudflare D1 需要 `i7eo_dev_shopify_app_d1` binding。PostgreSQL migration 使用 `apps/server/drizzle.pg.config.ts` 与 `apps/server/drizzle.pg`，D1 migration 使用 `apps/server/drizzle.d1.config.ts` 与 `apps/server/drizzle.d1`。
+Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare PostgreSQL 需要 `APP_HYPERDRIVER_BINDING` 指向的 Hyperdrive binding。
+Node D1 通过 Cloudflare D1 HTTP API 访问，需要 `APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID` 和 `APP_CLOUDFLARE_USER_TOKEN`。Cloudflare D1 需要 `APP_DATABASE_D1_BINDING` 指向的 D1 binding。PostgreSQL migration 使用 `apps/server/drizzle.pg.config.ts` 与 `apps/server/drizzle.pg`，D1 migration 使用 `apps/server/drizzle.d1.config.ts` 与 `apps/server/drizzle.d1`。
 
 常用数据库命令：
 
@@ -130,9 +130,9 @@ file module 使用这些 runtime capabilities：
 | `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
 | `moduleFileTaskDispatcherFactory`   | 预留后台 file task 投递能力  |
 
-file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher；`node + d1` 会在 database factory 层返回 `runtimeNotSupported`。
+file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher。
 
-Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder。
+Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 stream 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder。
 
 ## 下载与删除
 
@@ -144,7 +144,7 @@ Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 bucket factory 和 R
 | ------------ | -------- | --------------------- |
 | `node`       | `memory` | `200` stream          |
 | `node`       | `r2`     | `302` signed redirect |
-| `cloudflare` | `r2`     | `302` signed redirect |
+| `cloudflare` | `r2`     | `200` stream          |
 
 Memory download 返回：
 
@@ -155,7 +155,7 @@ Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>
 Cache-Control: private, no-store
 ```
 
-R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `GetObjectCommand` 带上 `ResponseContentType` 与 `ResponseContentDisposition`。
+Node R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `GetObjectCommand` 带上 `ResponseContentType` 与 `ResponseContentDisposition`。Cloudflare R2 download 通过 Worker R2 binding `get` 读取 object，并返回与 memory download 相同的私有 stream response。
 
 删除时会先删除 bucket object，然后把数据库记录标记为 `deleted`。
 
@@ -163,8 +163,7 @@ R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `GetObjec
 
 - 后台过期清理尚未实现。
 - Cloudflare Queue-backed tasks 尚未实现。
-- R2 custom-domain signed download 尚未实现；当前返回 S3-compatible endpoint 的短期签名 URL。
-- Node + D1 暂不支持。
+- R2 custom-domain signed download 尚未实现。当前 Node 返回 S3-compatible endpoint 的短期签名 URL，Cloudflare 返回 R2 binding stream。
 - Multipart 解析当前只支持文件字段，不接收普通表单字段。
 
 ## 测试

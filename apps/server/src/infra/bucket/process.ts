@@ -15,13 +15,13 @@ import type { RuntimeConfig } from "@/infra/env";
 import type { Buffer } from "node:buffer";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
-let processBucket: Bucket | undefined;
+let processBucket: Promise<Bucket> | undefined;
 let processBucketCacheKey: string | undefined;
 
 /**
  * Reuses the selected process bucket client across Node requests.
  */
-export function getProcessBucket(config: RuntimeConfig): Bucket {
+export function getProcessBucket(config: RuntimeConfig): Promise<Bucket> {
   const cacheKey = getProcessBucketCacheKey(config);
 
   if (!processBucket || processBucketCacheKey !== cacheKey) {
@@ -35,12 +35,14 @@ export function getProcessBucket(config: RuntimeConfig): Bucket {
 /**
  * Creates the process bucket implementation for the configured provider.
  */
-export function createProcessBucket(config: RuntimeConfig): Bucket {
+export async function createProcessBucket(
+  config: RuntimeConfig,
+): Promise<Bucket> {
   const strategy = getBucketEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
     return new S3CompatibleBucket(
-      getR2BucketConfig(config),
+      await getR2BucketConfig(config),
       createLimitedNodeUploadBody,
     );
   }
@@ -189,7 +191,7 @@ function getProcessBucketCacheKey(config: RuntimeConfig): string {
     return [
       strategy.provider,
       config.APP_BUCKET_R2_URL,
-      config.APP_BUCKET_R2_KEY,
+      config.APP_CLOUDFLARE_USER_TOKEN,
     ].join(":");
   }
 

@@ -9,6 +9,9 @@ linkWorkspacePackages: true
 saveWorkspaceProtocol: "rolling"
 savePrefix: ""
 
+overrides:
+  "@smithy/types": "^4.15.0"
+
 publicHoistPattern:
   - "*eslint*"
   - "*@eslint*"
@@ -33,7 +36,7 @@ catalog:
 catalogs:
   "dx":
     "eslint": "^10.5.0"
-    "@sxzz/eslint-config": "^8.2.0"
+    "@sxzz/eslint-config": "^8.2.1"
     "eslint-plugin-react-hooks": "^7.1.1"
     "eslint-plugin-react-refresh": "^0.5.2"
     "@commitlint/cli": "^21.0.2"
@@ -80,7 +83,7 @@ catalogs:
   "redis":
     "redis": "^6.0.0"
   "shopify":
-    "@shopify/cli": "^4.1.0"
+    "@shopify/cli": "^4.2.0"
   "test":
     "vitest": "^4.1.8"
     "@vitest/ui": "^4.1.8"
@@ -88,8 +91,8 @@ catalogs:
     "@testing-library/react": "^16.3.2"
     "jsdom": "^29.1.1"
   "cloudflare":
-    "@cloudflare/workers-types": "^4.20260613.1"
-    "wrangler": "^4.100.0"
+    "@cloudflare/workers-types": "^4.20260616.1"
+    "wrangler": "^4.101.0"
 
 minimumReleaseAgeExclude:
   - hono@4.12.23
@@ -155,6 +158,10 @@ minimumReleaseAgeExclude:
   - "@aws-sdk/signature-v4-multi-region@3.996.35"
   - "@aws-sdk/types@3.973.13"
   - "@aws-sdk/xml-builder@3.972.30"
+  - "@shopify/cli@4.2.0"
+  - "@sxzz/eslint-config@8.2.1"
+  - miniflare@4.20260616.0
+  - wrangler@4.101.0
 
 allowBuilds:
   esbuild: true

@@ -1,5 +1,5 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getDatabaseEnvConfig } from "@/infra/database";
 import { createIsolateDatabase } from "@/infra/database/isolate";
 import { createProcessDatabase } from "@/infra/database/process";
@@ -7,6 +7,11 @@ import { runtimeConfig } from "./shopify/test-utils";
 import type { RuntimeConfig } from "@/infra/env";
 
 describe("database runtime strategy", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
   it("supports node with postgres", () => {
     expect(
       getDatabaseEnvConfig({
@@ -59,7 +64,58 @@ describe("database runtime strategy", () => {
     });
   });
 
-  it("reserves but does not implement node d1 yet", async () => {
+  it("supports node d1 through the D1 HTTP API", async () => {
+    const fetch = vi.fn(() =>
+      Promise.resolve(
+        Response.json({
+          result: {
+            meta: {},
+            results: [{ id: 1 }],
+            success: true,
+          },
+          success: true,
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const database = await createProcessDatabase({
+      ...runtimeConfig,
+      APP_CLOUDFLARE_WORKER_ACCOUNT_ID: "account_test",
+      APP_CLOUDFLARE_USER_TOKEN: "token_test",
+      APP_DATABASE_D1_NAME: "account_test",
+      APP_DATABASE_D1_BINDING: "https://api.cloudflare.com",
+      APP_DATABASE_D1_ID: "database_test",
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      APP_RUNTIME: "node",
+    } as RuntimeConfig);
+    const result = await database.db.$client
+      .prepare("select ? as id")
+      .bind(1)
+      .run();
+
+    expect(database).toMatchObject({
+      dialect: "sqlite",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "node",
+    });
+    expect(result.results).toEqual([{ id: 1 }]);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.cloudflare.com/client/v4/accounts/account_test/d1/database/database_test/query",
+      expect.objectContaining({
+        body: JSON.stringify({
+          params: [1],
+          sql: "select ? as id",
+        }),
+        headers: expect.objectContaining({
+          Authorization: "Bearer token_test",
+          "Content-Type": "application/json",
+        }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("requires D1 HTTP config for node d1", async () => {
     await expect(
       createProcessDatabase({
         ...runtimeConfig,
@@ -67,8 +123,8 @@ describe("database runtime strategy", () => {
         APP_RUNTIME: "node",
       } as RuntimeConfig),
     ).rejects.toMatchObject({
-      status: 503,
-      message: "D1 database is not implemented for Node runtime yet",
+      status: 500,
+      message: "D1 HTTP database config is incomplete",
     });
   });
 

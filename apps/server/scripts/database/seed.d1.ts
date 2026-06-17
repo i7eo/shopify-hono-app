@@ -2,18 +2,14 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { requireD1SeedTarget } from "./env";
 
-const D1_DATABASE_BINDING = "i7eo_dev_shopify_app_d1";
 const SEED_SHOP_DOMAIN = "seed-shop.myshopify.com";
 const SEED_FILE_ID = "seed-file-00000000-0000-4000-8000-000000000001";
 const SEED_SESSION_ID = `offline_${SEED_SHOP_DOMAIN}`;
 
 /**
  * Writes a temporary SQL seed file and executes it with Wrangler D1.
- *
- * Example:
- * - pnpm --dir apps/server run db:d1:seed
- * - pnpm --dir apps/server run db:d1:seed:remote
  */
 async function main() {
   const now = new Date();
@@ -117,16 +113,14 @@ function sqlString(value: string): string {
  * D1_SEED_REMOTE=true is present.
  */
 async function executeWranglerD1Seed(seedFilePath: string): Promise<void> {
-  const remote = process.env.D1_SEED_REMOTE === "true";
-  const args = [
-    "d1",
-    "execute",
-    D1_DATABASE_BINDING,
-    remote ? "--remote" : "--local",
-    "--file",
-    seedFilePath,
-    "--yes",
-  ];
+  const { binding, remote, wranglerEnv } = requireD1SeedTarget();
+  const args = ["d1", "execute", binding];
+
+  if (wranglerEnv) {
+    args.push("--env", wranglerEnv);
+  }
+
+  args.push(remote ? "--remote" : "--local", "--file", seedFilePath, "--yes");
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn("wrangler", args, {
@@ -151,12 +145,14 @@ async function executeWranglerD1Seed(seedFilePath: string): Promise<void> {
           id: SEED_FILE_ID,
           shopDomain: SEED_SHOP_DOMAIN,
         },
+        binding,
         ok: true,
         remote,
         session: {
           id: SEED_SESSION_ID,
           shop: SEED_SHOP_DOMAIN,
         },
+        wranglerEnv,
       },
       null,
       2,

@@ -88,13 +88,22 @@ describe("Shopify session storage", () => {
     expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
 
-  it("rejects node d1 through the database factory", async () => {
-    const createDatabase = vi.fn(() =>
-      Promise.reject(new Error("D1 database is not implemented for Node")),
-    );
+  it("uses database session storage in node d1 runtime", async () => {
+    const database = {
+      db: {},
+      dialect: "sqlite",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "node",
+    };
+    const sessionStorage = { kind: "database-session-storage" };
+    const createDatabase = vi.fn(() => Promise.resolve(database));
+    const createDatabaseShopifySessionStorage = vi.fn(() => sessionStorage);
 
     vi.doMock("@/infra/database", () => ({
       createDatabase,
+    }));
+    vi.doMock("@/app/modules/shopify/session-storage/database", () => ({
+      createDatabaseShopifySessionStorage,
     }));
 
     const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
@@ -112,9 +121,11 @@ describe("Shopify session storage", () => {
       },
     });
 
-    await expect(getShopifySessionStorage(context as never)).rejects.toThrow(
-      "D1 database is not implemented for Node",
+    await expect(getShopifySessionStorage(context as never)).resolves.toBe(
+      sessionStorage,
     );
+    expect(createDatabase).toHaveBeenCalledOnce();
+    expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
 });
 

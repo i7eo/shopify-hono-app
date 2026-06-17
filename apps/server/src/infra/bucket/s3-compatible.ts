@@ -156,7 +156,6 @@ async function createS3CompatibleClient(config: S3CompatibleBucketConfig) {
       secretAccessKey: config.secretAccessKey,
     },
     endpoint: config.endpoint,
-    forcePathStyle: true,
     region: "auto",
   });
 }

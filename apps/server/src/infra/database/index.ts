@@ -5,7 +5,11 @@ import type {
   IsolateDatabaseOptions,
   IsolatePostgresDatabase,
 } from "./isolate";
-import type { ProcessDatabase, ProcessPostgresDatabase } from "./process";
+import type {
+  ProcessD1Database,
+  ProcessDatabase,
+  ProcessPostgresDatabase,
+} from "./process";
 import type { RuntimeConfig } from "@/infra/env";
 
 export * from "./shared";
@@ -15,13 +19,17 @@ export type {
   IsolateDatabaseOptions,
   IsolatePostgresDatabase,
 } from "./isolate";
-export type { ProcessDatabase, ProcessPostgresDatabase } from "./process";
+export type {
+  ProcessD1Database,
+  ProcessDatabase,
+  ProcessPostgresDatabase,
+} from "./process";
 
 export type Database = ProcessDatabase | IsolateDatabase;
 export type PostgresDatabase =
   | ProcessPostgresDatabase
   | IsolatePostgresDatabase;
-export type D1DatabaseClient = IsolateD1Database;
+export type D1DatabaseClient = ProcessD1Database | IsolateD1Database;
 
 const ISOLATE_DATABASE_MODULE = "./isolate";
 const PROCESS_DATABASE_MODULE = "./process";
@@ -31,6 +39,7 @@ const PROCESS_DATABASE_MODULE = "./process";
  *
  * Example:
  * - node + postgres -> process pg.Pool client
+ * - node + d1 -> process D1 HTTP client
  * - cloudflare + d1 -> isolate D1 client
  * - cloudflare + postgres -> isolate Hyperdrive Postgres client
  */

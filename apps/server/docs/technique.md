@@ -2,6 +2,29 @@
 
 本文总结 `apps/server` 中值得复用的架构小技巧。它不是设计草案，而是当前代码已经落地的工程约定。
 
+## 基础设施矩阵
+
+当前基础设施由 runtime、database provider、bucket provider 三个维度组合。业务模块通过 runtime capability 使用它们，不直接感知平台差异。
+
+| Runtime      | Database provider | Database 实现                       | Bucket provider | Bucket 实现                | Wrangler binding             |
+| ------------ | ----------------- | ----------------------------------- | --------------- | -------------------------- | ---------------------------- |
+| `node`       | `postgres`        | `pg.Pool` + PostgreSQL Drizzle      | `memory`        | 本地文件系统 memory bucket | 无                           |
+| `node`       | `postgres`        | `pg.Pool` + PostgreSQL Drizzle      | `r2`            | R2 S3-compatible API       | `r2_buckets`                 |
+| `node`       | `d1`              | Cloudflare D1 HTTP API + D1 Drizzle | `memory`        | 本地文件系统 memory bucket | 无                           |
+| `node`       | `d1`              | Cloudflare D1 HTTP API + D1 Drizzle | `r2`            | R2 S3-compatible API       | `r2_buckets`                 |
+| `cloudflare` | `postgres`        | Hyperdrive + PostgreSQL Drizzle     | `r2`            | Worker R2 binding          | `hyperdrive`、`r2_buckets`   |
+| `cloudflare` | `d1`              | Worker D1 binding + D1 Drizzle      | `r2`            | Worker R2 binding          | `d1_databases`、`r2_buckets` |
+
+Cloudflare + `memory` bucket 当前不支持。Node + D1 使用 HTTP API，因此不会生成 Worker D1 binding。
+
+`scripts/write-wrangler-file` 会根据 `APP_ENV`、`APP_RUNTIME`、`APP_DATABASE_PROVIDER` 和 `APP_BUCKET_PROVIDER` 生成最小 Wrangler 配置。比如 `node + postgres + r2` 只生成 R2 binding。
+
+相关文档：
+
+- [database.md](./database.md)
+- [bucket.md](./bucket.md)
+- [wrangler.md](./wrangler.md)
+
 ## 分层 DI
 
 项目没有引入大型 DI container，而是用几组小型 registry 完成依赖注入。
@@ -19,7 +42,7 @@ runtime capability 负责注入平台相关能力：
 - `moduleFileTaskDispatcherFactory`
 
 共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。文件模块与 Shopify session storage 都通过统一的 `databaseFactory` 获取 Drizzle client，各模块再在自己的业务边界内实现 store/adapter。
-file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream 或 R2 signed redirect。
+file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream、Node R2 signed redirect 或 Cloudflare R2 binding stream。
 
 对应文件：
 
@@ -104,14 +127,14 @@ runtime-specific 行为只放在两个地方：
 
 ## Binding Optional + 使用点强校验
 
-Cloudflare platform binding 在 schema 中允许 optional，例如 `i7eo_dev_shopify_app_d1?: D1Database`。原因是 Worker 模块 import 阶段可能只拿到 `process.env` 中的字符串配置，还没进入 request-bound `c.env`。
+Cloudflare platform binding 在 schema 中不再写死具体字段。binding name 由 env file 显式配置，例如 `APP_BUCKET_R2_BINDING=SHOPIFY_APP_R2`，资源名也由 `APP_BUCKET_R2_NAME`、`APP_DATABASE_D1_NAME` 等字段显式提供。
 
-真正需要 binding 的地方必须强校验：
+真正需要 binding 的地方必须通过配置里的 binding name 动态读取并强校验：
 
 ```ts
 const d1 = requireCloudflareBinding(
-  context.env.i7eo_dev_shopify_app_d1,
-  "i7eo_dev_shopify_app_d1",
+  context.env[config.APP_DATABASE_D1_BINDING],
+  config.APP_DATABASE_D1_BINDING,
   isCloudflareD1Database,
 );
 ```
@@ -122,7 +145,7 @@ const d1 = requireCloudflareBinding(
 - `src/app/runtime/isolate/cloudflare/bindings.ts`
 - `src/app/runtime/isolate/cloudflare/capabilities.ts`
 
-这条规则可以概括为：启动阶段宽，能力使用严。
+这条规则可以概括为：启动阶段宽，能力使用严；binding/name 由 env file 驱动，binding 值在使用点验证。
 
 ## AppEnv 从 Schema 推导
 

@@ -1,4 +1,5 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
+import { sha256Hex } from "@shamt/utils";
 import { internalServerError } from "@/shared/exceptions";
 import type { RuntimeConfig } from "@/infra/env";
 
@@ -101,14 +102,15 @@ export function getBucketEnvConfig(
 }
 
 /**
- * Reads the required Cloudflare R2 S3-compatible config for any runtime that
- * uses the shared S3-compatible bucket implementation.
+ * Reads the required R2 S3-compatible config for runtimes that access R2
+ * through the S3 API.
+ *
+ * Example: Node + r2 needs these credentials; Cloudflare + r2 uses a binding.
  */
-export function getR2BucketConfig(config: RuntimeConfig) {
+export async function getR2BucketConfig(config: RuntimeConfig) {
   const missing = [
     ["APP_BUCKET_R2_URL", config.APP_BUCKET_R2_URL],
-    ["APP_BUCKET_R2_KEY", config.APP_BUCKET_R2_KEY],
-    ["APP_BUCKET_R2_VALUE", config.APP_BUCKET_R2_VALUE],
+    ["APP_CLOUDFLARE_USER_TOKEN", config.APP_CLOUDFLARE_USER_TOKEN],
   ]
     .filter(([, value]) => !value)
     .map(([key]) => key);
@@ -122,13 +124,84 @@ export function getR2BucketConfig(config: RuntimeConfig) {
     });
   }
   const url = parseR2BucketUrl(config.APP_BUCKET_R2_URL!);
+  const token = config.APP_CLOUDFLARE_USER_TOKEN!;
+  const [accessKeyId, secretAccessKey] = await Promise.all([
+    getCloudflareTokenId(token),
+    sha256Hex(token),
+  ]);
 
   return {
-    accessKeyId: config.APP_BUCKET_R2_KEY!,
-    bucketName: url.bucketName,
+    region: "auto", // Required by AWS SDK, not used by R2
+    // Provide your R2 endpoint: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
     endpoint: url.endpoint,
-    secretAccessKey: config.APP_BUCKET_R2_VALUE!,
+    bucketName: url.bucketName,
+    accessKeyId,
+    secretAccessKey,
   };
+}
+
+/**
+ * https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token
+ */
+async function getCloudflareTokenId(token: string): Promise<string> {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      "https://api.cloudflare.com/client/v4/user/tokens/verify",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+  } catch (error) {
+    throw internalServerError("Failed to verify Cloudflare API token", {
+      details: {
+        cause: error,
+      },
+    });
+  }
+
+  let body: unknown;
+
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw internalServerError("Failed to parse Cloudflare token response", {
+      details: {
+        cause: error,
+        status: response.status,
+      },
+    });
+  }
+
+  if (!response.ok || !isCloudflareTokenVerifyResponse(body)) {
+    throw internalServerError("Cloudflare API token verification failed", {
+      details: {
+        body,
+        status: response.status,
+      },
+      expose: true,
+    });
+  }
+
+  return body.result.id;
+}
+
+function isCloudflareTokenVerifyResponse(
+  value: unknown,
+): value is { result: { id: string } } {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "result" in value &&
+    value.result !== null &&
+    typeof value.result === "object" &&
+    "id" in value.result &&
+    typeof value.result.id === "string" &&
+    value.result.id.length > 0
+  );
 }
 
 /**
@@ -142,7 +215,7 @@ function parseR2BucketUrl(value: string): {
 } {
   try {
     const url = new URL(value);
-    const bucketName = url.pathname.split("/").find(Boolean);
+    const bucketName = url.pathname.split("/").find(Boolean) ?? "bucket";
 
     if (!bucketName) {
       throw new Error("missing bucket path");

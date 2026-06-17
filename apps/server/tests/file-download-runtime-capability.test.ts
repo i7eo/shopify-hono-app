@@ -8,45 +8,26 @@ import { runtimeConfig } from "./shopify/test-utils";
 import type { FileRecord } from "@/app/modules/file/types";
 import type { Context } from "hono";
 
-vi.mock("@/infra/bucket", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/infra/bucket")>();
-
-  return {
-    ...original,
-    createBucket: vi.fn(() => ({
-      delete: vi.fn(() => {}),
-      open: vi.fn(() => {
-        throw new Error("R2 download should use signed redirect");
-      }),
-      put: vi.fn(() => ({
-        byteSize: 0,
-        key: "unused",
-        provider: "r2",
-      })),
-    })),
-    createBucketDownloadSigner: vi.fn(() => ({
-      signDownloadUrl: vi.fn(() => "https://signed.example.com/r2-file"),
-    })),
-  };
-});
-
 describe("file download runtime capability", () => {
   afterEach(() => disposeRuntimeCapabilities());
 
-  it("supports R2 signed downloads in Cloudflare runtime", async () => {
+  it("streams R2 downloads through the Cloudflare binding", async () => {
     const { registerCloudflareIsolateRuntimeCapabilities } =
       await import("@/app/runtime/isolate/cloudflare/capabilities");
     const runtimeEnv = getRuntimeConfig({
       ...runtimeConfig,
       APP_BUCKET_PROVIDER: "r2",
-      APP_BUCKET_R2_KEY: "access_key",
-      APP_BUCKET_R2_URL:
-        "https://account-id.r2.cloudflarestorage.com/product-export",
-      APP_BUCKET_R2_VALUE: "secret_key",
       APP_RUNTIME: "cloudflare",
+    });
+    const r2 = createR2Binding({
+      "shop/file.csv": new TextEncoder().encode("r2-body"),
     });
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const context = {
+      env: {
+        APP_RUNTIME: "cloudflare",
+        test_r2: r2,
+      },
       get: (key: string) => (key === "runtimeEnv" ? runtimeEnv : undefined),
     } as Context;
     const file: FileRecord = {
@@ -71,12 +52,56 @@ describe("file download runtime capability", () => {
     const resolver = await factory?.(context);
     const download = await resolver?.resolve({ file });
 
-    expect(download).toEqual({
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
-      type: "redirect",
-      url: "https://signed.example.com/r2-file",
+    expect(download?.type).toBe("stream");
+    expect(download?.headers).toEqual({
+      "Cache-Control": "private, no-store",
+      "Content-Disposition": "attachment; filename*=UTF-8''file.csv",
+      "Content-Length": "7",
+      "Content-Type": "text/csv",
     });
+    expect(r2.get).toHaveBeenCalledWith("shop/file.csv");
+
+    if (download?.type !== "stream") {
+      throw new Error("Expected a stream download");
+    }
+
+    await expect(new Response(download.body).text()).resolves.toBe("r2-body");
   });
 });
+
+function createR2Binding(initialObjects: Record<string, Uint8Array>): R2Bucket {
+  const objects = new Map(Object.entries(initialObjects));
+  const bucket: R2Bucket = {
+    createMultipartUpload: vi.fn(),
+    delete: vi.fn((key: string) => {
+      objects.delete(key);
+      return Promise.resolve();
+    }),
+    get: vi.fn((key: string) => {
+      const bytes = objects.get(key);
+      const object: R2ObjectBody | null = bytes
+        ? {
+            body: streamFromBytes(bytes),
+            size: bytes.byteLength,
+          }
+        : null;
+      return Promise.resolve(object);
+    }),
+    put: vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
+      objects.set(key, new Uint8Array(await new Response(body).arrayBuffer()));
+      return null;
+    }),
+    resumeMultipartUpload: vi.fn(),
+  };
+
+  return bucket;
+}
+
+function streamFromBytes(bytes: Uint8Array): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
+}

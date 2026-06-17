@@ -98,12 +98,12 @@ normalizeEnv(rawEnv)
 当前 Cloudflare isolate schema 允许 request-bound binding 在 bootstrap 阶段缺失：
 
 ```ts
-i7eo_dev_shopify_app_d1?: D1Database
-i7eo_dev_shopify_app_hyperdrive?: Hyperdrive
-i7eo_dev_shopify_app_r2?: R2Bucket
+[bindingFromAPP_DATABASE_D1_BINDING]?: D1Database
+[bindingFromAPP_HYPERDRIVER_BINDING]?: Hyperdrive
+[bindingFromAPP_BUCKET_R2_BINDING]?: R2Bucket
 ```
 
-这不是静默放宽使用要求。真正消费 binding 的 runtime capability 必须在使用点强校验。例如 Cloudflare D1 session storage 会校验 `i7eo_dev_shopify_app_d1`，Cloudflare PostgreSQL 会校验 `i7eo_dev_shopify_app_hyperdrive`，R2 bucket 会校验 `i7eo_dev_shopify_app_r2`。
+这不是静默放宽使用要求。真正消费 binding 的 runtime capability 必须在使用点强校验。Cloudflare D1、Hyperdrive 和 R2 都通过对应的 `APP_*_BINDING` 读取 `c.env[binding]`，业务代码不写死环境名或资源名。
 
 ## Env File 字段
 
@@ -119,6 +119,7 @@ i7eo_dev_shopify_app_r2?: R2Bucket
 | `APP_ENV`                     | `development`、`test`、`production` | 当前配置环境                                                              |
 | `APP_RUNTIME`                 | `node`、`cloudflare`、`vercel-edge` | server 执行环境，`vercel-edge` 当前预留                                   |
 | `APP_DATABASE_PROVIDER`       | `postgres`、`d1`                    | 数据库 provider；`d1` 当前用于 Cloudflare file 与 Shopify session storage |
+| `APP_BUCKET_PROVIDER`         | `memory`、`r2`                      | bucket provider；Cloudflare runtime 当前应使用 `r2`                       |
 | `APP_LOGGER_EXPIRE`           | `604800000`                         | 日志过期时间                                                              |
 | `APP__SERVER_PORT`            | `10001`                             | `apps/server` dev 端口                                                    |
 | `APP__WEB_PORT`               | `10002`                             | `apps/web` dev 端口                                                       |
@@ -130,9 +131,53 @@ i7eo_dev_shopify_app_r2?: R2Bucket
 | `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version                                                 |
 | `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                                                     |
 
-其他字段来自 schema 默认值，只有需要覆盖默认行为时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_PROVIDER`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_KEY`、`APP_BUCKET_R2_VALUE`、`APP_DATABASE_URL`、`APP_DATABASE_D1_URL`、`APP_DATABASE_D1_KEY`、`APP_DATABASE_D1_VALUE`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
+其他字段来自 schema 默认值，只有需要覆盖默认行为或启用对应 provider 时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`、`APP_DATABASE_URL`、`APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID`、`APP_CLOUDFLARE_USER_TOKEN`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
 
-`APP_DATABASE_D1_URL`、`APP_DATABASE_D1_KEY`、`APP_DATABASE_D1_VALUE` 当前是为了后续 D1 HTTP/remote 路线预留的 schema 字段。现阶段 `apps/server` 的 Cloudflare D1 运行路径使用 Wrangler binding `i7eo_dev_shopify_app_d1`，不是通过这三个 env 直连。
+这些字段在 `@shamt/app-env` schema 中多为 optional，是为了允许同一份 schema 覆盖 Node、Cloudflare、PostgreSQL、D1、R2 和 memory 多种组合。真正是否必填由 runtime/provider 矩阵决定。
+
+## Cloudflare 资源 Env
+
+`scripts/write-wrangler-file` 不从 `APP_ENV` 推导 R2、D1 或 Hyperdrive 的 binding/name。它只把 env file 中显式声明的字段写入 `wrangler.json`，当前 runtime/provider 组合需要哪个字段，缺失就报错。
+
+| 资源       | Env 字段                                                                | 写入 Wrangler 字段                                 |
+| ---------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| R2         | `APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`                           | `r2_buckets[].binding/bucket_name`                 |
+| D1         | `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` | `d1_databases[].binding/database_name/database_id` |
+| Hyperdrive | `APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`                         | `hyperdrive[].binding/id`                          |
+
+建议让 binding 名保持稳定、让资源名按环境变化：
+
+```env
+APP_BUCKET_R2_BINDING=SHOPIFY_APP_R2
+APP_BUCKET_R2_NAME=i7eo-shopify-app-dev-r2
+
+APP_DATABASE_D1_BINDING=SHOPIFY_APP_D1
+APP_DATABASE_D1_NAME=i7eo-shopify-app-dev-d1
+APP_DATABASE_D1_ID=<dev-d1-id>
+
+APP_HYPERDRIVER_BINDING=SHOPIFY_APP_HYPERDRIVE
+APP_HYPERDRIVER_ID=<dev-hyperdrive-id>
+```
+
+`APP_BUCKET_R2_NAME` 是 R2 bucket 名，不是 Worker binding 名；`APP_DATABASE_D1_NAME` 是 D1 database 名，不是 Worker binding 名。Cloudflare runtime capability 会通过 `APP_*_BINDING` 动态读取 `c.env[binding]`。
+
+Node + R2 走 S3-compatible API，仍需要 `APP_BUCKET_R2_URL` 以及对应 S3 credential。Cloudflare + R2 不读取 S3 credential，而使用 `APP_BUCKET_R2_BINDING` 指向的 Worker binding。因为 `write-wrangler-file` 只关心 Wrangler binding，即使当前是 `APP_RUNTIME=node + APP_BUCKET_PROVIDER=r2`，只要要生成 R2 binding，就仍会要求 `APP_BUCKET_R2_BINDING` 和 `APP_BUCKET_R2_NAME`。
+
+Node + D1 走 Cloudflare D1 HTTP API，不需要 Worker D1 binding。当前实现需要 `APP_CLOUDFLARE_WORKER_ACCOUNT_ID`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` 和 `APP_CLOUDFLARE_USER_TOKEN`。Cloudflare + D1 才需要 `APP_DATABASE_D1_BINDING` 生成 Worker binding。
+
+## Wrangler 生成校验规则
+
+`write-wrangler-file` 会根据 `APP_RUNTIME`、`APP_DATABASE_PROVIDER` 和 `APP_BUCKET_PROVIDER` 生成最小 Wrangler binding。下表中的字段是生成阶段强校验字段：
+
+| 当前组合                                                    | 必填字段                                                                |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `APP_BUCKET_PROVIDER=r2`                                    | `APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`                           |
+| `APP_RUNTIME=cloudflare` + `APP_DATABASE_PROVIDER=d1`       | `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` |
+| `APP_RUNTIME=cloudflare` + `APP_DATABASE_PROVIDER=postgres` | `APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`                         |
+| `APP_RUNTIME=node` + `APP_DATABASE_PROVIDER=d1`             | 不生成 D1 Worker binding；D1 HTTP 所需字段由 Node runtime 使用点校验    |
+| `APP_RUNTIME=node` + `APP_DATABASE_PROVIDER=postgres`       | 不生成 Hyperdrive binding；Node 直接通过 `APP_DATABASE_URL` 使用 `pg`   |
+
+因此，如果 `.env.*` 中注释掉某个当前矩阵需要的字段，prepare wrangler 会直接失败；如果字段属于未启用的 runtime/provider 路线，则不会被要求。
 
 ## 部署期 Env
 

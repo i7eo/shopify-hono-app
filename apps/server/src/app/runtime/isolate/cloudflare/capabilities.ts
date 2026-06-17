@@ -15,6 +15,7 @@ import { runtimeNotSupported } from "@/utils/runtime";
 import {
   isCloudflareD1Database,
   isCloudflareHyperdrive,
+  isCloudflareR2Bucket,
   requireCloudflareBinding,
 } from "./bindings";
 import type { AppEnv, RuntimeAppEnv } from "@/typings";
@@ -60,8 +61,8 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
  * Creates the runtime database once request runtime env is available.
  *
  * Example:
- * - APP_DATABASE_PROVIDER=d1 requires i7eo_dev_shopify_app_d1.
- * - APP_DATABASE_PROVIDER=postgres requires i7eo_dev_shopify_app_hyperdrive.
+ * - APP_DATABASE_PROVIDER=d1 requires APP_DATABASE_D1_BINDING.
+ * - APP_DATABASE_PROVIDER=postgres requires APP_HYPERDRIVER_BINDING.
  */
 function getDatabase(c: Context<AppEnv>) {
   const context = c as Context<RuntimeAppEnv<"cloudflare">>;
@@ -69,18 +70,20 @@ function getDatabase(c: Context<AppEnv>) {
 
   if (config.APP_DATABASE_PROVIDER === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
     return createDatabase(config, {
-      d1: requireCloudflareBinding(
-        context.env.i7eo_dev_shopify_app_d1,
-        "i7eo_dev_shopify_app_d1",
+      d1: requireConfiguredCloudflareBinding(
+        context.env,
+        config.APP_DATABASE_D1_BINDING,
+        "APP_DATABASE_D1_BINDING",
         isCloudflareD1Database,
       ),
     });
   }
 
   return createDatabase(config, {
-    hyperdrive: requireCloudflareBinding(
-      context.env.i7eo_dev_shopify_app_hyperdrive,
-      "i7eo_dev_shopify_app_hyperdrive",
+    hyperdrive: requireConfiguredCloudflareBinding(
+      context.env,
+      config.APP_HYPERDRIVER_BINDING,
+      "APP_HYPERDRIVER_BINDING",
       isCloudflareHyperdrive,
     ),
   });
@@ -88,11 +91,33 @@ function getDatabase(c: Context<AppEnv>) {
 
 /**
  * Creates the runtime bucket once request runtime env is available.
- * Cloudflare currently supports the r2 provider through the shared
- * S3-compatible bucket implementation.
+ * Cloudflare supports the r2 provider through the request-bound R2 binding.
  */
 function getBucket(c: Context<AppEnv>) {
-  return createBucket(c.get("runtimeEnv"));
+  const context = c as Context<RuntimeAppEnv<"cloudflare">>;
+  const config = c.get("runtimeEnv");
+
+  return createBucket(config, {
+    r2: requireConfiguredCloudflareBinding(
+      context.env,
+      config.APP_BUCKET_R2_BINDING,
+      "APP_BUCKET_R2_BINDING",
+      isCloudflareR2Bucket,
+    ),
+  });
+}
+
+function requireConfiguredCloudflareBinding<T>(
+  env: Record<string, unknown>,
+  binding: string | undefined,
+  bindingConfigKey: string,
+  validate: (value: unknown) => value is T,
+): T {
+  if (!binding) {
+    return requireCloudflareBinding(undefined, bindingConfigKey, validate);
+  }
+
+  return requireCloudflareBinding(env[binding], binding, validate);
 }
 
 /**
@@ -113,10 +138,10 @@ function disposeBucketCapability() {
  * Throws until the Cloudflare file background task dispatcher is backed by
  * Cloudflare Queues or another isolate-safe task transport.
  */
-function fileModuleNotSupported(context: Context<AppEnv>): never {
+function fileModuleNotSupported(c: Context<AppEnv>): never {
   return runtimeNotSupported({
     mode: "throw",
-    runtime: getRuntimeName(context),
+    runtime: c.get("runtimeEnv").APP_RUNTIME,
     message:
       "File background task dispatcher is not implemented for Cloudflare runtime yet",
   });
@@ -125,19 +150,8 @@ function fileModuleNotSupported(context: Context<AppEnv>): never {
 /**
  * Returns an unsupported health result for isolate capabilities without support.
  */
-function isolateNotSupport(
-  context: Context<AppEnv>,
-): ModuleHealthDiskCheckResult {
+function isolateNotSupport(c: Context<AppEnv>): ModuleHealthDiskCheckResult {
   return runtimeNotSupported({
-    runtime: getRuntimeName(context),
+    runtime: c.get("runtimeEnv").APP_RUNTIME,
   });
-}
-
-/**
- * Reads the isolate runtime name from Cloudflare env with a stable fallback.
- */
-function getRuntimeName(context: Context<AppEnv>) {
-  const cloudflareContext = context as Context<RuntimeAppEnv<"cloudflare">>;
-
-  return cloudflareContext.env.APP_RUNTIME ?? "cloudflare";
 }

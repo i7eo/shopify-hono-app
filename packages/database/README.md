@@ -7,6 +7,11 @@ Applications should import schema objects from this package and create their own
 runtime-specific Drizzle clients. This package does not open database
 connections and does not read environment variables.
 
+`apps/server` currently consumes these schemas through a runtime-aware database
+factory. PostgreSQL models are used by Node PostgreSQL and Cloudflare
+Hyperdrive. SQLite models are used by Cloudflare D1 and the Node D1 HTTP API
+adapter.
+
 ## Exports
 
 | Entry                                  | Purpose                                |
@@ -19,6 +24,10 @@ connections and does not read environment variables.
 | `@shamt/database/package.json`         | Package metadata                       |
 
 ## Models
+
+The package keeps PostgreSQL and SQLite/D1 models separate because the two
+dialects represent dates, booleans, enums, and integers differently. The app
+layer maps both dialects behind the same store interfaces.
 
 `files`
 
@@ -136,6 +145,23 @@ const db = drizzle({
 });
 ```
 
+Create a D1/SQLite Drizzle client with the SQLite schema:
+
+```ts
+import {
+  sqliteFiles,
+  sqliteShopifySessions,
+} from "@shamt/database/models/sqlite";
+import { drizzle } from "drizzle-orm/d1";
+
+const db = drizzle(env.DB, {
+  schema: {
+    files: sqliteFiles,
+    shopifySessions: sqliteShopifySessions,
+  },
+});
+```
+
 Use models in queries:
 
 ```ts
@@ -155,3 +181,5 @@ const rows = await db
 - Migrations are generated from app-owned Drizzle config.
 - File metadata has PostgreSQL and SQLite/D1 schemas.
 - Shopify session storage has PostgreSQL and SQLite/D1 schemas.
+- Node D1 support is implemented in the app layer by wrapping Cloudflare's D1
+  HTTP API as a `D1Database`-compatible client.

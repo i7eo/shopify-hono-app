@@ -1,12 +1,14 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
-import { runtimeNotSupported } from "@/utils/runtime";
 import {
   getDatabaseEnvConfig,
   getDatabaseUrl,
   postgresDatabaseSchema,
+  sqliteDatabaseSchema,
   type PostgresDatabaseSchema,
+  type SqliteDatabaseSchema,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
+import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 export type ProcessPostgresDatabase = {
@@ -16,7 +18,14 @@ export type ProcessPostgresDatabase = {
   provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES;
   runtime: RuntimeConfig["APP_RUNTIME"];
 };
-export type ProcessDatabase = ProcessPostgresDatabase;
+export type ProcessD1Database = {
+  db: DrizzleD1Database<SqliteDatabaseSchema>;
+  dialect: "sqlite";
+  dispose: () => Promise<void>;
+  provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.D1;
+  runtime: RuntimeConfig["APP_RUNTIME"];
+};
+export type ProcessDatabase = ProcessPostgresDatabase | ProcessD1Database;
 
 let processDatabase: ProcessDatabase | undefined;
 
@@ -33,8 +42,7 @@ export async function getProcessDatabase(
 
 /**
  * Creates the Node process database strategy.
- * Node supports Postgres through pg.Pool; node + d1 is intentionally reserved
- * and fails with runtimeNotSupported until a local D1 strategy is introduced.
+ * Node supports Postgres through pg.Pool and D1 through Cloudflare's HTTP API.
  */
 export async function createProcessDatabase(
   config: RuntimeConfig,
@@ -42,11 +50,20 @@ export async function createProcessDatabase(
   const strategy = getDatabaseEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
-    return runtimeNotSupported({
-      mode: "throw",
+    const [{ drizzle }, { createProcessD1HttpClient }] = await Promise.all([
+      import("drizzle-orm/d1"),
+      import("./process-d1-http"),
+    ]);
+
+    return {
+      db: drizzle(createProcessD1HttpClient(config), {
+        schema: sqliteDatabaseSchema,
+      }),
+      dialect: "sqlite",
+      dispose: () => Promise.resolve(),
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
       runtime: config.APP_RUNTIME,
-      message: "D1 database is not implemented for Node runtime yet",
-    });
+    };
   }
 
   const [{ drizzle }, { Pool }] = await Promise.all([

@@ -81,6 +81,55 @@ runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [
 - 测试时可以 reset/dispose。
 - Cloudflare bundle 不容易被 Node-only import 污染。
 
+## Provider Signature 统一失效
+
+provider registry 不只按 provider 名称缓存实例，还把调用方传入的配置 DTO 归一化成 signature。`env` provider 使用 schema 字段生成 signature；`logger`、`client`、`shopifyConfig` provider 使用各自关心的配置子集生成 signature。
+
+对应实现：
+
+- `src/infra/provider/signature.ts`
+- `src/infra/provider/env.ts`
+- `src/infra/provider/logger.ts`
+- `src/infra/provider/client.ts`
+- `src/infra/provider/shopify.ts`
+
+这种设计的优势是：调用方仍然可以传完整 `RuntimeConfig`，provider 自己决定哪些字段影响缓存。配置没有变化时复用实例；配置变化时自动重建并注册 disposer。相比手写一堆“如果字段 X/Y/Z 变了就重置”的逻辑，signature 方法更集中，也更容易测试。
+
+例如 HTTP client 只关心 client env config，Shopify config 只关心 Shopify env config，logger 只关心 runtime/env/logger 字段。调用方不需要知道这些内部缓存边界。
+
+## Bucket 与 Database 双矩阵
+
+项目同时把 database 和 bucket 做成 runtime-aware 基础设施，而不是让业务模块分别判断 Node、Cloudflare、PostgreSQL、D1、R2。
+
+Database 矩阵：
+
+| Runtime      | Provider   | 实现                                               |
+| ------------ | ---------- | -------------------------------------------------- |
+| `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres`            |
+| `node`       | `d1`       | Cloudflare D1 HTTP API + `drizzle-orm/d1`          |
+| `cloudflare` | `postgres` | Hyperdrive `connectionString` + PostgreSQL Drizzle |
+| `cloudflare` | `d1`       | Worker D1 binding + `drizzle-orm/d1`               |
+
+Bucket 矩阵：
+
+| Runtime      | Provider | 实现                                   |
+| ------------ | -------- | -------------------------------------- |
+| `node`       | `memory` | 本地文件系统-backed memory bucket      |
+| `node`       | `r2`     | R2 S3-compatible API + signed download |
+| `cloudflare` | `r2`     | Worker R2 binding + stream download    |
+
+这让 file module 和 Shopify session storage 都只消费 capability：
+
+- `databaseFactory`
+- `bucketFactory`
+- `moduleFileDownloadResolverFactory`
+
+优势：
+
+- Node 开发、本地文件、PostgreSQL、D1 HTTP 可以组合使用。
+- Cloudflare 部署可以换成 Hyperdrive/D1/R2 binding，而不改业务 controller。
+- `scripts/write-wrangler-file` 能根据同一组 env 生成最小 Wrangler binding，避免每个环境手写一份资源配置。
+
 ## 更完整的 Shopify Session 策略
 
 项目覆盖多种 session 场景：

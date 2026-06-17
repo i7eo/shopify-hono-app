@@ -1,6 +1,5 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import { DEFAULT_SIGNED_DOWNLOAD_URL_EXPIRE } from "@/constants";
-import { internalServerError } from "@/shared/exceptions";
 import { getAttachmentDisposition } from "../utils";
 import type {
   FileDownload,
@@ -19,17 +18,17 @@ export class BucketFileDownloadResolver implements FileDownloadResolver {
   ) {}
 
   /**
-   * Returns a short-lived redirect for R2 files and a private stream response
-   * for memory files.
+   * Returns a short-lived redirect when a signer exists, otherwise streams the
+   * object through the configured bucket.
+   *
+   * Example: Node R2 redirects to an S3 signed URL; Cloudflare R2 streams from
+   * the request-bound R2 binding.
    */
   async resolve(input: FileDownloadInput): Promise<FileDownload> {
-    if (input.file.bucketProvider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
-      if (!this.signer) {
-        throw internalServerError("R2 download signer is not configured", {
-          expose: true,
-        });
-      }
-
+    if (
+      input.file.bucketProvider === DEFAULT_APP_BUCKET_PROVIDERS.R2 &&
+      this.signer
+    ) {
       return {
         type: "redirect",
         url: await this.signer.signDownloadUrl({

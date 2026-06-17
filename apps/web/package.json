@@ -21,7 +21,7 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.2.5",
+    "@radix-ui/react-slot": "^1.3.0",
     "@shamt/app-env": "workspace:*",
     "@shamt/database": "workspace:*",
     "@shamt/oh-my-fetch": "workspace:*",
