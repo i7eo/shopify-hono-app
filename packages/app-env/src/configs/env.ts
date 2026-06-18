@@ -13,6 +13,8 @@ import { bucketConfigSchema } from "./bucket";
 import { cloudflareConfigSchema } from "./cloudflare";
 import { databaseConfigSchema } from "./database";
 import { hyperdriveConfigSchema } from "./hyperdrive";
+import { queueConfigSchema } from "./queue";
+import { schedulerConfigSchema } from "./scheduler";
 import type { z } from "zod";
 
 export const configSchema = extendConfigSchema(
@@ -28,6 +30,8 @@ export const configSchema = extendConfigSchema(
   .extend(bucketConfigSchema.shape)
   .extend(cloudflareConfigSchema.shape)
   .extend(databaseConfigSchema.shape)
-  .extend(hyperdriveConfigSchema.shape);
+  .extend(hyperdriveConfigSchema.shape)
+  .extend(queueConfigSchema.shape)
+  .extend(schedulerConfigSchema.shape);
 
 export type ConfigSchema = z.infer<typeof configSchema>;

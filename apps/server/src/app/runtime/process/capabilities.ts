@@ -12,6 +12,7 @@ import {
 } from "@/infra/bucket";
 import { createDatabase, disposeDatabase } from "@/infra/database";
 import { setupProcessLogger } from "@/infra/logger/process";
+import { createQueueProducer, disposeQueueProducer } from "@/infra/queue";
 import { runtimeNotSupported } from "@/utils/runtime";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -46,6 +47,11 @@ export function registerProcessRuntimeCapabilities() {
     disposeBucketCapability,
   );
   setRuntimeCapability(
+    "queueProducerFactory",
+    (c) => getQueueProducer(c),
+    disposeQueueProducerCapability,
+  );
+  setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
     async (c) =>
       new BucketFileDownloadResolver(
@@ -76,6 +82,14 @@ function getBucket(c: Context<AppEnv>) {
 }
 
 /**
+ * Creates the runtime queue producer once request runtime env is available.
+ * Example: APP_QUEUE_PROVIDER=pg-boss returns the cached pg-boss producer.
+ */
+function getQueueProducer(c: Context<AppEnv>) {
+  return createQueueProducer(c.get("runtimeEnv"));
+}
+
+/**
  * Disposes cached process database infrastructure.
  */
 function disposeDatabaseCapability() {
@@ -87,6 +101,13 @@ function disposeDatabaseCapability() {
  */
 function disposeBucketCapability() {
   return disposeBucket({ APP_RUNTIME: "node" });
+}
+
+/**
+ * Disposes cached process queue infrastructure.
+ */
+function disposeQueueProducerCapability() {
+  return disposeQueueProducer({ APP_RUNTIME: "node" });
 }
 
 /**

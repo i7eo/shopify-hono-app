@@ -6,7 +6,7 @@ export const Route = createFileRoute("/product-export/")({
   component: ProductExport,
 });
 
-const EXPORT_ACTION_DELAY_MS = 500;
+const EXPORT_ACTION_DELAY_MS = 1000000;
 
 const exportActionRows = [
   {
@@ -39,12 +39,10 @@ type ExportActionRow = (typeof exportActionRows)[number];
 
 function ProductExport() {
   const [rows, setRows] = useState<ExportActionRow[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready">("loading");
 
   useEffect(() => {
     const timer = globalThis.setTimeout(() => {
       setRows([...exportActionRows]);
-      setStatus("ready");
     }, EXPORT_ACTION_DELAY_MS);
 
     return () => {
@@ -62,14 +60,7 @@ function ProductExport() {
         Create
       </s-button>
 
-      {status === "loading" ? (
-        <s-section>
-          <s-spinner
-            accessibilityLabel="Loading product export actions"
-            size="base"
-          ></s-spinner>
-        </s-section>
-      ) : rows.length === 0 ? (
+      {rows.length === 0 ? (
         <Empty
           heading="No export actions"
           message="Create an export action to upload and process a product export file."

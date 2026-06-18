@@ -157,7 +157,7 @@ function getTunnelUrl() {
 function getTunnelName() {
   const config = configSchema.parse(process.env);
 
-  return config.APP_CLOUDFLARE_WORKER_NAME;
+  return `${config.APP_CLOUDFLARE_WORKER_NAME}-tunnel`;
 }
 
 /**

@@ -79,7 +79,7 @@ catalogs:
     "pg": "^8.21.0"
     "@types/pg": "^8.20.0"
   "queue":
-    "bullmq": "^5.78.1"
+    "pg-boss": "^12.19.1"
   "redis":
     "redis": "^6.0.0"
   "shopify":

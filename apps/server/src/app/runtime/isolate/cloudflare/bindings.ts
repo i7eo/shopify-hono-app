@@ -58,3 +58,16 @@ export function isCloudflareR2Bucket(value: unknown): value is R2Bucket {
     typeof bucket.delete === "function"
   );
 }
+
+/**
+ * Runtime shape check for the Queue binding used by Cloudflare queue
+ * capabilities.
+ */
+export function isCloudflareQueue(value: unknown): value is Queue {
+  if (!value || typeof value !== "object") return false;
+
+  const queue = value as Partial<Queue>;
+  return (
+    typeof queue.send === "function" && typeof queue.sendBatch === "function"
+  );
+}

@@ -7,7 +7,7 @@ export interface FileTaskDispatcher {
 }
 
 /**
- * Placeholder dispatcher used before BullMQ or Cloudflare Queues are wired in.
+ * Placeholder dispatcher used before pg-boss or Cloudflare Queues are wired in.
  */
 export class NoopFileTaskDispatcher implements FileTaskDispatcher {
   /**

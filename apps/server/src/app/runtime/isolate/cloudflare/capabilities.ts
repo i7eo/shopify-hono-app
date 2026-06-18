@@ -11,10 +11,12 @@ import {
 } from "@/infra/bucket";
 import { createDatabase, disposeDatabase } from "@/infra/database";
 import { setupIsolateLogger } from "@/infra/logger/isolate";
+import { createQueueProducer, disposeQueueProducer } from "@/infra/queue";
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
   isCloudflareD1Database,
   isCloudflareHyperdrive,
+  isCloudflareQueue,
   isCloudflareR2Bucket,
   requireCloudflareBinding,
 } from "./bindings";
@@ -42,6 +44,11 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
     "bucketFactory",
     (c) => getBucket(c),
     disposeBucketCapability,
+  );
+  setRuntimeCapability(
+    "queueProducerFactory",
+    (c) => getQueueProducer(c),
+    disposeQueueProducerCapability,
   );
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
@@ -107,6 +114,25 @@ function getBucket(c: Context<AppEnv>) {
   });
 }
 
+/**
+ * Creates the runtime queue producer once request runtime env is available.
+ * Cloudflare supports the queues provider through the request-bound Queue
+ * binding.
+ */
+function getQueueProducer(c: Context<AppEnv>) {
+  const context = c as Context<RuntimeAppEnv<"cloudflare">>;
+  const config = c.get("runtimeEnv");
+
+  return createQueueProducer(config, {
+    queue: requireConfiguredCloudflareBinding(
+      context.env,
+      config.APP_QUEUE_BINDING,
+      "APP_QUEUE_BINDING",
+      isCloudflareQueue,
+    ),
+  });
+}
+
 function requireConfiguredCloudflareBinding<T>(
   env: Record<string, unknown>,
   binding: string | undefined,
@@ -132,6 +158,13 @@ function disposeDatabaseCapability() {
  */
 function disposeBucketCapability() {
   return disposeBucket({ APP_RUNTIME: "cloudflare" });
+}
+
+/**
+ * Disposes isolate queue infrastructure when one is cached.
+ */
+function disposeQueueProducerCapability() {
+  return disposeQueueProducer({ APP_RUNTIME: "cloudflare" });
 }
 
 /**

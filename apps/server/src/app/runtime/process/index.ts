@@ -4,6 +4,8 @@ import { bootstrapApp } from "@/app/bootstrap";
 import { registerProcessExceptions } from "@/app/runtime/process/register-process-exceptions";
 import { registerProcessExits } from "@/app/runtime/process/register-process-exits";
 import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
+import { startProcessQueueConsumer } from "@/infra/queue";
+import { startProcessScheduler } from "@/infra/scheduler";
 import { name } from "../../../../package.json";
 import { registerProcessRuntimeCapabilities } from "./capabilities";
 
@@ -24,6 +26,14 @@ export async function bootstrap() {
     `🎉 ${name} is running on port ${env.APP__SERVER_PORT}! OpenAPI Route: 👉 /reference`,
   );
 
+  await startProcessQueueConsumer(env, {
+    logger,
+    runtimeEnv: env,
+  });
+  await startProcessScheduler(env, {
+    logger,
+    runtimeEnv: env,
+  });
   await registerProcessExceptions();
   await registerProcessExits(nodeApp);
 }

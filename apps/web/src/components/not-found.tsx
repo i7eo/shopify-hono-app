@@ -17,12 +17,18 @@ export function NotFound({
 }: NotFoundProps) {
   const content = (
     <s-section heading={scope === "inline" ? heading : undefined}>
-      <s-image
-        src={notFoundImage}
-        alt="Page not found"
-        aspectRatio="1/1"
-        objectFit="contain"
-      ></s-image>
+      <s-stack alignItems="center">
+        <s-box inlineSize="400px">
+          <s-image
+            src={notFoundImage}
+            alt="Page not found"
+            aspectRatio="1/1"
+            objectFit="contain"
+            inlineSize="fill"
+            loading="lazy"
+          ></s-image>
+        </s-box>
+      </s-stack>
       <s-text color="subdued">{message}</s-text>
       <s-link href="/">Go to app home</s-link>
     </s-section>

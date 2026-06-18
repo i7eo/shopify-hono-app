@@ -129,7 +129,7 @@ bucket 会接收一个 runtime-specific upload body adapter：
 
 - Node + R2 当前返回 S3-compatible endpoint 的短期签名 URL。
 - Cloudflare + R2 当前返回 Worker stream response。后续如果要改为 custom-domain signed URL，应单独实现 Cloudflare 侧签名策略。
-- 生命周期清理不在这里实现。后续 BullMQ 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
+- 生命周期清理不在这里实现。后续 pg-boss 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
 
 ## 测试
 

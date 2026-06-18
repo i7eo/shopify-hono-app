@@ -17,12 +17,18 @@ export function Empty({
 }: EmptyProps) {
   const content = (
     <s-section heading={scope === "inline" ? heading : undefined}>
-      <s-image
-        src={EmptyImage}
-        alt="Page empty"
-        aspectRatio="1/1"
-        objectFit="contain"
-      ></s-image>
+      <s-stack alignItems="center">
+        <s-box inlineSize="400px">
+          <s-image
+            src={EmptyImage}
+            alt="Page empty"
+            aspectRatio="1/1"
+            objectFit="contain"
+            inlineSize="fill"
+            loading="lazy"
+          ></s-image>
+        </s-box>
+      </s-stack>
       <s-text color="subdued">{message}</s-text>
       <s-link href="/">Go to app home</s-link>
     </s-section>

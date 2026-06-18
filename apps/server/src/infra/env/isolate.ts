@@ -1,27 +1,33 @@
-import { configSchema, DEFAULT_RUNTIMES } from "@shamt/app-env";
+import {
+  configSchema,
+  DEFAULT_RUNTIMES,
+  type ConfigSchema,
+} from "@shamt/app-env";
 import { z } from "zod";
 import { parseWithSchema } from "./shared";
 
-export const cloudflareIsolateConfigSchema = configSchema.extend({
-  APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.CLOUDFLARE),
-});
-export const vercelEdgeIsolateConfigSchema = configSchema.extend({
-  APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.VERCEL_EDGE),
-});
-export const isolateConfigSchema = z.discriminatedUnion("APP_RUNTIME", [
+export type CloudflareIsolateConfig = ConfigSchema & {
+  APP_RUNTIME: typeof DEFAULT_RUNTIMES.CLOUDFLARE;
+};
+export type VercelEdgeIsolateConfig = ConfigSchema & {
+  APP_RUNTIME: typeof DEFAULT_RUNTIMES.VERCEL_EDGE;
+};
+export type IsolateConfig = CloudflareIsolateConfig | VercelEdgeIsolateConfig;
+
+const cloudflareIsolateConfigSchema: z.ZodType<CloudflareIsolateConfig> =
+  configSchema.extend({
+    APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.CLOUDFLARE),
+  });
+const vercelEdgeIsolateConfigSchema: z.ZodType<VercelEdgeIsolateConfig> =
+  configSchema.extend({
+    APP_RUNTIME: z.literal(DEFAULT_RUNTIMES.VERCEL_EDGE),
+  });
+const isolateConfigSchema: z.ZodType<IsolateConfig> = z.union([
   cloudflareIsolateConfigSchema,
   // Reserved for future support. Vercel Edge currently has no runtime entry,
   // platform bindings, or Shopify session storage strategy in this app.
   vercelEdgeIsolateConfigSchema,
 ]);
-
-export type IsolateConfig = z.infer<typeof isolateConfigSchema>;
-export type CloudflareIsolateConfig = z.infer<
-  typeof cloudflareIsolateConfigSchema
->;
-export type VercelEdgeIsolateConfig = z.infer<
-  typeof vercelEdgeIsolateConfigSchema
->;
 
 /**
  * Validate an isolate runtime config and dispatch by isolate platform.
