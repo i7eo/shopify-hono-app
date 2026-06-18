@@ -1,5 +1,7 @@
 # 计划：product-export —— Shopify 商品 → CSV → Bucket，按运行时选择队列
 
+> 历史方案记录：本文保留 product-export 早期设计思路，不作为当前代码事实的权威说明。当前实现请以 `src/app/modules/product-export/README.md`、[queue.md](./queue.md) 和 [scheduler.md](./scheduler.md) 为准。当前 queue/scheduler infra 位于 `src/infra/queue`、`src/infra/scheduler`，通过 `registerQueueJob(...)`、`registerSchedulerTask(...)` 注册，并由 runtime entry 调用对应 create/dispose 生命周期。
+
 ## 背景
 
 `product-export` 需要拉取一个店铺的**全部**商品、生成 CSV、存储以供下载。本应用是多运行时，但**启动时只进入一种运行时**：Node `process`（队列 = **pg-boss**）或 Cloudflare `isolate`（队列 = **Cloudflare Queues**）。同一份 job 代码必须在**两种后端都能跑**（你选定的模型），因此每个 job 都要塞进**更小的执行包络**——即 Cloudflare Worker 的 CPU/时长上限和 128 KB 消息上限。
@@ -93,14 +95,14 @@ GET /api/product-exports/:id/download
 
 - `shared.ts` —— `QueueProducer` 接口（`enqueue<N>(name, payload, opts?)`）、`EnqueueOptions { delaySeconds?, maxAttempts?, dedupKey? }`（pg-boss × CF 的交集）、`Job<N>`、`JobHandler<N>`。
 - `index.ts` —— `createQueueProducer(config, isolateOptions?)`，按 `APP_RUNTIME` 动态 import 分派，对齐 `infra/bucket/index.ts`。
-- `process-pgboss.ts` —— pg-boss producer + `startPgBossWorkers(registry)` / `stopPgBossWorkers()`（按注册的每个 job 调 `boss.work`，映射到 handler）。
-- `isolate-cf.ts` —— CF producer（`env.QUEUE.send(JSON.stringify({name,payload}))`）+ `consumeQueueBatch(batch, registry, ctx)`（解析、路由到 registry、逐条 `ack`/`retry`）。
+- `process.ts` —— pg-boss producer + process consumer（按注册的每个 job 拉取消息，映射到 handler）。
+- `isolate.ts` —— Cloudflare Queue producer + event-scoped consumer（解析、路由到 registry、逐条 `ack`/`retry`）。
 
 ### 新增：定时基础设施（`apps/server/src/infra/scheduler/`）—— 保留的 Scheduler seam
 
 - `shared.ts` —— `Scheduler` 接口与 `ScheduledTaskRegistry`（cron 表达式 → handler）。
-- `process-pgboss.ts` —— 用 pg-boss `schedule()`（或 node-cron）在 Node 启动时注册定时任务，shutdown 时停止。
-- `isolate-cf.ts` —— `runScheduledTasks(controller, env, ctx)`：被 CF `scheduled()` 导出调用，按 `controller.cron` 派发到对应 handler。
+- `process.ts` —— 用 pg-boss `schedule()` 在 Node 启动时注册定时任务，shutdown 时停止。
+- `isolate.ts` —— Cloudflare `scheduled()` event adapter，按 `controller.cron` 派发到对应 handler。
 - 本次唯一注册的定时任务：**`product-export:reconcile`**——扫描卡在 `running`/`finalizing` 超过阈值的 export，重新 enqueue `plan` 或重投缺失的 `finalize-chunk`（兜底 webhook 丢失）。
 
 ### 新增：job 注册表（`apps/server/src/app/jobs/`）
@@ -122,7 +124,7 @@ GET /api/product-exports/:id/download
 ### 新增：env provider（`packages/app-env/src/`）
 
 - `constants/queue.ts` —— `DEFAULT_APP_QUEUE_PROVIDERS = { PGBOSS, CLOUDFLARE_QUEUE }`。
-- `configs/queue.ts` —— `APP_QUEUE_PROVIDER`、`APP_QUEUE_CF_BINDING`（CF 队列绑定名）、必要时 `APP_QUEUE_PG_*`（pg-boss 单独 schema/连接）。从 `src/index.ts` 导出。
+- `configs/queue.ts` —— `APP_QUEUE_PROVIDER`、`APP_QUEUE_NAME`、`APP_QUEUE_BINDING`、consumer batch/retry 配置。从 `src/index.ts` 导出。
 
 ### 改动：接通 capability + 消费端
 
@@ -161,7 +163,7 @@ GET /api/product-exports/:id/download
 
 **Node / pg-boss 端到端（主开发回路）：**
 
-1. `APP_RUNTIME=node APP_QUEUE_PROVIDER=pgboss APP_DATABASE_PROVIDER=postgres APP_BUCKET_PROVIDER=r2|memory` 启动。
+1. `APP_RUNTIME=node APP_QUEUE_PROVIDER=pg-boss APP_DATABASE_PROVIDER=postgres APP_BUCKET_PROVIDER=r2|memory` 启动。
 2. `POST /api/product-exports` → 202 + exportId；断言行 `status=queued→running`。
 3. 模拟完成：用签名测试 payload 打 `/webhooks/bulk_operations/finish`（或把 `resultUrl` 指向本地 fixture JSONL）→ 观察 `plan → finalize-chunk×N → assemble → done`。
 4. 用很小的 `CHUNK_BYTES` 强制 `totalParts>1` 以演练 **Range 路径**；断言拼接后的 CSV 行数 == 源 JSONL 行数，且表头恰好出现一次。

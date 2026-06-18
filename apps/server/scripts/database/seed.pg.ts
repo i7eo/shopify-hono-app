@@ -1,3 +1,4 @@
+import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import {
   files,
   postgresShopifySessions,
@@ -52,7 +53,7 @@ async function main() {
       .insert(files)
       .values({
         bucketKey: `${SEED_SHOP_DOMAIN}/2026/06/${SEED_FILE_ID}/seed.csv`,
-        bucketProvider: "memory",
+        bucketProvider: DEFAULT_APP_BUCKET_PROVIDERS.MEMORY,
         byteSize: 128,
         contentType: "text/csv",
         createdAt: now,
@@ -67,7 +68,7 @@ async function main() {
       .onConflictDoUpdate({
         target: files.id,
         set: {
-          bucketProvider: "memory",
+          bucketProvider: DEFAULT_APP_BUCKET_PROVIDERS.MEMORY,
           byteSize: 128,
           contentType: "text/csv",
           expiresAt: new Date(now.getTime() + 1000 * 60 * 60 * 24),

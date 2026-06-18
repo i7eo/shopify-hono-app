@@ -104,6 +104,7 @@ Hono 统一错误入口：
 
 - `src/app/lifecycle/error.ts`
 - `src/app/lifecycle/not-found.ts`
+- `src/app/runtime/process/register-process-exceptions.ts`
 
 `app.onError` 流程：
 
@@ -112,6 +113,101 @@ Hono 统一错误入口：
 3. `createErrorResponse(c, appError)` 返回 JSON。
 
 `app.notFound` 复用同一套响应生成逻辑。
+
+process runtime 还有进程级异常入口：
+
+1. `unhandledRejection` 和 `uncaughtException` 先调用 `normalizeError(...)`。
+2. logger 记录 `code`、`status`、`message` 和 `details`。
+3. `uncaughtException` 在非 development 环境继续 `process.exit(1)`。
+
+这个入口只负责结构化日志和进程生命周期，不生成 HTTP response，也没有 Hono
+`Context`、request id、path 或 method。
+
+## 捕捉边界
+
+同样是 `throw`，捕捉位置取决于它发生在哪条执行链路。
+
+### 注册期错误
+
+Queue job 和 scheduler task 的重复注册属于启动期不变量错误：
+
+```ts
+throw new Error(`Queue job already registered: ${job.name}`);
+throw new Error(`Scheduler task already registered: ${task.name}`);
+```
+
+这类错误通常发生在 `registerJobs()` 或模块 bootstrap 阶段。它不走
+`app.onError`，因为此时还不是 HTTP request。
+
+Node process 下，如果错误发生在 process exception handler 注册之后，并且变成
+`unhandledRejection` 或 `uncaughtException`，会被
+`registerProcessExceptions()` 捕捉、normalize 并记录日志。但当前启动顺序中
+`registerJobs()` 早于 `registerProcessExceptions()`，同步重复注册会直接让启动失败。
+
+Cloudflare 下，`registerJobs()` 在 Worker module 初始化阶段执行。重复注册会导致
+Worker module 初始化失败，也不会进入 Hono `app.onError`。
+
+这类错误应保持 fail-fast，用来暴露重复 import、重复注册或启动配置问题。
+
+### HTTP 请求链路
+
+HTTP request 内抛出的错误最终由 Hono `app.onError` 捕捉：
+
+```ts
+try {
+  await getProducts(c.var.shopifyAdminClient);
+} catch (error) {
+  if (error instanceof AppError) throw error;
+
+  throw badGatewayError("Failed to fetch products", {
+    details: {
+      cause: error,
+    },
+  });
+}
+```
+
+这里的 `throw error` 或 `throw xxxError(...)` 都会沿着 Hono middleware/controller
+链路冒泡，进入：
+
+```ts
+app.onError(async (error, c) => {
+  const appError = normalizeError(error);
+  return createErrorResponse(c, appError);
+});
+```
+
+因此 HTTP 链路可以依赖统一响应格式。
+
+### Queue 执行链路
+
+Queue job 内抛出的错误不会进入 `app.onError`。它会被
+`consumeQueueBatch(...)` 捕捉并转成 retry 结果：
+
+```ts
+try {
+  await job.handler(message.body.payload, context);
+  results.push({ action: "ack", id: message.id });
+} catch (error) {
+  results.push({ action: "retry", error, id: message.id });
+}
+```
+
+之后由 runtime adapter 映射到平台行为：
+
+- Node `pg-boss`: 失败消息调用 `boss.fail(...)`，由 `pg-boss` 负责重试。
+- Cloudflare Queues: 失败消息调用 `message.retry()`。
+
+未注册 job 也按执行期错误处理，会以
+`internalServerError("Unknown queue job", ...)` 进入 retry 结果。
+
+### Scheduler 执行链路
+
+Scheduler task 内抛出的错误属于定时任务执行错误，不生成 HTTP response。
+
+Node scheduler 由 `pg-boss` schedule/work 执行；Cloudflare scheduler 由 Worker
+`scheduled(controller, env)` event 执行。task handler 的错误应在 scheduler
+adapter 或平台日志中体现，并由任务自身保证幂等和可重试。
 
 ## 暴露策略
 
@@ -130,3 +226,5 @@ Hono 统一错误入口：
 3. 原始错误统一放入 `details.cause`。
 4. 第三方错误正文、stack、环境信息只进入 `details`。
 5. 成功响应仍由 route/controller 自己返回。
+6. registry 重复注册这类启动期不变量错误可以保留普通 `Error`，让进程 fail-fast。
+7. queue/scheduler 执行期错误应使用错误工厂或能被 `normalizeError` 识别的错误类型，不依赖普通 `Error` 逃逸成匿名 500。

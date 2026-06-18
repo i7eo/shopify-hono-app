@@ -1,3 +1,4 @@
+import { internalServerError } from "@/shared/exceptions";
 import { getQueueJob, type QueueJobContext } from "./registry";
 import type { QueueMessage } from "./shared";
 
@@ -40,7 +41,12 @@ export async function consumeQueueBatch(
     const job = getQueueJob(group.name);
 
     if (!job) {
-      const error = new Error(`Unknown queue job: ${group.name}`);
+      const error = internalServerError("Unknown queue job", {
+        details: {
+          name: group.name,
+        },
+        expose: true,
+      });
       results.push(
         ...group.messages.map((message) => ({
           action: "retry" as const,

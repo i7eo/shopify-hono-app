@@ -17,6 +17,17 @@
 
 Cloudflare + `memory` bucket 当前不支持。Node + D1 使用 HTTP API，因此不会生成 Worker D1 binding。
 
+queue 与 scheduler 是另外两条 runtime-aware infra 轴：
+
+| Runtime      | Queue provider | Scheduler provider | 平台入口                            |
+| ------------ | -------------- | ------------------ | ----------------------------------- |
+| `node`       | `pg-boss`      | `pg-boss`          | process 启动 polling / schedule     |
+| `cloudflare` | `queues`       | `cron-triggers`    | Worker `queue` / `scheduled` export |
+
+Node + `pg-boss` queue/scheduler 要求 `APP_DATABASE_PROVIDER=postgres`。
+Cloudflare 使用 `APP_QUEUE_BINDING` 指向 Queue binding，Cron Triggers 由
+Wrangler 配置提供。
+
 `scripts/write-wrangler-file` 会根据 `APP_ENV`、`APP_RUNTIME`、`APP_DATABASE_PROVIDER` 和 `APP_BUCKET_PROVIDER` 生成最小 Wrangler 配置。比如 `node + postgres + r2` 只生成 R2 binding。
 
 相关文档：
@@ -38,11 +49,14 @@ runtime capability 负责注入平台相关能力：
 - `moduleHealthProcessDiskChecker`
 - `databaseFactory`
 - `bucketFactory`
+- `queueProducerFactory`
+- `queueConsumerFactory`
+- `schedulerFactory`
 - `moduleFileDownloadResolverFactory`
 - `moduleFileTaskDispatcherFactory`
 
 共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。文件模块与 Shopify session storage 都通过统一的 `databaseFactory` 获取 Drizzle client，各模块再在自己的业务边界内实现 store/adapter。
-file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream、Node R2 signed redirect 或 Cloudflare R2 binding stream。
+file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream、Node R2 signed redirect 或 Cloudflare R2 binding stream。product-export 等异步模块通过 `queueProducerFactory` 投递小 payload，通过 queue/scheduler registry 注册 handler。
 
 对应文件：
 
@@ -71,7 +85,7 @@ provider registry 缓存跨请求可复用的基础设施实例：
 
 每个 provider 都有 reset/disposer 入口，测试和 lifecycle 可以清理全局状态，避免 provider cache 污染下一轮运行。
 
-database 与 bucket 没有放入 provider registry，而是作为 runtime capability 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool 和 memory/r2 bucket cache，Cloudflare 需要 request-bound D1/Hyperdrive binding。capability disposer 会在 process runtime 释放 cached pg pool 和 bucket adapter，isolate runtime 当前保持 no-op。
+database、bucket、queue 和 scheduler 没有放入 provider registry，而是作为 runtime capability + infra adapter 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool、memory/r2 bucket cache 和 pg-boss worker，Cloudflare 需要 request-bound D1/Hyperdrive/R2/Queue binding。capability disposer 会在 process runtime 释放 cached pg pool、bucket adapter、queue consumer/producer 和 scheduler，isolate runtime 当前保持 no-op。
 
 ### Shopify Mode Capability
 
@@ -187,6 +201,7 @@ logger provider 区分 bootstrap 与 runtime 阶段：
 Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则保护 import graph：
 
 - Node-only 实现放在 process entry、process capability 或 process logger 中。
+- runtime-aware infra 使用 `const PROCESS_*_MODULE = "./process"` / `const ISOLATE_*_MODULE = "./isolate"` 后动态 import。
 - 文件日志依赖用动态 import。
 - Cloudflare 共享代码不从 process util barrel 导入 Node-only 模块。
 - runtime capability 只暴露抽象函数。
@@ -196,6 +211,10 @@ Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则�
 - `src/app/runtime/process/utils/disk.ts`
 - `src/app/runtime/process/utils/net.ts`
 - `src/infra/logger/process.ts`
+- `src/infra/database/index.ts`
+- `src/infra/bucket/index.ts`
+- `src/infra/queue/index.ts`
+- `src/infra/scheduler/index.ts`
 - `src/app/runtime/isolate/cloudflare/index.ts`
 
 ## Retryable Shopify Admin Client
@@ -229,8 +248,10 @@ controller 不需要关心 token 过期，只消费 `c.var.shopifyAdminClient`�
 - `src/shared/exceptions/normalize.ts`
 - `src/shared/exceptions/errors.ts`
 - `src/app/lifecycle/error.ts`
+- `src/app/runtime/process/register-process-exceptions.ts`
 
-这样 controller 不手写错误 JSON，错误暴露策略集中维护。
+这样 controller 不手写错误 JSON，错误暴露策略集中维护。process-level
+`unhandledRejection` 和 `uncaughtException` 也会先 `normalizeError(...)` 再结构化记录日志；它们不会生成 HTTP response。
 
 ## 条件 OpenAPI
 

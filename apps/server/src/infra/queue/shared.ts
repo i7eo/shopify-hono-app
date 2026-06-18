@@ -1,8 +1,10 @@
 import {
   DEFAULT_APP_DATABASE_PROVIDERS,
   DEFAULT_APP_QUEUE_PROVIDERS,
+  DEFAULT_RUNTIMES,
 } from "@shamt/app-env";
 import { internalServerError } from "@/shared/exceptions";
+import type { QueueJobContext } from "./registry";
 import type { RuntimeConfig } from "@/infra/env";
 
 export type QueueProvider = NonNullable<RuntimeConfig["APP_QUEUE_PROVIDER"]>;
@@ -40,6 +42,12 @@ export interface QueueProducer {
   ) => Promise<void>;
 }
 
+export interface QueueConsumer<TBatch = unknown> {
+  consume: (batch: TBatch, context: QueueJobContext) => Promise<void>;
+  start: (context: QueueJobContext) => Promise<void>;
+  stop: () => Promise<void>;
+}
+
 /**
  * Returns the configured queue strategy and rejects runtime/provider pairs that
  * cannot be executed by the current infrastructure.
@@ -56,7 +64,7 @@ export function getQueueEnvConfig(config: RuntimeConfig): QueueRuntimeStrategy {
   };
 
   if (
-    strategy.runtime === "node" &&
+    strategy.runtime === DEFAULT_RUNTIMES.NODE &&
     strategy.provider !== DEFAULT_APP_QUEUE_PROVIDERS.PGBOSS
   ) {
     throw internalServerError(
@@ -69,7 +77,7 @@ export function getQueueEnvConfig(config: RuntimeConfig): QueueRuntimeStrategy {
   }
 
   if (
-    strategy.runtime === "node" &&
+    strategy.runtime === DEFAULT_RUNTIMES.NODE &&
     config.APP_DATABASE_PROVIDER !== DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES
   ) {
     throw internalServerError(
@@ -85,7 +93,7 @@ export function getQueueEnvConfig(config: RuntimeConfig): QueueRuntimeStrategy {
   }
 
   if (
-    strategy.runtime === "cloudflare" &&
+    strategy.runtime === DEFAULT_RUNTIMES.CLOUDFLARE &&
     strategy.provider !== DEFAULT_APP_QUEUE_PROVIDERS.QUEUES
   ) {
     throw internalServerError(
@@ -97,7 +105,10 @@ export function getQueueEnvConfig(config: RuntimeConfig): QueueRuntimeStrategy {
     );
   }
 
-  if (strategy.runtime !== "node" && strategy.runtime !== "cloudflare") {
+  if (
+    strategy.runtime !== DEFAULT_RUNTIMES.NODE &&
+    strategy.runtime !== DEFAULT_RUNTIMES.CLOUDFLARE
+  ) {
     throw internalServerError("Runtime does not support queue providers", {
       details: strategy,
       expose: true,
@@ -110,7 +121,7 @@ export function getQueueEnvConfig(config: RuntimeConfig): QueueRuntimeStrategy {
 function getQueueProvider(config: RuntimeConfig): QueueProvider {
   if (config.APP_QUEUE_PROVIDER) return config.APP_QUEUE_PROVIDER;
 
-  return config.APP_RUNTIME === "cloudflare"
+  return config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE
     ? DEFAULT_APP_QUEUE_PROVIDERS.QUEUES
     : DEFAULT_APP_QUEUE_PROVIDERS.PGBOSS;
 }

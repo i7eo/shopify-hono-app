@@ -1,5 +1,7 @@
 # Product Export 异步导出计划
 
+> 历史方案记录：本文保留 product-export 早期设计草案，不作为当前代码事实的权威说明。当前实现请以 `src/app/modules/product-export/README.md`、[queue.md](./queue.md) 和 [scheduler.md](./scheduler.md) 为准。
+
 ## Summary
 
 实现 `product-exports` 资源：HTTP 只创建/查询导出任务，Shopify Bulk Operation 负责拉取商品数据，Node 运行时用 `pg-boss` 推进任务，Cloudflare 运行时用 Queues 推进任务，Shopify bulk ops webhook 作为主完成通知，cron 只做漏通知/卡状态兜底，最终 CSV 写入现有 Bucket 抽象。

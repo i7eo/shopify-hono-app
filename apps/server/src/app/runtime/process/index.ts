@@ -1,16 +1,20 @@
 import { serve } from "@hono/node-server";
 import { DEFAULT_ENVS } from "@shamt/app-env";
 import { bootstrapApp } from "@/app/bootstrap";
+import { registerJobs } from "@/app/bootstrap/register-jobs";
+import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { registerProcessExceptions } from "@/app/runtime/process/register-process-exceptions";
 import { registerProcessExits } from "@/app/runtime/process/register-process-exits";
 import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
-import { startProcessQueueConsumer } from "@/infra/queue";
-import { startProcessScheduler } from "@/infra/scheduler";
 import { name } from "../../../../package.json";
 import { registerProcessRuntimeCapabilities } from "./capabilities";
 
 export async function bootstrap() {
+  // error catch first
+  await registerProcessExceptions();
+
   registerProcessRuntimeCapabilities();
+  registerJobs();
 
   const env = getEnvProvider();
   const app = await bootstrapApp({
@@ -20,22 +24,25 @@ export async function bootstrap() {
     fetch: app.fetch,
     port: env.APP__SERVER_PORT,
   });
+  await registerProcessExits(nodeApp);
 
   const logger = await getLoggerProvider();
   logger.info(
     `🎉 ${name} is running on port ${env.APP__SERVER_PORT}! OpenAPI Route: 👉 /reference`,
   );
 
-  await startProcessQueueConsumer(env, {
+  const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
+  const queueConsumer = await queueConsumerFactory?.(env);
+  await queueConsumer?.start({
     logger,
     runtimeEnv: env,
   });
-  await startProcessScheduler(env, {
+  const schedulerFactory = getRuntimeCapability("schedulerFactory");
+  const scheduler = await schedulerFactory?.(env);
+  await scheduler?.start({
     logger,
     runtimeEnv: env,
   });
-  await registerProcessExceptions();
-  await registerProcessExits(nodeApp);
 }
 
 bootstrap();

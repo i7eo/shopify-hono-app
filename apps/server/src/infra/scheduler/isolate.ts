@@ -4,7 +4,7 @@ import {
   findSchedulerTasksByCron,
   type SchedulerTaskContext,
 } from "./registry";
-import { getSchedulerEnvConfig } from "./shared";
+import { getSchedulerEnvConfig, type Scheduler } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 
 export type IsolateSchedulerOptions = {
@@ -15,11 +15,12 @@ export function createIsolateScheduler(
   config: RuntimeConfig,
   // eslint-disable-next-line unused-imports/no-unused-vars
   _options: IsolateSchedulerOptions = {},
-) {
+): Scheduler {
   const strategy = getSchedulerEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_SCHEDULER_PROVIDERS.CRONTRIGGERS) {
     return {
+      run: runCloudflareScheduledTasks,
       start: () => Promise.resolve(),
       stop: () => Promise.resolve(),
     };
@@ -32,6 +33,14 @@ export function createIsolateScheduler(
       expose: true,
     },
   );
+}
+
+/**
+ * Reserved disposer for isolate scheduler resources.
+ * Current Cloudflare Cron Trigger scheduler is event-scoped.
+ */
+export function disposeIsolateScheduler() {
+  return Promise.resolve();
 }
 
 export async function runCloudflareScheduledTasks(

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { handleProductExportBulkOperationFinishWebhook } from "@/app/modules/product-export/webhook";
 import { verifyWebhook } from "@/shared/middlewares";
 import { createResponse } from "@/shared/models";
 import { getShopifySessionStorage } from "../session-storage";
@@ -23,6 +24,11 @@ export const createWebhookRoutes = () => {
       createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
     );
   });
+
+  webhookRoutes.post(
+    "/bulk_operations/finish",
+    handleProductExportBulkOperationFinishWebhook,
+  );
 
   webhookRoutes.post("/customers/data-request", (c) => {
     const shop = c.var.webhookShop;

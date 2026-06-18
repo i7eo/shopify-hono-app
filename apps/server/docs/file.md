@@ -111,13 +111,12 @@ pnpm --dir apps/server run db:pg:generate
 pnpm --dir apps/server run db:d1:generate
 pnpm --dir apps/server run db:pg:migrate
 pnpm --dir apps/server run db:d1:migrate
-pnpm --dir apps/server run db:d1:migrate:remote
-pnpm --dir apps/server run db:pg:seed
-pnpm --dir apps/server run db:d1:seed
-pnpm --dir apps/server run db:d1:seed:remote
+pnpm --dir apps/server run db:pg:seed:dev
+pnpm --dir apps/server run db:d1:seed:dev
+pnpm --dir apps/server run db:d1:seed:dev:remote
 ```
 
-`db:pg:seed` 会通过 `scripts/database/seed.pg.ts` 写入一条 Shopify offline session 和一条 file metadata。`db:d1:seed` / `db:d1:seed:remote` 会通过 `scripts/database/seed.d1.ts` 调用 Wrangler D1 执行同等 seed SQL。
+`db:pg:seed:dev` 会通过 `scripts/database/seed.pg.ts` 写入一条 Shopify offline session 和一条 file metadata。`db:d1:seed:dev` / `db:d1:seed:dev:remote` 会通过 `scripts/database/seed.d1.ts` 调用 Wrangler D1 执行同等 seed SQL。
 
 ## Runtime Capabilities
 
@@ -132,7 +131,7 @@ file module 使用这些 runtime capabilities：
 
 file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher。
 
-Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 stream 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder。
+Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 stream 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder；通用 queue/scheduler infra 已可用于 product-export 等模块，但 file module 的后台任务尚未迁移到它。
 
 ## 下载与删除
 
@@ -162,7 +161,7 @@ Node R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `Get
 ## 当前边界
 
 - 后台过期清理尚未实现。
-- Cloudflare Queue-backed tasks 尚未实现。
+- file module 的 Cloudflare Queue-backed background tasks 尚未实现。
 - R2 custom-domain signed download 尚未实现。当前 Node 返回 S3-compatible endpoint 的短期签名 URL，Cloudflare 返回 R2 binding stream。
 - Multipart 解析当前只支持文件字段，不接收普通表单字段。
 

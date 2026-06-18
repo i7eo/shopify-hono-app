@@ -16,6 +16,7 @@ export const runtimeConfig = getRuntimeConfig({
   APP_LOGGER_LEVEL: "info",
   APP_CACHE_EXPIRE: 60,
   APP_CACHE_MAX_SIZE: 100,
+  APP_CLOUDFLARE_WORKER_NAME: "test-worker",
   APP_BUCKET_PROVIDER: "memory",
   APP_BUCKET_R2_BINDING: "test_r2",
   APP_BUCKET_R2_NAME: "test-r2",

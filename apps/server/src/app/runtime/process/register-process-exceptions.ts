@@ -1,4 +1,5 @@
 import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
+import { normalizeError } from "@/shared/exceptions";
 import { isDev } from "@/utils";
 
 /**
@@ -10,12 +11,27 @@ export async function registerProcessExceptions() {
 
   // Handle unhandled promise rejections
   process.on("unhandledRejection", (reason: unknown, promise: Promise<any>) => {
-    logger.error({ promise, reason, $message: "Unhandled Rejection" });
+    const error = normalizeError(reason);
+    logger.error({
+      code: error.code,
+      details: error.details,
+      message: error.message,
+      promise,
+      status: error.status,
+      $message: "Unhandled Rejection",
+    });
   });
 
   // Handle uncaught exceptions
   process.on("uncaughtException", (error: Error) => {
-    logger.error({ error, $message: "Uncaught Exception" });
+    const appError = normalizeError(error);
+    logger.error({
+      code: appError.code,
+      details: appError.details,
+      message: appError.message,
+      status: appError.status,
+      $message: "Uncaught Exception",
+    });
     !isDev(env.APP_ENV) && process.exit(1);
   });
 

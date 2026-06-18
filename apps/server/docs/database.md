@@ -58,10 +58,15 @@ APP_DATABASE_D1_ID=...
 对应实现：
 
 ```text
-apps/server/src/infra/database/process-d1-http.ts
+apps/server/src/infra/database/process.d1-http.ts
 ```
 
 这个实现把 D1 HTTP API 包装成兼容 `drizzle-orm/d1` 的 `D1Database` 形状，因此上层仍然可以使用 SQLite schema。
+
+`infra/database/index.ts` 使用 `PROCESS_DATABASE_MODULE = "./process"` 和
+`ISOLATE_DATABASE_MODULE = "./isolate"` 动态 import runtime 实现，并暴露
+`disposeDatabase(...)`。process PostgreSQL/D1 HTTP 可以缓存连接或 client；
+isolate D1/Hyperdrive 当前以 request binding 为边界，disposer 是 no-op。
 
 ### Cloudflare + PostgreSQL
 

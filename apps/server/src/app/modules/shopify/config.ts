@@ -4,6 +4,7 @@ import {
   shopifyApi,
   type Shopify,
 } from "@shopify/shopify-api";
+import { internalServerError } from "@/shared/exceptions";
 import { isEmbeddedShopifyAppMode } from "@/utils";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
@@ -57,7 +58,12 @@ export function createShopifyConfig(
 function getShopifyApiVersion(version: string): ApiVersion {
   const apiVersion = apiVersions[version.trim()];
   if (!apiVersion) {
-    throw new Error(`Unsupported Shopify API version: ${version}`);
+    throw internalServerError(`Unsupported Shopify API version: ${version}`, {
+      details: {
+        version,
+      },
+      expose: true,
+    });
   }
   return apiVersion;
 }

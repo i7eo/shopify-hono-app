@@ -38,6 +38,14 @@ export function createIsolateBucket(
 }
 
 /**
+ * Reserved disposer for isolate bucket resources.
+ * Current Cloudflare R2 adapters are request-bound.
+ */
+export function disposeIsolateBucket() {
+  return Promise.resolve();
+}
+
+/**
  * Stores bucket objects through a Cloudflare R2 binding in isolate runtimes.
  */
 export class CloudflareR2Bucket implements Bucket {

@@ -1,6 +1,6 @@
 import { isIsolateRuntime } from "@/utils";
 import type { IsolateQueueOptions } from "./isolate";
-import type { QueueProducer } from "./shared";
+import type { QueueConsumer, QueueProducer } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 
 const ISOLATE_QUEUE_MODULE = "./isolate";
@@ -33,28 +33,61 @@ export async function createQueueProducer(
 export async function disposeQueueProducer(
   config: Pick<RuntimeConfig, "APP_RUNTIME">,
 ): Promise<void> {
-  if (isIsolateRuntime(config.APP_RUNTIME)) return;
+  if (isIsolateRuntime(config.APP_RUNTIME)) {
+    const { disposeIsolateQueueProducer } = await import(ISOLATE_QUEUE_MODULE);
+    await disposeIsolateQueueProducer();
+    return;
+  }
 
   const { disposeProcessQueueProducer } = await import(PROCESS_QUEUE_MODULE);
   await disposeProcessQueueProducer();
 }
 
-export { consumeQueueBatch } from "./consumer";
-export {
-  CloudflareQueueProducer,
-  consumeCloudflareQueueBatch,
-} from "./isolate";
-export { startProcessQueueConsumer, stopProcessQueueConsumer } from "./process";
-export {
-  getQueueJob,
-  listQueueJobs,
-  registerQueueJob,
-  resetQueueJobs,
-} from "./registry";
-export * from "./shared";
-export type { IsolateQueueOptions } from "./isolate";
+/**
+ * Creates the runtime-specific queue consumer through a dynamic import.
+ *
+ * Example:
+ * - node + pg-boss -> polling consumer over Postgres-backed queues
+ * - cloudflare + queues -> Cloudflare Queue batch consumer
+ */
+export async function createQueueConsumer(
+  config: RuntimeConfig,
+): Promise<QueueConsumer> {
+  if (isIsolateRuntime(config.APP_RUNTIME)) {
+    const { createIsolateQueueConsumer } = await import(ISOLATE_QUEUE_MODULE);
+    return createIsolateQueueConsumer(config);
+  }
+
+  const { createProcessQueueConsumer } = await import(PROCESS_QUEUE_MODULE);
+  return createProcessQueueConsumer(config);
+}
+
+/**
+ * Disposes cached runtime queue consumers when the implementation keeps any.
+ * Isolate queue consumers are event-scoped today, so their disposer is a no-op.
+ */
+export async function disposeQueueConsumer(
+  config: Pick<RuntimeConfig, "APP_RUNTIME">,
+): Promise<void> {
+  if (isIsolateRuntime(config.APP_RUNTIME)) {
+    const { disposeIsolateQueueConsumer } = await import(ISOLATE_QUEUE_MODULE);
+    await disposeIsolateQueueConsumer();
+    return;
+  }
+
+  const { stopProcessQueueConsumer } = await import(PROCESS_QUEUE_MODULE);
+  await stopProcessQueueConsumer();
+}
+
+export { registerQueueJob } from "./registry";
 export type {
   QueueJobContext,
   QueueJobDefinition,
   QueueJobHandler,
 } from "./registry";
+export type {
+  QueueConsumer,
+  QueueEnqueueOptions,
+  QueueMessage,
+  QueueProducer,
+} from "./shared";

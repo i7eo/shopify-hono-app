@@ -52,7 +52,7 @@ export async function createProcessDatabase(
   if (strategy.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
     const [{ drizzle }, { createProcessD1HttpClient }] = await Promise.all([
       import("drizzle-orm/d1"),
-      import("./process-d1-http"),
+      import("./process.d1-http"),
     ]);
 
     return {

@@ -49,6 +49,13 @@ type User = {
 const user = await api.get<User>("users/current");
 ```
 
+Absolute URL inputs bypass `prefix` and `baseUrl`, which lets one configured
+client call external services without creating a second client.
+
+```ts
+await api.get("https://api.example.com/status");
+```
+
 ## Entrypoints
 
 The root entry exports only the core client, error class, and shared types.

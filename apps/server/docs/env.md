@@ -131,7 +131,7 @@ normalizeEnv(rawEnv)
 | `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version                                                 |
 | `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                                                     |
 
-其他字段来自 schema 默认值，只有需要覆盖默认行为或启用对应 provider 时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`、`APP_DATABASE_URL`、`APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID`、`APP_CLOUDFLARE_USER_TOKEN`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
+其他字段来自 schema 默认值，只有需要覆盖默认行为或启用对应 provider 时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`、`APP_DATABASE_URL`、`APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`、`APP_QUEUE_PROVIDER`、`APP_QUEUE_NAME`、`APP_QUEUE_BINDING`、`APP_QUEUE_CONSUMER_MAX_BATCH_SIZE`、`APP_QUEUE_CONSUMER_MAX_RETRIES`、`APP_SCHEDULER_PROVIDER`、`APP_SCHEDULER_CRON_VALUE`、`APP_CLOUDFLARE_WORKER_NAME`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID`、`APP_CLOUDFLARE_USER_TOKEN`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。
 
 这些字段在 `@shamt/app-env` schema 中多为 optional，是为了允许同一份 schema 覆盖 Node、Cloudflare、PostgreSQL、D1、R2 和 memory 多种组合。真正是否必填由 runtime/provider 矩阵决定。
 
@@ -139,11 +139,12 @@ normalizeEnv(rawEnv)
 
 `scripts/write-wrangler-file` 不从 `APP_ENV` 推导 R2、D1 或 Hyperdrive 的 binding/name。它只把 env file 中显式声明的字段写入 `wrangler.json`，当前 runtime/provider 组合需要哪个字段，缺失就报错。
 
-| 资源       | Env 字段                                                                | 写入 Wrangler 字段                                 |
-| ---------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
-| R2         | `APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`                           | `r2_buckets[].binding/bucket_name`                 |
-| D1         | `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` | `d1_databases[].binding/database_name/database_id` |
-| Hyperdrive | `APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`                         | `hyperdrive[].binding/id`                          |
+| 资源       | Env 字段                                                                | 写入 Wrangler 字段                                             |
+| ---------- | ----------------------------------------------------------------------- | -------------------------------------------------------------- |
+| R2         | `APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`                           | `r2_buckets[].binding/bucket_name`                             |
+| D1         | `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` | `d1_databases[].binding/database_name/database_id`             |
+| Hyperdrive | `APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`                         | `hyperdrive[].binding/id`                                      |
+| Queue      | `APP_QUEUE_BINDING`、`APP_QUEUE_NAME`                                   | `queues.producers[].binding/queue`、`queues.consumers[].queue` |
 
 建议让 binding 名保持稳定、让资源名按环境变化：
 
@@ -157,9 +158,12 @@ APP_DATABASE_D1_ID=<dev-d1-id>
 
 APP_HYPERDRIVER_BINDING=SHOPIFY_APP_HYPERDRIVE
 APP_HYPERDRIVER_ID=<dev-hyperdrive-id>
+
+APP_QUEUE_BINDING=SHOPIFY_APP_QUEUE
+APP_QUEUE_NAME=i7eo-shopify-app-dev-queue
 ```
 
-`APP_BUCKET_R2_NAME` 是 R2 bucket 名，不是 Worker binding 名；`APP_DATABASE_D1_NAME` 是 D1 database 名，不是 Worker binding 名。Cloudflare runtime capability 会通过 `APP_*_BINDING` 动态读取 `c.env[binding]`。
+`APP_BUCKET_R2_NAME` 是 R2 bucket 名，不是 Worker binding 名；`APP_DATABASE_D1_NAME` 是 D1 database 名，不是 Worker binding 名；`APP_QUEUE_NAME` 是 Cloudflare Queue 名或 Node 队列命名空间，不是 Worker binding 名。Cloudflare runtime capability 会通过 `APP_*_BINDING` 动态读取 `c.env[binding]`。
 
 Node + R2 走 S3-compatible API，仍需要 `APP_BUCKET_R2_URL` 以及对应 S3 credential。Cloudflare + R2 不读取 S3 credential，而使用 `APP_BUCKET_R2_BINDING` 指向的 Worker binding。因为 `write-wrangler-file` 只关心 Wrangler binding，即使当前是 `APP_RUNTIME=node + APP_BUCKET_PROVIDER=r2`，只要要生成 R2 binding，就仍会要求 `APP_BUCKET_R2_BINDING` 和 `APP_BUCKET_R2_NAME`。
 
@@ -174,6 +178,7 @@ Node + D1 走 Cloudflare D1 HTTP API，不需要 Worker D1 binding。当前实�
 | `APP_BUCKET_PROVIDER=r2`                                    | `APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`                           |
 | `APP_RUNTIME=cloudflare` + `APP_DATABASE_PROVIDER=d1`       | `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` |
 | `APP_RUNTIME=cloudflare` + `APP_DATABASE_PROVIDER=postgres` | `APP_HYPERDRIVER_BINDING`、`APP_HYPERDRIVER_ID`                         |
+| `APP_RUNTIME=cloudflare` + `APP_QUEUE_PROVIDER=queues`      | `APP_QUEUE_BINDING`、`APP_QUEUE_NAME`                                   |
 | `APP_RUNTIME=node` + `APP_DATABASE_PROVIDER=d1`             | 不生成 D1 Worker binding；D1 HTTP 所需字段由 Node runtime 使用点校验    |
 | `APP_RUNTIME=node` + `APP_DATABASE_PROVIDER=postgres`       | 不生成 Hyperdrive binding；Node 直接通过 `APP_DATABASE_URL` 使用 `pg`   |
 

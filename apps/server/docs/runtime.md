@@ -32,6 +32,9 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 - `moduleHealthProcessDiskChecker`
 - `databaseFactory`
 - `bucketFactory`
+- `queueProducerFactory`
+- `queueConsumerFactory`
+- `schedulerFactory`
 - `moduleFileDownloadResolverFactory`
 - `moduleFileTaskDispatcherFactory`
 
@@ -42,8 +45,18 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 - `src/app/runtime/isolate/cloudflare/capabilities.ts`
 - `src/infra/database`
 - `src/infra/bucket`
+- `src/infra/queue`
+- `src/infra/scheduler`
 
 共享业务代码只读取 capability，不直接 import Node-only 或 Cloudflare-only 实现。这样可以保护 Cloudflare bundle 的 import graph。
+
+database、bucket、queue 和 scheduler 各自还保留自己的 infra index。index 负责根据
+`APP_RUNTIME` 动态 import process/isolate 实现，并提供对称的 create/dispose
+函数。runtime capability 只把这些 infra 能力注入到请求、启动或 event 入口。
+
+process 实现可以缓存长生命周期资源，例如 `pg.Pool`、bucket adapter、`pg-boss`
+producer/consumer 和 schedule worker。Cloudflare isolate 实现以 request/event
+binding 为边界，当前 disposer 是预留 no-op。
 
 ### Database Factory
 
@@ -64,6 +77,21 @@ Node D1 不依赖 Worker binding，而是通过 Cloudflare D1 HTTP API 访问。
 ### Bucket Factory
 
 `bucketFactory` 是 file module 的统一 object bucket 入口。Node 支持 `memory` 和 `r2`，Cloudflare 当前只支持 `r2`。Node + R2 使用 `@aws-sdk/client-s3` 的 S3-compatible 实现；Cloudflare + R2 使用 request-bound Worker R2 binding。
+
+### Queue And Scheduler
+
+queue 与 scheduler 和 bucket/database 一样走 runtime-aware infra：
+
+| 能力           | Node process       | Cloudflare isolate             |
+| -------------- | ------------------ | ------------------------------ |
+| Queue producer | `pg-boss`          | Cloudflare Queue binding       |
+| Queue consumer | `pg-boss` polling  | Worker `queue(batch, env)`     |
+| Scheduler      | `pg-boss` schedule | Worker `scheduled(controller)` |
+| dispose 行为   | 停止缓存实例       | no-op 预留口子                 |
+
+业务模块通过 `registerQueueJob(...)` 和 `registerSchedulerTask(...)` 注册工作单元。
+Node entry 在启动时创建 consumer/scheduler 并调用 `start(...)`。Cloudflare entry
+在 `queue`/`scheduled` export 中为本次 event 创建 context，然后调用对应 adapter。
 
 ### Cloudflare Binding 校验
 
@@ -229,8 +257,8 @@ pnpm --dir apps/server run cf:type
 2. runtime-specific 行为只放在 runtime entry 或 runtime capability。
 3. 业务模块只使用通用 `AppEnv`，不按 runtime 分支。
 4. 平台 binding 在 schema 中可以 optional，但使用点必须通过 runtime capability 强校验。
-5. 业务代码通过 provider、middleware 或 capability 获取 runtime 能力。
-6. Node-only 依赖只出现在 process entry、process capability 或 `.node.ts` 文件中。
+5. 业务代码通过 provider、middleware、infra adapter 或 capability 获取 runtime 能力。
+6. Node-only 依赖只出现在 process entry、process capability、process infra adapter 或 `.node.ts` 文件中。
 7. Cloudflare entry 不静态导入 `node:*`、`@hono/node-server`、`@logtape/file`。
 8. `APP_RUNTIME=cloudflare` 时，request-bound binding 从 `c.env` 进入。
 9. `vercel-edge` 当前只作为未来扩展预留，不作为可部署目标。

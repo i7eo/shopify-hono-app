@@ -1,6 +1,6 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import { internalServerError, payloadTooLargeError } from "@/shared/exceptions";
-import { S3CompatibleBucket } from "./s3-compatible";
+import { S3CompatibleBucket } from "./process.s3-compatible";
 import {
   getBucketEnvConfig,
   getR2BucketConfig,

@@ -1,26 +1,21 @@
 import { getDatabaseUrl } from "@/infra/database/shared";
 import { listSchedulerTasks, type SchedulerTaskContext } from "./registry";
-import { getSchedulerEnvConfig } from "./shared";
+import { getSchedulerEnvConfig, type Scheduler } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 import type { PgBoss } from "pg-boss";
 
 let processSchedulerBoss: Promise<PgBoss> | undefined;
 let processSchedulerCacheKey: string | undefined;
-let processScheduler: ProcessSchedulerController | undefined;
-
-export type ProcessSchedulerController = {
-  start: () => Promise<void>;
-  stop: () => Promise<void>;
-};
+let processScheduler: Scheduler | undefined;
 
 export async function createProcessScheduler(
   config: RuntimeConfig,
-  context: SchedulerTaskContext,
-): Promise<ProcessSchedulerController> {
+): Promise<Scheduler> {
   const tasks = listSchedulerTasks();
 
   if (tasks.length === 0) {
     return {
+      run: () => Promise.resolve(),
       start: () => Promise.resolve(),
       stop: () => Promise.resolve(),
     };
@@ -30,7 +25,19 @@ export async function createProcessScheduler(
   const boss = await getProcessSchedulerBoss(config);
 
   return {
-    async start() {
+    async run(cron, context) {
+      await Promise.all(
+        tasks
+          .filter((task) => task.cron === cron)
+          .map((task) =>
+            task.handler({
+              ...context,
+              cron,
+            }),
+          ),
+      );
+    },
+    async start(context) {
       await Promise.all(
         tasks.map(async (task) => {
           await boss.schedule(task.name, task.cron, {
@@ -54,8 +61,8 @@ export async function startProcessScheduler(
 ): Promise<void> {
   if (processScheduler) return;
 
-  processScheduler = await createProcessScheduler(config, context);
-  await processScheduler.start();
+  processScheduler = await createProcessScheduler(config);
+  await processScheduler.start(context);
 }
 
 export async function stopProcessScheduler(): Promise<void> {

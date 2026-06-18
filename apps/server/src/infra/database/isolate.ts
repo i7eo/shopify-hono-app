@@ -71,6 +71,14 @@ export async function createIsolateDatabase(
 }
 
 /**
+ * Reserved disposer for isolate database resources.
+ * Current Cloudflare D1/Hyperdrive clients are request-bound.
+ */
+export function disposeIsolateDatabase() {
+  return Promise.resolve();
+}
+
+/**
  * Requires the D1 binding at the database capability boundary.
  */
 function requireD1(value: D1Database | undefined): D1Database {

@@ -1,12 +1,7 @@
 import { envConfigSchema } from "@shamt/app-env";
 import { throwError } from "@shamt/utils";
 import { formatZodError, isIsolateRuntime } from "@/utils";
-import {
-  parseIsolateConfig,
-  type CloudflareIsolateConfig,
-  type IsolateConfig,
-  type VercelEdgeIsolateConfig,
-} from "./isolate";
+import { parseIsolateConfig, type IsolateConfig } from "./isolate";
 import { parseProcessConfig, type ProcessConfig } from "./process";
 import { normalizeEnv } from "./shared";
 
@@ -15,9 +10,6 @@ const runtimeSchema = envConfigSchema.pick({
 });
 
 export type RuntimeConfig = ProcessConfig | IsolateConfig;
-export type NodeRuntimeConfig = ProcessConfig;
-export type CloudflareRuntimeConfig = CloudflareIsolateConfig;
-export type VercelEdgeRuntimeConfig = VercelEdgeIsolateConfig;
 
 /**
  * Parse and validate raw runtime environment input.
@@ -30,7 +22,7 @@ export function getRuntimeConfig(rawEnv: unknown): RuntimeConfig {
 /**
  * Normalize raw env, read APP_RUNTIME, and dispatch to isolate or process schema.
  */
-export function parseRuntimeConfig(rawEnv: unknown): RuntimeConfig {
+function parseRuntimeConfig(rawEnv: unknown): RuntimeConfig {
   const env = normalizeEnv(rawEnv);
   const runtimeResult = runtimeSchema.safeParse(env);
   if (!runtimeResult.success)

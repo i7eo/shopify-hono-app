@@ -51,6 +51,46 @@ describe("HttpClient core", () => {
     expect(url.searchParams.get("_t")).toBe("1704164645000");
   });
 
+  it("ignores prefix and baseUrl when input is an absolute URL", async () => {
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(json({ ok: true })),
+    );
+    const client = createHttpClient({
+      baseUrl: "https://app.example.com",
+      fetch: fetchMock,
+      prefix: "/api",
+    });
+
+    await client.get("https://example.com/users");
+    await client.get(new URL("https://example.com/from-url"));
+    await client.get(new Request("https://example.com/from-request"));
+
+    expect(requestAt(fetchMock, 0).url).toBe("https://example.com/users");
+    expect(requestAt(fetchMock, 1).url).toBe("https://example.com/from-url");
+    expect(requestAt(fetchMock, 2).url).toBe(
+      "https://example.com/from-request",
+    );
+  });
+
+  it("keeps prefix behavior for later relative input", async () => {
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(json({ ok: true })),
+    );
+    const client = createHttpClient({
+      baseUrl: "https://app.example.com",
+      fetch: fetchMock,
+      prefix: "/api",
+    });
+
+    await client.get("https://example.com/users");
+    await client.get("users");
+
+    expect(requestAt(fetchMock, 0).url).toBe("https://example.com/users");
+    expect(requestAt(fetchMock, 1).url).toBe(
+      "https://app.example.com/api/users",
+    );
+  });
+
   it("keeps request bodies untouched unless an explicit plugin changes them", async () => {
     const bodies: string[] = [];
     const source = {

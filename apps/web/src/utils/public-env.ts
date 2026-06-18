@@ -2,6 +2,7 @@ import {
   DEFAULT_APP_API_PREFIX,
   DEFAULT_REQUEST_TIMEOUT,
   DEFAULT_RUNTIME,
+  DEFAULT_RUNTIMES,
   DEFAULT_SHOPIFY_APP_FRONTEND_TARGETS,
   DEFAULT_SHOPIFY_APP_MODES,
   type DEFAULT_SHOPIFY_APP_MODES_VALUES,
@@ -46,5 +47,5 @@ export function isEmbeddedShopifyApp() {
  * Checks whether frontend behavior is running against the Node server runtime.
  */
 export function isNodeRuntime() {
-  return publicEnv.APP_RUNTIME === "node";
+  return publicEnv.APP_RUNTIME === DEFAULT_RUNTIMES.NODE;
 }

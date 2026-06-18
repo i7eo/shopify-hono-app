@@ -1,13 +1,21 @@
 import {
   DEFAULT_APP_DATABASE_PROVIDERS,
   DEFAULT_APP_SCHEDULER_PROVIDERS,
+  DEFAULT_RUNTIMES,
 } from "@shamt/app-env";
 import { internalServerError } from "@/shared/exceptions";
+import type { SchedulerTaskContext } from "./registry";
 import type { RuntimeConfig } from "@/infra/env";
 
 export type SchedulerProvider = NonNullable<
   RuntimeConfig["APP_SCHEDULER_PROVIDER"]
 >;
+
+export type Scheduler = {
+  run: (cron: string, context: SchedulerTaskContext) => Promise<void>;
+  start: (context: SchedulerTaskContext) => Promise<void>;
+  stop: () => Promise<void>;
+};
 
 export type SchedulerRuntimeStrategy = {
   provider: SchedulerProvider;
@@ -31,7 +39,7 @@ export function getSchedulerEnvConfig(
   };
 
   if (
-    strategy.runtime === "node" &&
+    strategy.runtime === DEFAULT_RUNTIMES.NODE &&
     strategy.provider !== DEFAULT_APP_SCHEDULER_PROVIDERS.PGBOSS
   ) {
     throw internalServerError(
@@ -44,7 +52,7 @@ export function getSchedulerEnvConfig(
   }
 
   if (
-    strategy.runtime === "node" &&
+    strategy.runtime === DEFAULT_RUNTIMES.NODE &&
     config.APP_DATABASE_PROVIDER !== DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES
   ) {
     throw internalServerError(
@@ -60,7 +68,7 @@ export function getSchedulerEnvConfig(
   }
 
   if (
-    strategy.runtime === "cloudflare" &&
+    strategy.runtime === DEFAULT_RUNTIMES.CLOUDFLARE &&
     strategy.provider !== DEFAULT_APP_SCHEDULER_PROVIDERS.CRONTRIGGERS
   ) {
     throw internalServerError(
@@ -72,7 +80,10 @@ export function getSchedulerEnvConfig(
     );
   }
 
-  if (strategy.runtime !== "node" && strategy.runtime !== "cloudflare") {
+  if (
+    strategy.runtime !== DEFAULT_RUNTIMES.NODE &&
+    strategy.runtime !== DEFAULT_RUNTIMES.CLOUDFLARE
+  ) {
     throw internalServerError("Runtime does not support scheduler providers", {
       details: strategy,
       expose: true,
@@ -85,7 +96,7 @@ export function getSchedulerEnvConfig(
 function getSchedulerProvider(config: RuntimeConfig): SchedulerProvider {
   if (config.APP_SCHEDULER_PROVIDER) return config.APP_SCHEDULER_PROVIDER;
 
-  return config.APP_RUNTIME === "cloudflare"
+  return config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE
     ? DEFAULT_APP_SCHEDULER_PROVIDERS.CRONTRIGGERS
     : DEFAULT_APP_SCHEDULER_PROVIDERS.PGBOSS;
 }

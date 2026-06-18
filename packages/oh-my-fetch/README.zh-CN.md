@@ -46,6 +46,12 @@ type User = {
 const user = await api.get<User>("users/current");
 ```
 
+传入绝对 URL 时会绕过 `prefix` 和 `baseUrl`，因此同一个 client 也可以直接请求外部服务。
+
+```ts
+await api.get("https://api.example.com/status");
+```
+
 ## 入口
 
 根入口只导出 core client、错误类和共享类型。插件与专项 helper 需要从显式子入口引入。

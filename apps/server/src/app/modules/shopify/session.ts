@@ -1,5 +1,6 @@
 import { RequestedTokenType, type Session } from "@shopify/shopify-api";
 import { getShopifyConfigProvider } from "@/infra/provider";
+import { badGatewayError, unauthorizedError } from "@/shared/exceptions";
 import { getShopifySessionStorage } from "./session-storage";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -41,7 +42,7 @@ export async function exchangeShopifyOnlineSession(
     : undefined;
 
   if (!sessionToken) {
-    throw new Error("Missing or malformed Authorization header");
+    throw unauthorizedError("Missing or malformed Authorization header");
   }
 
   const config = c.get("runtimeEnv");
@@ -53,7 +54,7 @@ export async function exchangeShopifyOnlineSession(
   });
 
   if (!session.accessToken) {
-    throw new Error("Token exchange did not return an access token");
+    throw badGatewayError("Token exchange did not return an access token");
   }
 
   await (await getShopifySessionStorage(c)).storeSession(session);
@@ -76,7 +77,7 @@ export async function refreshShopifyOnlineSession(
  */
 export function setShopifySessionContext(c: Context<AppEnv>, session: Session) {
   if (!session.accessToken) {
-    throw new Error("Shopify session does not have an access token");
+    throw unauthorizedError("Shopify session does not have an access token");
   }
 
   c.set("shopifySession", session);

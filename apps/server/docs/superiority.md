@@ -70,7 +70,7 @@ runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [
 项目通过 registry 注入基础设施能力：
 
 - provider registry 管理 env/logger/client/shopify config。
-- runtime capability registry 管理平台能力。
+- runtime capability registry 管理平台能力，包括 database、bucket、queue、scheduler 和 file resolver。
 - Shopify mode capability registry 管理 app-flow 差异。
 
 这种方式比引入大型 IoC container 更轻，适合 Hono + edge/runtime mixed 项目。
@@ -123,6 +123,9 @@ Bucket 矩阵：
 - `databaseFactory`
 - `bucketFactory`
 - `moduleFileDownloadResolverFactory`
+- `queueProducerFactory`
+- `queueConsumerFactory`
+- `schedulerFactory`
 
 优势：
 
@@ -182,6 +185,7 @@ await getShopInfo(c.var.shopifyAdminClient);
 
 - process runtime 才 import Node disk/network utils。
 - process logger 动态 import file sink。
+- database/bucket/queue/scheduler 通过 infra index 动态 import process/isolate adapter。
 - Cloudflare entry 不静态 import `node:*`。
 - runtime capability 暴露抽象能力。
 
@@ -209,6 +213,8 @@ await getShopInfo(c.var.shopifyAdminClient);
 - 新增 Shopify app mode: 注册新的 mode capability。
 - 新增 runtime: 补 schema、entry、runtime capability。
 - 新增 platform binding: schema optional，capability 使用点强校验。
+- 新增 async job: 注册 queue job，保持 payload 小而幂等。
+- 新增 scheduled task: 注册 scheduler task，并在 Wrangler 中配置 cron。
 - 新增 logger sink: 扩展 runtime logger setup。
 
 这让项目更像一个可演进的 Shopify app server 基座，而不是一次性的 demo app。

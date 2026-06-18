@@ -1,3 +1,5 @@
+import { internalServerError } from "@/shared/exceptions";
+
 /**
  * Enforces request-bound Cloudflare bindings at the capability boundary.
  * Bootstrap config may be parsed from process.env before bindings exist, so
@@ -12,7 +14,12 @@ export function requireCloudflareBinding<T>(
   isValid?: (value: unknown) => value is T,
 ): T {
   if (value === undefined || (isValid && !isValid(value))) {
-    throw new Error(`Cloudflare binding is invalid or missing: ${name}`);
+    throw internalServerError("Cloudflare binding is invalid or missing", {
+      details: {
+        name,
+      },
+      expose: true,
+    });
   }
 
   return value as T;

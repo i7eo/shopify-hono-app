@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  findSchedulerTasksByCron,
-  getSchedulerEnvConfig,
+  createScheduler,
   registerSchedulerTask,
-  resetSchedulerTasks,
-  runCloudflareScheduledTasks,
   type SchedulerTaskContext,
 } from "@/infra/scheduler";
+import { runCloudflareScheduledTasks } from "@/infra/scheduler/isolate";
+import {
+  findSchedulerTasksByCron,
+  resetSchedulerTasks,
+} from "@/infra/scheduler/registry";
+import { getSchedulerEnvConfig } from "@/infra/scheduler/shared";
 
 const context = {
   logger: {
@@ -117,5 +120,24 @@ describe("scheduler registry", () => {
       cron: "*/5 * * * *",
     });
     expect(hourly).not.toHaveBeenCalled();
+  });
+
+  it("creates a cloudflare scheduler that runs matching tasks", async () => {
+    const everyFive = vi.fn().mockResolvedValue(undefined);
+    registerSchedulerTask({
+      cron: "*/5 * * * *",
+      handler: everyFive,
+      name: "test:five",
+    });
+
+    const scheduler = await createScheduler({
+      APP_RUNTIME: "cloudflare",
+    } as any);
+    await scheduler.run("*/5 * * * *", context);
+
+    expect(everyFive).toHaveBeenCalledWith({
+      ...context,
+      cron: "*/5 * * * *",
+    });
   });
 });

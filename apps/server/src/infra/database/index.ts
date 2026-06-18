@@ -13,17 +13,6 @@ import type {
 import type { RuntimeConfig } from "@/infra/env";
 
 export * from "./shared";
-export type {
-  IsolateD1Database,
-  IsolateDatabase,
-  IsolateDatabaseOptions,
-  IsolatePostgresDatabase,
-} from "./isolate";
-export type {
-  ProcessD1Database,
-  ProcessDatabase,
-  ProcessPostgresDatabase,
-} from "./process";
 
 export type Database = ProcessDatabase | IsolateDatabase;
 export type PostgresDatabase =
@@ -64,7 +53,11 @@ export async function createDatabase(
 export async function disposeDatabase(
   config: Pick<RuntimeConfig, "APP_RUNTIME">,
 ): Promise<void> {
-  if (isIsolateRuntime(config.APP_RUNTIME)) return;
+  if (isIsolateRuntime(config.APP_RUNTIME)) {
+    const { disposeIsolateDatabase } = await import(ISOLATE_DATABASE_MODULE);
+    await disposeIsolateDatabase();
+    return;
+  }
 
   const { disposeProcessDatabase } = await import(PROCESS_DATABASE_MODULE);
   await disposeProcessDatabase();

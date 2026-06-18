@@ -1,3 +1,4 @@
+import { DEFAULT_ENVS } from "@shamt/app-env";
 import { env } from "@/app/runtime/process/env";
 
 export function requirePostgresUrl() {
@@ -52,7 +53,7 @@ export function requireD1SeedTarget() {
 
 function requireSeedAllowed(target: string) {
   if (
-    env.APP_ENV === "production" &&
+    env.APP_ENV === DEFAULT_ENVS.PRODUCTION &&
     process.env.CONFIRM_PROD_SEED !== "true"
   ) {
     throw new Error(

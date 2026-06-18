@@ -383,7 +383,7 @@ export class HttpClient {
       this.throwIfDisposed();
 
       const behavior = this.resolveBehavior(requestConfig);
-      const kyOptions = this.toKyOptions(requestConfig, behavior);
+      const kyOptions = this.toKyOptions(input, requestConfig, behavior);
       this.dedupeManager.register(input, kyOptions, behavior.dedupe, scope);
 
       const response = await this.client(input, kyOptions);
@@ -567,6 +567,7 @@ export class HttpClient {
    * ```
    */
   private toKyOptions(
+    input: Input,
     config: HttpRequestConfig,
     behavior: ResolvedRequestBehavior,
   ): Options {
@@ -605,6 +606,11 @@ export class HttpClient {
     if (!BODYLESS_METHODS.has(method) && body !== undefined) {
       const payload = applyRequestBody(options, body, headers);
       disableUnsafeBodyRetry(options, payload, hasExplicitRetry);
+    }
+
+    if (isAbsoluteUrl(input)) {
+      options.prefix = "";
+      delete options.baseUrl;
     }
 
     return options;
@@ -683,6 +689,17 @@ function mergeKyHooks(
   });
 
   return Object.keys(merged).length > 0 ? (merged as KyHooks) : undefined;
+}
+
+function isAbsoluteUrl(input: Input): boolean {
+  if (typeof input === "string") {
+    return /^[a-z][a-z\d+\-.]*:\/\//i.test(input);
+  }
+
+  if (input instanceof URL) return true;
+  if (input instanceof Request) return true;
+
+  return false;
 }
 
 export type { HttpClientOptions } from "../utils/types";

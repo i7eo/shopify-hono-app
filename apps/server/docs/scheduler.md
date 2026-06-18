@@ -52,7 +52,10 @@ APP_SCHEDULER_CRON_VALUE;
 | `APP_SCHEDULER_PROVIDER`   | `pg-boss` 或 `cron-triggers`             |
 | `APP_SCHEDULER_CRON_VALUE` | 默认 cron 值，业务也可以自定义 task cron |
 
-Cloudflare Cron Triggers 的实际 cron 列表需要写入 Wrangler 配置。`APP_SCHEDULER_CRON_VALUE` 只是应用配置，不会自动创建平台 trigger。
+Cloudflare Cron Triggers 的实际 cron 列表由 Wrangler 配置决定。当前
+`scripts/write-wrangler-file` 会在 `APP_RUNTIME=cloudflare` 且
+`APP_SCHEDULER_PROVIDER=cron-triggers` 时读取 `APP_SCHEDULER_CRON_VALUE`，并写入
+`triggers.crons[]`。
 
 ## Task 注册
 
@@ -81,12 +84,17 @@ type SchedulerTaskContext = {
 
 Cloudflare scheduled handler 会把 `env` 放入 `bindings`，并把本次触发的 cron 值放入 `cron`。
 
+重复注册 task 是启动期不变量错误，会直接 fail-fast。执行期 task 抛出的错误由具体 runtime scheduler 处理和记录。
+
 ## Node scheduler
 
-Node 启动时调用：
+Node 启动时从 runtime capability 取得 scheduler：
 
 ```ts
-startProcessScheduler(env, {
+const schedulerFactory = getRuntimeCapability("schedulerFactory");
+const scheduler = await schedulerFactory?.(env);
+
+await scheduler?.start({
   logger,
   runtimeEnv: env,
 });
@@ -101,7 +109,7 @@ startProcessScheduler(env, {
 3. 调用 `boss.work(task.name, handler)` 执行 task。
 4. shutdown 时调用 `boss.offWork(task.name)`。
 
-`pg-boss` 实例会缓存，`disposeProcessScheduler()` 会停止实例。
+`pg-boss` 实例会缓存，`disposeRuntimeCapabilities()` 会调用 scheduler disposer，并停止实例。`infra/scheduler/index.ts` 通过 `PROCESS_SCHEDULER_MODULE = "./process"` 和 `ISOLATE_SCHEDULER_MODULE = "./isolate"` 动态分发实现。
 
 ## Cloudflare scheduler
 
@@ -109,19 +117,24 @@ Cloudflare Worker export 增加：
 
 ```ts
 async scheduled(controller, env) {
-  await runCloudflareScheduledTasks(controller.cron, context);
+  const schedulerFactory = getRuntimeCapability("schedulerFactory");
+  const scheduler = await schedulerFactory?.(context.runtimeEnv);
+
+  await scheduler?.run(controller.cron, context);
 }
 ```
 
 Cloudflare scheduler 会：
 
-1. 解析 `env` 为 runtime config。
-2. 初始化 logger。
+1. 通过 `getEnvProvider(env)` 解析本次 event 的 runtime config。
+2. 通过 `getLoggerProvider(runtimeEnv)` 初始化或复用 runtime logger。
 3. 把 `env` 放入 `SchedulerTaskContext.bindings`。
 4. 按 `controller.cron` 查找同 cron 的 task。
 5. 并发执行匹配 task。
 
 只有注册 task 的 `cron` 和 `controller.cron` 完全一致时才会执行。
+
+Cloudflare scheduler 当前以 event binding 为边界，`disposeIsolateScheduler()` 是预留 no-op。process scheduler disposer 会停止缓存的 `pg-boss` schedule worker。
 
 Wrangler 配置示例：
 

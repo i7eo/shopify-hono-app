@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  CloudflareQueueProducer,
-  consumeQueueBatch,
-  getQueueEnvConfig,
-  getQueueJobName,
+  createQueueConsumer,
   registerQueueJob,
-  resetQueueJobs,
   type QueueJobContext,
   type QueueMessage,
 } from "@/infra/queue";
+import { consumeQueueBatch } from "@/infra/queue/consumer";
+import { CloudflareQueueProducer } from "@/infra/queue/isolate";
+import { resetQueueJobs } from "@/infra/queue/registry";
+import { getQueueEnvConfig, getQueueJobName } from "@/infra/queue/shared";
 
 const context = {
   logger: {
@@ -234,6 +234,42 @@ describe("queue batch consumer", () => {
         id: "message-two",
       }),
     ]);
+  });
+
+  it("creates a cloudflare queue consumer that consumes queue batches", async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const ack = vi.fn();
+    const retry = vi.fn();
+    registerQueueJob({
+      handler,
+      name: "test:single",
+    });
+
+    const consumer = await createQueueConsumer({
+      APP_RUNTIME: "cloudflare",
+    } as any);
+    await consumer.consume(
+      {
+        messages: [
+          {
+            ack,
+            attempts: 1,
+            body: {
+              name: "test:single",
+              payload: { id: "one" },
+              version: 1,
+            },
+            id: "message-one",
+            retry,
+          },
+        ],
+      } as any,
+      context,
+    );
+
+    expect(handler).toHaveBeenCalledWith({ id: "one" }, context);
+    expect(ack).toHaveBeenCalledTimes(1);
+    expect(retry).not.toHaveBeenCalled();
   });
 });
 

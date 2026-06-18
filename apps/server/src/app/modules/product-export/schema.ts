@@ -1,0 +1,91 @@
+import { z } from "@hono/zod-openapi";
+import { PRODUCT_EXPORT_STATUS_VALUES } from "@shamt/database/models/postgres";
+import { selectProductExportSchema } from "@shamt/database/sql-schemas/postgres";
+import { PRODUCT_EXPORT_STATUSES } from "./utils";
+
+export const ProductExportStatusSchema = z.enum(PRODUCT_EXPORT_STATUS_VALUES);
+
+export const ProductExportSchema = selectProductExportSchema
+  .extend({
+    bucketKey: selectProductExportSchema.shape.bucketKey.openapi({
+      description: "Bucket key for the generated CSV file.",
+      example: "test-shop.myshopify.com/product-exports/export-id/products.csv",
+    }),
+    bucketProvider: selectProductExportSchema.shape.bucketProvider.openapi({
+      description: "Bucket provider used to store the generated CSV file.",
+      example: "r2",
+    }),
+    completedAt: z.string().datetime().nullable().openapi({
+      description: "Completion timestamp.",
+      example: null,
+    }),
+    createdAt: z.string().datetime().openapi({
+      description: "Creation timestamp.",
+      example: "2026-06-18T12:00:00.000Z",
+    }),
+    deletedAt: z.string().datetime().nullable().openapi({
+      description: "Soft deletion timestamp.",
+      example: null,
+    }),
+    id: selectProductExportSchema.shape.id.openapi({
+      description: "Product export ID.",
+      example: "8f07a37b-b7dc-41f0-a9d5-3f9c28e12f2a",
+    }),
+    name: selectProductExportSchema.shape.name.openapi({
+      description: "Merchant-facing export name.",
+      example: "All products",
+    }),
+    shopDomain: selectProductExportSchema.shape.shopDomain.openapi({
+      description: "Shopify shop domain that owns the export.",
+      example: "test-shop.myshopify.com",
+    }),
+    shopifyBulkOperationId:
+      selectProductExportSchema.shape.shopifyBulkOperationId.openapi({
+        description: "Shopify BulkOperation GraphQL ID.",
+        example: "gid://shopify/BulkOperation/1234567890",
+      }),
+    status: ProductExportStatusSchema.openapi({
+      description: "Product export lifecycle status.",
+      example: PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING,
+    }),
+    updatedAt: z.string().datetime().openapi({
+      description: "Update timestamp.",
+      example: "2026-06-18T12:00:00.000Z",
+    }),
+  })
+  .openapi({
+    description: "Product export metadata.",
+  });
+
+export const CreateProductExportBodySchema = z.object({
+  name: z.string().min(1).max(120).openapi({
+    description: "Export name.",
+    example: "All products",
+  }),
+});
+
+export const ProductExportListSchema = z.object({
+  nextCursor: z.string().optional(),
+  productExports: z.array(ProductExportSchema),
+});
+
+export const ProductExportIdParamsSchema = z.object({
+  id: z.string().min(1).openapi({
+    description: "Product export ID.",
+    example: "8f07a37b-b7dc-41f0-a9d5-3f9c28e12f2a",
+  }),
+});
+
+export const ProductExportListQuerySchema = z.object({
+  cursor: z.string().optional().openapi({
+    description: "Cursor returned by a previous product export list response.",
+  }),
+  limit: z.coerce.number().int().min(1).max(100).optional().openapi({
+    description: "Maximum number of product exports to return.",
+    example: 20,
+  }),
+  status: ProductExportStatusSchema.optional().openapi({
+    description: "Filter by export status.",
+    example: PRODUCT_EXPORT_STATUSES.READY,
+  }),
+});

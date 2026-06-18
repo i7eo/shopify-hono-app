@@ -4,7 +4,8 @@ import type { Bucket } from "@/infra/bucket";
 import type { Database } from "@/infra/database";
 import type { RuntimeConfig } from "@/infra/env";
 import type { LoggerSetupOptions } from "@/infra/logger/shared";
-import type { QueueProducer } from "@/infra/queue";
+import type { QueueConsumer, QueueProducer } from "@/infra/queue";
+import type { Scheduler } from "@/infra/scheduler";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
@@ -32,6 +33,12 @@ export type BucketFactory = (
 export type QueueProducerFactory = (
   context: Context<AppEnv>,
 ) => QueueProducer | Promise<QueueProducer>;
+export type QueueConsumerFactory = (
+  config: RuntimeConfig,
+) => QueueConsumer | Promise<QueueConsumer>;
+export type SchedulerFactory = (
+  config: RuntimeConfig,
+) => Scheduler | Promise<Scheduler>;
 export type ModuleFileDownloadResolverFactory = (
   context: Context<AppEnv>,
 ) => FileDownloadResolver | Promise<FileDownloadResolver>;
@@ -58,6 +65,14 @@ export interface RuntimeCapabilityInstances {
    * Infra Queue: returns the runtime-specific queue producer adapter.
    */
   queueProducerFactory: QueueProducerFactory;
+  /**
+   * Infra Queue: returns the runtime-specific queue consumer adapter.
+   */
+  queueConsumerFactory: QueueConsumerFactory;
+  /**
+   * Infra Scheduler: returns the runtime-specific scheduled task adapter.
+   */
+  schedulerFactory: SchedulerFactory;
   /**
    * Module File: resolves a file download into a stream or redirect.
    */

@@ -1,3 +1,4 @@
+import { DEFAULT_RUNTIMES } from "@shamt/app-env";
 import { checkProcessDiskAccess } from "@shamt/node-utils/disk";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import { NoopFileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
@@ -12,7 +13,13 @@ import {
 } from "@/infra/bucket";
 import { createDatabase, disposeDatabase } from "@/infra/database";
 import { setupProcessLogger } from "@/infra/logger/process";
-import { createQueueProducer, disposeQueueProducer } from "@/infra/queue";
+import {
+  createQueueConsumer,
+  createQueueProducer,
+  disposeQueueConsumer,
+  disposeQueueProducer,
+} from "@/infra/queue";
+import { createScheduler, disposeScheduler } from "@/infra/scheduler";
 import { runtimeNotSupported } from "@/utils/runtime";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -50,6 +57,16 @@ export function registerProcessRuntimeCapabilities() {
     "queueProducerFactory",
     (c) => getQueueProducer(c),
     disposeQueueProducerCapability,
+  );
+  setRuntimeCapability(
+    "queueConsumerFactory",
+    (config) => createQueueConsumer(config),
+    disposeQueueConsumerCapability,
+  );
+  setRuntimeCapability(
+    "schedulerFactory",
+    (config) => createScheduler(config),
+    disposeSchedulerCapability,
   );
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
@@ -93,21 +110,35 @@ function getQueueProducer(c: Context<AppEnv>) {
  * Disposes cached process database infrastructure.
  */
 function disposeDatabaseCapability() {
-  return disposeDatabase({ APP_RUNTIME: "node" });
+  return disposeDatabase({ APP_RUNTIME: DEFAULT_RUNTIMES.NODE });
 }
 
 /**
  * Disposes cached process bucket infrastructure.
  */
 function disposeBucketCapability() {
-  return disposeBucket({ APP_RUNTIME: "node" });
+  return disposeBucket({ APP_RUNTIME: DEFAULT_RUNTIMES.NODE });
 }
 
 /**
  * Disposes cached process queue infrastructure.
  */
 function disposeQueueProducerCapability() {
-  return disposeQueueProducer({ APP_RUNTIME: "node" });
+  return disposeQueueProducer({ APP_RUNTIME: DEFAULT_RUNTIMES.NODE });
+}
+
+/**
+ * Disposes cached process queue consumer infrastructure.
+ */
+function disposeQueueConsumerCapability() {
+  return disposeQueueConsumer({ APP_RUNTIME: DEFAULT_RUNTIMES.NODE });
+}
+
+/**
+ * Disposes cached process scheduler infrastructure.
+ */
+function disposeSchedulerCapability() {
+  return disposeScheduler({ APP_RUNTIME: DEFAULT_RUNTIMES.NODE });
 }
 
 /**

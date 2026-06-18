@@ -244,8 +244,8 @@ Node D1 通过 Cloudflare D1 HTTP API 访问，需要 `APP_DATABASE_D1_NAME`、`
 数据库 schema 来自 `@shamt/database` 的 PostgreSQL / SQLite models，与 file module 共享同一个 `databaseFactory`。本地验证可使用：
 
 ```bash
-pnpm --dir apps/server run db:pg:seed
-pnpm --dir apps/server run db:d1:seed
+pnpm --dir apps/server run db:pg:seed:dev
+pnpm --dir apps/server run db:d1:seed:dev
 ```
 
 ## Resource API

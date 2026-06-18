@@ -1,9 +1,11 @@
+import { sleep } from "@shamt/utils";
 import { getDatabaseUrl } from "@/infra/database/shared";
 import { consumeQueueBatch } from "./consumer";
 import { listQueueJobs, type QueueJobContext } from "./registry";
 import {
   getQueueEnvConfig,
   getQueueJobName,
+  type QueueConsumer,
   type QueueEnqueueOptions,
   type QueueMessage,
   type QueueProducer,
@@ -16,7 +18,7 @@ let processQueueProducer: Promise<QueueProducer> | undefined;
 let processQueueCacheKey: string | undefined;
 let processQueueBoss: Promise<PgBoss> | undefined;
 let processQueueBossCacheKey: string | undefined;
-let processQueueConsumer: ProcessQueueConsumerController | undefined;
+let processQueueConsumer: QueueConsumer | undefined;
 
 /**
  * Reuses the selected process queue producer across Node requests.
@@ -104,33 +106,40 @@ export type ProcessQueueConsumerController = {
  */
 export async function createProcessQueueConsumer(
   config: RuntimeConfig,
-  context: QueueJobContext,
-): Promise<ProcessQueueConsumerController> {
+): Promise<QueueConsumer> {
   const jobs = listQueueJobs();
 
   if (jobs.length === 0) {
     return {
-      start() {},
+      consume: () => Promise.resolve(),
+      start: () => Promise.resolve(),
       stop: () => Promise.resolve(),
     };
   }
 
   const strategy = getQueueEnvConfig(config);
   const boss = await getProcessQueueBoss(config);
-  const consumers = jobs.map((job) =>
-    createProcessQueueJobConsumer({
-      boss,
-      context,
-      queueName: getQueueJobName(strategy, job.name),
-      maxBatchSize:
-        job.maxBatchSize ?? config.APP_QUEUE_CONSUMER_MAX_BATCH_SIZE,
-    }),
-  );
+  let consumers: ProcessQueueConsumerController[] = [];
 
   return {
-    start() {
+    consume() {
+      return Promise.resolve();
+    },
+    async start(context) {
+      if (consumers.length > 0) return;
+
+      consumers = jobs.map((job) =>
+        createProcessQueueJobConsumer({
+          boss,
+          context,
+          queueName: getQueueJobName(strategy, job.name),
+          maxBatchSize:
+            job.maxBatchSize ?? config.APP_QUEUE_CONSUMER_MAX_BATCH_SIZE,
+        }),
+      );
+
       for (const consumer of consumers) {
-        consumer.start();
+        await consumer.start();
       }
     },
     async stop() {
@@ -145,8 +154,8 @@ export async function startProcessQueueConsumer(
 ): Promise<void> {
   if (processQueueConsumer) return;
 
-  processQueueConsumer = await createProcessQueueConsumer(config, context);
-  processQueueConsumer.start();
+  processQueueConsumer = await createProcessQueueConsumer(config);
+  await processQueueConsumer.start(context);
 }
 
 export async function stopProcessQueueConsumer(): Promise<void> {
@@ -173,7 +182,7 @@ function createProcessQueueJobConsumer(input: {
       });
 
       if (jobs.length === 0) {
-        await sleep(1000);
+        await sleep(16.7 * 50);
         continue;
       }
 
@@ -273,11 +282,5 @@ function getProcessQueueCacheKey(config: RuntimeConfig): string {
     queueName: strategy.name,
     provider: strategy.provider,
     runtime: strategy.runtime,
-  });
-}
-
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
   });
 }

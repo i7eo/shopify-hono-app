@@ -1,6 +1,7 @@
-import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
+import { DEFAULT_APP_BUCKET_PROVIDERS, DEFAULT_RUNTIMES } from "@shamt/app-env";
 import { sha256Hex } from "@shamt/utils";
 import { internalServerError } from "@/shared/exceptions";
+import { getCloudflareTokenId } from "@/utils/cloudflare";
 import type { RuntimeConfig } from "@/infra/env";
 
 export type BucketProvider = NonNullable<RuntimeConfig["APP_BUCKET_PROVIDER"]>;
@@ -73,7 +74,7 @@ export function getBucketEnvConfig(
   };
 
   if (
-    strategy.runtime === "cloudflare" &&
+    strategy.runtime === DEFAULT_RUNTIMES.CLOUDFLARE &&
     strategy.provider !== DEFAULT_APP_BUCKET_PROVIDERS.R2
   ) {
     throw internalServerError(
@@ -86,7 +87,7 @@ export function getBucketEnvConfig(
   }
 
   if (
-    strategy.runtime === "node" &&
+    strategy.runtime === DEFAULT_RUNTIMES.NODE &&
     ![
       DEFAULT_APP_BUCKET_PROVIDERS.MEMORY,
       DEFAULT_APP_BUCKET_PROVIDERS.R2,
@@ -126,7 +127,7 @@ export async function getR2BucketConfig(config: RuntimeConfig) {
   const url = parseR2BucketUrl(config.APP_BUCKET_R2_URL!);
   const token = config.APP_CLOUDFLARE_USER_TOKEN!;
   const [accessKeyId, secretAccessKey] = await Promise.all([
-    getCloudflareTokenId(token),
+    getCloudflareTokenId(config, token),
     sha256Hex(token),
   ]);
 
@@ -141,70 +142,6 @@ export async function getR2BucketConfig(config: RuntimeConfig) {
 }
 
 /**
- * https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token
- */
-async function getCloudflareTokenId(token: string): Promise<string> {
-  let response: Response;
-
-  try {
-    response = await fetch(
-      "https://api.cloudflare.com/client/v4/user/tokens/verify",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-  } catch (error) {
-    throw internalServerError("Failed to verify Cloudflare API token", {
-      details: {
-        cause: error,
-      },
-    });
-  }
-
-  let body: unknown;
-
-  try {
-    body = await response.json();
-  } catch (error) {
-    throw internalServerError("Failed to parse Cloudflare token response", {
-      details: {
-        cause: error,
-        status: response.status,
-      },
-    });
-  }
-
-  if (!response.ok || !isCloudflareTokenVerifyResponse(body)) {
-    throw internalServerError("Cloudflare API token verification failed", {
-      details: {
-        body,
-        status: response.status,
-      },
-      expose: true,
-    });
-  }
-
-  return body.result.id;
-}
-
-function isCloudflareTokenVerifyResponse(
-  value: unknown,
-): value is { result: { id: string } } {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    "result" in value &&
-    value.result !== null &&
-    typeof value.result === "object" &&
-    "id" in value.result &&
-    typeof value.result.id === "string" &&
-    value.result.id.length > 0
-  );
-}
-
-/**
  * Parses APP_BUCKET_R2_URL as an S3 endpoint URL with the bucket in the path.
  *
  * Example: https://account-id.r2.cloudflarestorage.com/my-bucket
@@ -213,22 +150,10 @@ function parseR2BucketUrl(value: string): {
   bucketName: string;
   endpoint: string;
 } {
+  let url: URL;
+
   try {
-    const url = new URL(value);
-    const bucketName = url.pathname.split("/").find(Boolean) ?? "bucket";
-
-    if (!bucketName) {
-      throw new Error("missing bucket path");
-    }
-
-    url.pathname = "";
-    url.search = "";
-    url.hash = "";
-
-    return {
-      bucketName,
-      endpoint: url.toString().replace(/\/$/, ""),
-    };
+    url = new URL(value);
   } catch (error) {
     throw internalServerError(
       "APP_BUCKET_R2_URL must be a valid R2 S3 endpoint URL with bucket path",
@@ -240,6 +165,29 @@ function parseR2BucketUrl(value: string): {
       },
     );
   }
+
+  const bucketName = url.pathname.split("/").find(Boolean);
+
+  if (!bucketName) {
+    throw internalServerError(
+      "APP_BUCKET_R2_URL must be a valid R2 S3 endpoint URL with bucket path",
+      {
+        details: {
+          reason: "missing bucket path",
+        },
+        expose: true,
+      },
+    );
+  }
+
+  url.pathname = "";
+  url.search = "";
+  url.hash = "";
+
+  return {
+    bucketName,
+    endpoint: url.toString().replace(/\/$/, ""),
+  };
 }
 
 /**
@@ -248,7 +196,7 @@ function parseR2BucketUrl(value: string): {
 function getBucketProvider(config: RuntimeConfig): BucketProvider {
   if (config.APP_BUCKET_PROVIDER) return config.APP_BUCKET_PROVIDER;
 
-  return config.APP_RUNTIME === "cloudflare"
+  return config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE
     ? DEFAULT_APP_BUCKET_PROVIDERS.R2
     : DEFAULT_APP_BUCKET_PROVIDERS.MEMORY;
 }

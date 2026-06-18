@@ -120,7 +120,7 @@ type QueueEnqueueOptions = {
 
 ## Producer
 
-业务代码不要直接 import `pg-boss` 或 Cloudflare Queue binding，而是从 runtime capability 或 `createQueueProducer` 获取 producer。
+业务代码不要直接 import `pg-boss` 或 Cloudflare Queue binding，而是从 `queueProducerFactory` capability 或 `createQueueProducer` 获取 producer。
 
 接口：
 
@@ -141,7 +141,7 @@ interface QueueProducer {
 | `node`       | `PgBossQueueProducer`     |
 | `cloudflare` | `CloudflareQueueProducer` |
 
-`pg-boss` 在 Node adapter 内动态加载，避免 Cloudflare bundle 静态引入 Node-only queue 依赖。
+`pg-boss` 在 Node adapter 内动态加载，避免 Cloudflare bundle 静态引入 Node-only queue 依赖。`infra/queue/index.ts` 通过 `PROCESS_QUEUE_MODULE = "./process"` 和 `ISOLATE_QUEUE_MODULE = "./isolate"` 分发实现，并暴露 `disposeQueueProducer(...)`。
 
 ## Job 注册
 
@@ -191,7 +191,17 @@ Cloudflare consumer 会把 `env` 放进 `bindings`。业务 job 如果需要 D1�
 
 ## Consumer
 
-Consumer 抽象统一是 batch：
+Consumer 抽象统一由 `infra/queue` 创建，并通过 runtime capability 暴露给 process/cloudflare entry：
+
+```ts
+interface QueueConsumer {
+  consume(batch: unknown, context: QueueJobContext): Promise<void>;
+  start(context: QueueJobContext): Promise<void>;
+  stop(): Promise<void>;
+}
+```
+
+底层共享 batch 消费函数仍然是：
 
 ```ts
 consumeQueueBatch(batch, context);
@@ -200,17 +210,20 @@ consumeQueueBatch(batch, context);
 行为：
 
 - 按 `message.body.name` 分组。
-- 未注册 job 返回 `retry`。
+- 未注册 job 返回 `retry`，错误值是 `internalServerError("Unknown queue job", ...)`。
 - 单条 job 逐条执行，单条失败只 retry 该消息。
 - batch job 按同名消息整组执行，batch handler 抛错时整组 retry。
 - 成功消息返回 `ack`。
 
 ### Node consumer
 
-Node 启动时会调用：
+Node 启动时从 runtime capability 取得 consumer：
 
 ```ts
-startProcessQueueConsumer(env, {
+const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
+const queueConsumer = await queueConsumerFactory?.(env);
+
+await queueConsumer?.start({
   logger,
   runtimeEnv: env,
 });
@@ -227,11 +240,10 @@ startProcessQueueConsumer(env, {
 5. 成功调用 `boss.complete(...)`。
 6. 失败调用 `boss.fail(...)`，由 `pg-boss` 负责重试。
 
-shutdown 时会调用：
-
-```ts
-stopProcessQueueConsumer();
-```
+shutdown 时由 `disposeRuntimeCapabilities()` 调用 queue consumer disposer。
+queue producer 和 consumer 都有 dispose 入口。process 侧会停止/释放缓存的
+`pg-boss` 实例；isolate 侧 producer/consumer 当前以 event/request binding 为边界，
+`disposeIsolateQueueProducer()` 和 `disposeIsolateQueueConsumer()` 是预留 no-op。
 
 ### Cloudflare consumer
 
@@ -239,19 +251,25 @@ Cloudflare Worker export 增加：
 
 ```ts
 async queue(batch, env) {
-  await consumeCloudflareQueueBatch(batch, context);
+  const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
+  const queueConsumer = await queueConsumerFactory?.(context.runtimeEnv);
+
+  await queueConsumer?.consume(batch, context);
 }
 ```
 
 Cloudflare consumer 会：
 
-1. 解析 `env` 为 runtime config。
-2. 初始化 logger。
+1. 通过 `getEnvProvider(env)` 解析本次 event 的 runtime config。
+2. 通过 `getLoggerProvider(runtimeEnv)` 初始化或复用 runtime logger。
 3. 把 `env` 放入 `QueueJobContext.bindings`。
 4. 过滤非法 message body；非法消息直接 `ack()`，避免毒消息无限重试。
 5. 调用共享 `consumeQueueBatch`。
 6. 成功消息 `message.ack()`。
 7. 失败消息 `message.retry()`。
+
+`bindings` 保存原始 `env`，供业务 job 在需要 D1、Hyperdrive、R2 或 Queue
+binding 时按需创建 adapter。
 
 建议 Cloudflare v1 先配置：
 

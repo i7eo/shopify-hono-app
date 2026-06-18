@@ -30,26 +30,31 @@ pnpm deploy:prepare:wrangler
 
 生成逻辑读取 `@shamt/app-env` 的 `configSchema`，核心输入是：
 
-| Env                       | 作用                                    |
-| ------------------------- | --------------------------------------- |
-| `APP_ENV`                 | 决定 Wrangler env key 和 Worker name    |
-| `APP_RUNTIME`             | 决定是否需要 Cloudflare runtime binding |
-| `APP_DATABASE_PROVIDER`   | 决定 D1 或 Hyperdrive binding           |
-| `APP_BUCKET_PROVIDER`     | 决定 R2 binding                         |
-| `APP_BUCKET_R2_BINDING`   | 生成 R2 binding 时必需                  |
-| `APP_BUCKET_R2_NAME`      | 生成 R2 bucket name 时必需              |
-| `APP_DATABASE_D1_BINDING` | 生成 D1 binding 时必需                  |
-| `APP_DATABASE_D1_NAME`    | 生成 D1 database name 时必需            |
-| `APP_DATABASE_D1_ID`      | 生成 D1 binding 时必需                  |
-| `APP_HYPERDRIVER_BINDING` | 生成 Hyperdrive binding 时必需          |
-| `APP_HYPERDRIVER_ID`      | 生成 Hyperdrive binding 时必需          |
+| Env                        | 作用                                    |
+| -------------------------- | --------------------------------------- |
+| `APP_ENV`                  | 决定 Wrangler env key 和 Worker name    |
+| `APP_RUNTIME`              | 决定是否需要 Cloudflare runtime binding |
+| `APP_DATABASE_PROVIDER`    | 决定 D1 或 Hyperdrive binding           |
+| `APP_BUCKET_PROVIDER`      | 决定 R2 binding                         |
+| `APP_BUCKET_R2_BINDING`    | 生成 R2 binding 时必需                  |
+| `APP_BUCKET_R2_NAME`       | 生成 R2 bucket name 时必需              |
+| `APP_DATABASE_D1_BINDING`  | 生成 D1 binding 时必需                  |
+| `APP_DATABASE_D1_NAME`     | 生成 D1 database name 时必需            |
+| `APP_DATABASE_D1_ID`       | 生成 D1 binding 时必需                  |
+| `APP_HYPERDRIVER_BINDING`  | 生成 Hyperdrive binding 时必需          |
+| `APP_HYPERDRIVER_ID`       | 生成 Hyperdrive binding 时必需          |
+| `APP_QUEUE_BINDING`        | 生成 Queue producer/consumer 时必需     |
+| `APP_QUEUE_NAME`           | 生成 Queue 名称时必需                   |
+| `APP_SCHEDULER_CRON_VALUE` | 生成 Cron Trigger 时使用                |
 
 如果 `.env.*` 中某行被 `#` 注释，`node --env-file` 不会把它放进 `process.env`。生成器会按 runtime 默认值补 provider：
 
-| 字段                    | 缺省行为                                 |
-| ----------------------- | ---------------------------------------- |
-| `APP_DATABASE_PROVIDER` | 默认 `postgres`                          |
-| `APP_BUCKET_PROVIDER`   | Node 默认 `memory`，Cloudflare 默认 `r2` |
+| 字段                     | 缺省行为                                             |
+| ------------------------ | ---------------------------------------------------- |
+| `APP_DATABASE_PROVIDER`  | 默认 `postgres`                                      |
+| `APP_BUCKET_PROVIDER`    | Node 默认 `memory`，Cloudflare 默认 `r2`             |
+| `APP_QUEUE_PROVIDER`     | Node 默认 `pg-boss`，Cloudflare 默认 `queues`        |
+| `APP_SCHEDULER_PROVIDER` | Node 默认 `pg-boss`，Cloudflare 默认 `cron-triggers` |
 
 ## 命名规则
 
@@ -78,6 +83,10 @@ i7eo-shopify-app
 | `d1_databases[].database_name` | Cloudflare D1 database 的真实资源名        |
 | `hyperdrive[].binding`         | Worker 代码中访问 Hyperdrive 的变量名      |
 | `hyperdrive[].id`              | Cloudflare Hyperdrive config 的真实资源 ID |
+| `queues.producers[].binding`   | Worker 代码中访问 Queue producer 的变量名  |
+| `queues.producers[].queue`     | Cloudflare Queue 的真实资源名              |
+| `queues.consumers[].queue`     | 当前 Worker 消费的 Cloudflare Queue 名     |
+| `triggers.crons[]`             | Cloudflare Cron Triggers 表达式            |
 
 R2、D1 和 Hyperdrive 的 binding/resource name 不再由生成器推导，必须在 env file 中显式声明。建议 binding 名保持稳定，资源名按环境变化：
 
@@ -89,18 +98,21 @@ APP_DATABASE_D1_BINDING=i7eo_shopify_app_dev_d1
 APP_DATABASE_D1_NAME=i7eo-shopify-app-dev-d1
 
 APP_HYPERDRIVER_BINDING=i7eo_shopify_app_dev_hyperdrive
+
+APP_QUEUE_BINDING=i7eo_shopify_app_dev_queue
+APP_QUEUE_NAME=i7eo-shopify-app-dev-queue
 ```
 
 ## 生成矩阵
 
-| APP_RUNTIME  | APP_DATABASE_PROVIDER | APP_BUCKET_PROVIDER | 生成 binding                  |
-| ------------ | --------------------- | ------------------- | ----------------------------- |
-| `node`       | `postgres`            | `memory`            | 无                            |
-| `node`       | `postgres`            | `r2`                | `r2_buckets`                  |
-| `node`       | `d1`                  | `memory`            | 无 Cloudflare runtime binding |
-| `node`       | `d1`                  | `r2`                | `r2_buckets`                  |
-| `cloudflare` | `postgres`            | `r2`                | `r2_buckets`、`hyperdrive`    |
-| `cloudflare` | `d1`                  | `r2`                | `r2_buckets`、`d1_databases`  |
+| APP_RUNTIME  | APP_DATABASE_PROVIDER | APP_BUCKET_PROVIDER | 生成 binding                             |
+| ------------ | --------------------- | ------------------- | ---------------------------------------- |
+| `node`       | `postgres`            | `memory`            | 无                                       |
+| `node`       | `postgres`            | `r2`                | `r2_buckets`                             |
+| `node`       | `d1`                  | `memory`            | 无 Cloudflare runtime binding            |
+| `node`       | `d1`                  | `r2`                | `r2_buckets`                             |
+| `cloudflare` | `postgres`            | `r2`                | `r2_buckets`、`hyperdrive`、Queue/Cron   |
+| `cloudflare` | `d1`                  | `r2`                | `r2_buckets`、`d1_databases`、Queue/Cron |
 
 Node + D1 走 Cloudflare D1 HTTP API，不需要 Worker D1 binding。Node + PostgreSQL 走 `pg`，不需要 Hyperdrive binding。
 
@@ -150,6 +162,7 @@ Cloudflare runtime capability 不写死 binding 字段。它读取 runtime env �
 context.env[config.APP_BUCKET_R2_BINDING];
 context.env[config.APP_DATABASE_D1_BINDING];
 context.env[config.APP_HYPERDRIVER_BINDING];
+context.env[config.APP_QUEUE_BINDING];
 ```
 
 真正使用 binding 时才调用 `requireCloudflareBinding(...)` 强校验。binding name 由 env file 显式配置，业务代码不需要知道环境名或资源名。

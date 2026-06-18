@@ -62,14 +62,11 @@ describe("bucket runtime strategy", () => {
         "f52efb2f55ed508755282e4a5ebd9d568598a229f36f9868bec7e2e32ad204e5",
     });
 
-    expect(fetch).toHaveBeenCalledWith(
+    const [request] = fetch.mock.calls[0] as [Request];
+    expect(request.url).toBe(
       "https://api.cloudflare.com/client/v4/user/tokens/verify",
-      {
-        headers: {
-          Authorization: "Bearer token_value",
-        },
-      },
     );
+    expect(request.headers.get("authorization")).toBe("Bearer token_value");
   });
 
   it("rejects incomplete r2 config", async () => {

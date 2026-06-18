@@ -9,7 +9,14 @@ import {
 import type { IsolateBucketOptions } from "./isolate";
 import type { RuntimeConfig } from "@/infra/env";
 
-export * from "./shared";
+export {
+  getBucketEnvConfig,
+  getR2BucketConfig,
+  type Bucket,
+  type BucketDownloadSigner,
+  type BucketReadableObject,
+  type BucketStoredObject,
+} from "./shared";
 
 const ISOLATE_BUCKET_MODULE = "./isolate";
 const PROCESS_BUCKET_MODULE = "./process";
@@ -43,7 +50,11 @@ export async function createBucket(
 export async function disposeBucket(
   config: Pick<RuntimeConfig, "APP_RUNTIME">,
 ): Promise<void> {
-  if (isIsolateRuntime(config.APP_RUNTIME)) return;
+  if (isIsolateRuntime(config.APP_RUNTIME)) {
+    const { disposeIsolateBucket } = await import(ISOLATE_BUCKET_MODULE);
+    await disposeIsolateBucket();
+    return;
+  }
 
   const { disposeProcessBucket } = await import(PROCESS_BUCKET_MODULE);
   disposeProcessBucket();
@@ -66,7 +77,8 @@ export async function createBucketDownloadSigner(
     return undefined;
   }
 
-  const { S3CompatibleBucketDownloadSigner } = await import("./s3-compatible");
+  const { S3CompatibleBucketDownloadSigner } =
+    await import("./process.s3-compatible");
 
   return new S3CompatibleBucketDownloadSigner(await getR2BucketConfig(config));
 }

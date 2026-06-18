@@ -14,6 +14,9 @@
 - OpenAPI: 非 production Node 可注册 `/document` 和 `/reference`；生产和 Cloudflare isolate 默认不注册。
 - Env typing: Hono `AppEnv` 从 runtime schema 推导 bindings；runtime 入口可用 `RuntimeAppEnv<"cloudflare">` 等具体类型收窄。
 - Cloudflare bindings: 平台 binding 在 schema 中允许 bootstrap 阶段缺失，并在 runtime capability 使用点强校验；Wrangler 生成类型到 `typings/cloudflare-worker-configuration.d.ts`。
+- Queue/Scheduler: `infra/queue` 与 `infra/scheduler` 像 runtime capabilities 一样支持注册、调用和 dispose；Node 使用 `pg-boss`，Cloudflare 使用 Queues/Cron Triggers。
+- Bucket/Database: `infra/bucket` 与 `infra/database` 通过动态 import 分发 process/isolate 实现，process 侧缓存资源，isolate 侧按 request binding 创建并保留 no-op disposer。
+- Error: Hono `app.onError` 和 process-level exception handlers 都会先 normalize 到项目统一 `AppError` 结构；registry 重复注册错误仍保留为启动期 fail-fast 错误。
 
 ## 文档导航
 
@@ -24,6 +27,11 @@
 | [logger.md](./docs/logger.md)           | Bootstrap/runtime logger、process/isolate sink、错误日志入口                                 |
 | [error.md](./docs/error.md)             | `AppError`、错误工厂、响应格式、生产环境暴露策略                                             |
 | [shopify.md](./docs/shopify.md)         | Shopify app mode、App Shell、OAuth、account/session、Admin middleware、webhook、resource API |
+| [queue.md](./docs/queue.md)             | Queue provider 矩阵、job registry、producer/consumer 生命周期、Cloudflare Queues 行为        |
+| [scheduler.md](./docs/scheduler.md)     | Scheduler provider 矩阵、task registry、Node pg-boss schedule、Cloudflare Cron Triggers      |
+| [database.md](./docs/database.md)       | PostgreSQL、D1 HTTP、D1 binding、Hyperdrive 的 runtime-aware database 实现                   |
+| [bucket.md](./docs/bucket.md)           | Memory/R2 bucket、Node S3-compatible、Cloudflare R2 binding、下载策略                        |
+| [file.md](./docs/file.md)               | 文件上传、元数据、bucket key、下载/删除、runtime capability 使用                             |
 | [technique.md](./docs/technique.md)     | DI、env 合并、binding 强校验、logger reset、import graph 隔离等架构技巧                      |
 | [superiority.md](./docs/superiority.md) | Runtime 切换、embedded/standalone 双模式、session 策略等项目优势                             |
 
@@ -50,6 +58,25 @@
 | `clean`              | 并行运行 server workspace 清理任务。                                                   |
 | `clean:cache`        | 删除 `dist`。                                                                          |
 | `clean:deps`         | 删除 `node_modules`。                                                                  |
+
+## 基础设施生命周期
+
+`apps/server` 的基础设施分成三层：
+
+| 层级               | 典型能力                                      | 生命周期                                                                            |
+| ------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Provider registry  | env、logger、HTTP client、Shopify SDK config  | 根据配置签名缓存，`disposeProviders()` 在 shutdown/test teardown 中清理             |
+| Runtime capability | database、bucket、queue、scheduler、file 能力 | runtime entry 注册，`disposeRuntimeCapabilities()` 按注册 disposer 释放             |
+| Module registry    | queue jobs、scheduler tasks、Shopify mode     | 模块 bootstrap 注册；重复注册是启动期不变量错误，测试可 reset/dispose 对应 registry |
+
+Node process 启动时会注册 capabilities、注册 jobs、启动 Hono server，再启动 queue
+consumer 和 scheduler。Cloudflare Worker 在 module 初始化时注册 capabilities 和
+jobs，`fetch`、`queue`、`scheduled` 三个 export 分别进入 HTTP、Queue batch 和 Cron
+Trigger 流程。
+
+process 侧 database/bucket/queue/scheduler 可以持有缓存连接或 worker；shutdown 时
+通过 capability disposer 释放。Cloudflare isolate 侧实现以 request/event binding
+为边界，目前 disposer 预留为 no-op。
 
 `shopify app dev` 会为 server web target 注入 `BACKEND_PORT`、`APP_URL`、`HOST`
 等运行期值。`cf:dev` 把 `BACKEND_PORT` 传给 Wrangler 的 `--port`，并通过

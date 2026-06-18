@@ -1,4 +1,7 @@
-import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
+import {
+  DEFAULT_APP_DATABASE_PROVIDERS,
+  DEFAULT_RUNTIMES,
+} from "@shamt/app-env";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
   setRuntimeCapability,
@@ -11,7 +14,13 @@ import {
 } from "@/infra/bucket";
 import { createDatabase, disposeDatabase } from "@/infra/database";
 import { setupIsolateLogger } from "@/infra/logger/isolate";
-import { createQueueProducer, disposeQueueProducer } from "@/infra/queue";
+import {
+  createQueueConsumer,
+  createQueueProducer,
+  disposeQueueConsumer,
+  disposeQueueProducer,
+} from "@/infra/queue";
+import { createScheduler, disposeScheduler } from "@/infra/scheduler";
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
   isCloudflareD1Database,
@@ -49,6 +58,16 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
     "queueProducerFactory",
     (c) => getQueueProducer(c),
     disposeQueueProducerCapability,
+  );
+  setRuntimeCapability(
+    "queueConsumerFactory",
+    (config) => createQueueConsumer(config),
+    disposeQueueConsumerCapability,
+  );
+  setRuntimeCapability(
+    "schedulerFactory",
+    (config) => createScheduler(config),
+    disposeSchedulerCapability,
   );
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
@@ -150,21 +169,35 @@ function requireConfiguredCloudflareBinding<T>(
  * Disposes isolate database infrastructure when one is cached.
  */
 function disposeDatabaseCapability() {
-  return disposeDatabase({ APP_RUNTIME: "cloudflare" });
+  return disposeDatabase({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
 }
 
 /**
  * Disposes isolate bucket infrastructure when one is cached.
  */
 function disposeBucketCapability() {
-  return disposeBucket({ APP_RUNTIME: "cloudflare" });
+  return disposeBucket({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
 }
 
 /**
  * Disposes isolate queue infrastructure when one is cached.
  */
 function disposeQueueProducerCapability() {
-  return disposeQueueProducer({ APP_RUNTIME: "cloudflare" });
+  return disposeQueueProducer({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+}
+
+/**
+ * Disposes isolate queue consumer infrastructure when one is cached.
+ */
+function disposeQueueConsumerCapability() {
+  return disposeQueueConsumer({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+}
+
+/**
+ * Disposes isolate scheduler infrastructure when one is cached.
+ */
+function disposeSchedulerCapability() {
+  return disposeScheduler({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
 }
 
 /**

@@ -70,6 +70,19 @@ region: auto
 forcePathStyle: true
 ```
 
+对应实现文件：
+
+```text
+apps/server/src/infra/bucket/process.s3-compatible.ts
+apps/server/src/infra/bucket/process.ts
+apps/server/src/infra/bucket/isolate.ts
+```
+
+`infra/bucket/index.ts` 使用 `PROCESS_BUCKET_MODULE = "./process"` 和
+`ISOLATE_BUCKET_MODULE = "./isolate"` 动态 import runtime 实现，并提供
+`disposeBucket(...)`。process bucket 可以缓存 adapter；isolate bucket 当前是
+request-bound，disposer 是 no-op。
+
 Node + R2 必需 env：
 
 | Env                         | 说明                              |
@@ -77,11 +90,15 @@ Node + R2 必需 env：
 | `APP_BUCKET_R2_URL`         | 带 bucket path 的 S3 endpoint URL |
 | `APP_CLOUDFLARE_USER_TOKEN` | 个人 token                        |
 
-使用 APP_CLOUDFLARE_USER_TOKEN + verify api 的方式获取 accessid、accesskey，详情参考：
+使用 `APP_CLOUDFLARE_USER_TOKEN` + Cloudflare token verify API 的方式获取
+access id，并用 token hash 作为 secret access key。verify 请求通过
+`getCloudflareTokenId(config, token)` 发起，内部使用 `getClientProvider(config)`；
+`@shamt/oh-my-fetch` 在传入绝对 URL 时会绕过 client prefix/base URL，因此不会被
+`APP_API_PREFIX` 影响。详情参考：
 
 <https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token>
 
-`APP_BUCKET_R2_URL` 在 path 中包含 bucket name（默认为 bucket）：
+`APP_BUCKET_R2_URL` 必须在 path 中包含 bucket name：
 
 ```text
 https://<account-id>.r2.cloudflarestorage.com/<bucket-name>
@@ -129,7 +146,7 @@ bucket 会接收一个 runtime-specific upload body adapter：
 
 - Node + R2 当前返回 S3-compatible endpoint 的短期签名 URL。
 - Cloudflare + R2 当前返回 Worker stream response。后续如果要改为 custom-domain signed URL，应单独实现 Cloudflare 侧签名策略。
-- 生命周期清理不在这里实现。后续 pg-boss 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
+- bucket adapter 生命周期由 `disposeBucket(...)` 管理；业务对象生命周期清理不在这里实现，后续 pg-boss 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
 
 ## 测试
 

@@ -3,6 +3,7 @@ import { internalServerError } from "@/shared/exceptions";
 import { consumeQueueBatch } from "./consumer";
 import {
   getQueueEnvConfig,
+  type QueueConsumer,
   type QueueEnqueueOptions,
   type QueueMessage,
   type QueueProducer,
@@ -32,6 +33,41 @@ export function createIsolateQueueProducer(
     details: strategy,
     expose: true,
   });
+}
+
+/**
+ * Reserved disposer for isolate queue producers.
+ * Current Cloudflare Queue producers are request-bound.
+ */
+export function disposeIsolateQueueProducer() {
+  return Promise.resolve();
+}
+
+export function createIsolateQueueConsumer(
+  config: RuntimeConfig,
+): QueueConsumer<MessageBatch<unknown>> {
+  const strategy = getQueueEnvConfig(config);
+
+  if (strategy.provider === DEFAULT_APP_QUEUE_PROVIDERS.QUEUES) {
+    return {
+      consume: consumeCloudflareQueueBatch,
+      start: () => Promise.resolve(),
+      stop: () => Promise.resolve(),
+    };
+  }
+
+  throw internalServerError("Isolate runtime does not support queue provider", {
+    details: strategy,
+    expose: true,
+  });
+}
+
+/**
+ * Reserved disposer for isolate queue consumers.
+ * Current Cloudflare Queue consumers are event-scoped.
+ */
+export function disposeIsolateQueueConsumer(): Promise<void> {
+  return Promise.resolve();
 }
 
 export class CloudflareQueueProducer implements QueueProducer {

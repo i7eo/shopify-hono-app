@@ -1,3 +1,4 @@
+import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
 import type { DEFAULT_SHOPIFY_APP_MODES_VALUES } from "@shamt/app-env";
 import type { Session, Shopify } from "@shopify/shopify-api";
@@ -37,7 +38,12 @@ export function getShopifyModeCapabilities(
   const capabilities = shopifyModeCapabilities.get(mode);
 
   if (!capabilities) {
-    throw new Error(`Shopify app mode is not registered: ${mode}`);
+    throw internalServerError(`Shopify app mode is not registered: ${mode}`, {
+      details: {
+        mode,
+      },
+      expose: true,
+    });
   }
 
   return capabilities;
