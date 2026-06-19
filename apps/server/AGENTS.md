@@ -39,7 +39,8 @@
 ## Documentation
 
 - Update `apps/server/README.md` or `apps/server/docs/*` when runtime, env, deployment, Shopify, queue, scheduler, database, bucket, file, or error behavior changes.
-- Put server-specific ADRs under `apps/server/docs/adr/`.
+- Put server-specific decisions and task-oriented guides under `apps/server/docs/guides/`.
+- Put descriptive reference material, explanations, and usage manuals under `apps/server/docs/reference/`.
 - Put server-specific notes or backlog under `apps/server/docs/notes/`.
 - Keep docs factual and current; remove obsolete design drafts instead of preserving stale alternatives.
 

@@ -20,20 +20,20 @@
 
 ## 文档导航
 
-| 文档                                    | 内容边界                                                                                     |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [runtime.md](./docs/runtime.md)         | Runtime 支持状态、入口、capability、构建产物、OpenAPI 注册策略                               |
-| [env.md](./docs/env.md)                 | Env 来源、request binding 合并、schema 分发、provider 缓存                                   |
-| [logger.md](./docs/logger.md)           | Bootstrap/runtime logger、process/isolate sink、错误日志入口                                 |
-| [error.md](./docs/error.md)             | `AppError`、错误工厂、响应格式、生产环境暴露策略                                             |
-| [shopify.md](./docs/shopify.md)         | Shopify app mode、App Shell、OAuth、account/session、Admin middleware、webhook、resource API |
-| [queue.md](./docs/queue.md)             | Queue provider 矩阵、job registry、producer/consumer 生命周期、Cloudflare Queues 行为        |
-| [scheduler.md](./docs/scheduler.md)     | Scheduler provider 矩阵、task registry、Node pg-boss schedule、Cloudflare Cron Triggers      |
-| [database.md](./docs/database.md)       | PostgreSQL、D1 HTTP、D1 binding、Hyperdrive 的 runtime-aware database 实现                   |
-| [bucket.md](./docs/bucket.md)           | Memory/R2 bucket、Node S3-compatible、Cloudflare R2 binding、下载策略                        |
-| [file.md](./docs/file.md)               | 文件上传、元数据、bucket key、下载/删除、runtime capability 使用                             |
-| [technique.md](./docs/technique.md)     | DI、env 合并、binding 强校验、logger reset、import graph 隔离等架构技巧                      |
-| [superiority.md](./docs/superiority.md) | Runtime 切换、embedded/standalone 双模式、session 策略等项目优势                             |
+| 文档                                              | 内容边界                                                                                     |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [runtime.md](./docs/reference/runtime.md)         | Runtime 支持状态、入口、capability、构建产物、OpenAPI 注册策略                               |
+| [env.md](./docs/reference/env.md)                 | Env 来源、request binding 合并、schema 分发、provider 缓存                                   |
+| [logger.md](./docs/reference/logger.md)           | Bootstrap/runtime logger、process/isolate sink、错误日志入口                                 |
+| [error.md](./docs/reference/error.md)             | `AppError`、错误工厂、响应格式、生产环境暴露策略                                             |
+| [shopify.md](./docs/reference/shopify.md)         | Shopify app mode、App Shell、OAuth、account/session、Admin middleware、webhook、resource API |
+| [queue.md](./docs/reference/queue.md)             | Queue provider 矩阵、job registry、producer/consumer 生命周期、Cloudflare Queues 行为        |
+| [scheduler.md](./docs/reference/scheduler.md)     | Scheduler provider 矩阵、task registry、Node pg-boss schedule、Cloudflare Cron Triggers      |
+| [database.md](./docs/reference/database.md)       | PostgreSQL、D1 HTTP、D1 binding、Hyperdrive 的 runtime-aware database 实现                   |
+| [bucket.md](./docs/reference/bucket.md)           | Memory/R2 bucket、Node S3-compatible、Cloudflare R2 binding、下载策略                        |
+| [file.md](./docs/reference/file.md)               | 文件上传、元数据、bucket key、下载/删除、runtime capability 使用                             |
+| [technique.md](./docs/reference/technique.md)     | DI、env 合并、binding 强校验、logger reset、import graph 隔离等架构技巧                      |
+| [superiority.md](./docs/reference/superiority.md) | Runtime 切换、embedded/standalone 双模式、session 策略等项目优势                             |
 
 ## 常用命令
 
@@ -118,6 +118,6 @@ pnpm --dir apps/server run node:deploy
 ## 维护原则
 
 1. 文档只记录当前代码事实，不保留过期设计草案。
-2. Shopify app-flow 和 Admin API 访问能力写在 [shopify.md](./docs/shopify.md)，runtime/build 细节写在 [runtime.md](./docs/runtime.md)。
+2. Shopify app-flow 和 Admin API 访问能力写在 [shopify.md](./docs/reference/shopify.md)，runtime/build 细节写在 [runtime.md](./docs/reference/runtime.md)。
 3. Env、Logger、Error 各自只说明自己的基础设施边界。
 4. 如果某个说明已经有专门文档，其他文档只简要介绍并链接过去。

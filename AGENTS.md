@@ -15,7 +15,7 @@
 - `apps/document`: VitePress documentation app.
 - `packages/*`: Reusable workspace libraries. Keep them runtime-aware only when their package purpose explicitly requires it.
 - `scripts/*`: Root tooling for generated Shopify, Wrangler, tunnel, and deployment files.
-- `docs/*`: Repository-level notes, ADRs, and cross-package documentation.
+- `docs/*`: Repository-level guides, reference material, notes, and cross-package documentation.
 
 ## Codex Surface Rules
 
@@ -58,7 +58,8 @@
 - `apps/*` READMEs must follow application usage style: purpose, local development, env, commands, runtime behavior, deployment, and troubleshooting.
 - Before a user-requested push or release-prep workflow, update or generate English and Chinese README files when package behavior changed.
 - Use `README.md` for English and `README.zh-CN.md` for Chinese when both are present.
-- Store repository-level decisions in `docs/adr/`; store package or app-specific decisions under that workspace's `docs/adr/`.
+- Store repository-level decisions and task-oriented documentation in `docs/guides/`; store package or app-specific guide material under that workspace's `docs/guides/`.
+- Store descriptions, explanations, and usage manuals in `docs/reference/` or the closest workspace `docs/reference/`.
 - Store ongoing notes or backlog items in `docs/notes/` or the closest workspace `docs/notes/`.
 
 ## Shopify Polaris Web Components

@@ -177,7 +177,7 @@ Cloudflare dev reads runtime values from `.env.development` via Wrangler's
 `--env-file`; production deploy bulk-loads `.env.production` into the selected
 Wrangler environment before `wrangler deploy`.
 
-See [`apps/server/docs/wrangler.md`](./apps/server/docs/wrangler.md) for the
+See [`apps/server/docs/reference/wrangler.md`](./apps/server/docs/reference/wrangler.md) for the
 generation matrix and implementation details.
 
 `scripts/write-shopify-file` deletes existing `shopify.web.toml` files first,
