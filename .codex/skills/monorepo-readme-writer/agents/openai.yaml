@@ -1,3 +1,0 @@
-interface:
-  display_name: "Monorepo README Writer"
-  short_description: "Write linked root and package READMEs for monorepos"

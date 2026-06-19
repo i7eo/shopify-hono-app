@@ -2,72 +2,148 @@
 
 ## Stack
 
-- **Runtime:** Cloudflare Workers
-- **Framework:** Hono (TypeScript)
-- **Platform:** Shopify embedded app
-- **Session storage:** D1 or Hyperdrive PostgreSQL
+- Runtime: Cloudflare Workers and Node process runtime, selected by env.
+- Framework: Hono with TypeScript.
+- Platform: Shopify embedded or standalone app.
+- Package manager: pnpm workspace.
+- Session storage: D1 or Hyperdrive/PostgreSQL through app-owned runtime adapters.
 
-## UI: Polaris Web Components
+## Repository Layout
 
-All admin UI in this project **must** use Shopify Polaris web components. Do not use custom CSS, HTML elements, or other UI libraries for the admin interface.
+- `apps/server`: Hono server, Shopify auth, webhooks, Admin API routes, runtime adapters, and infrastructure capabilities.
+- `apps/web`: Vite/React frontend target for Shopify app UI.
+- `apps/document`: VitePress documentation app.
+- `packages/*`: Reusable workspace libraries. Keep them runtime-aware only when their package purpose explicitly requires it.
+- `scripts/*`: Root tooling for generated Shopify, Wrangler, tunnel, and deployment files.
+- `docs/*`: Repository-level notes, ADRs, and cross-package documentation.
 
-### Setup
+## Codex Surface Rules
 
-The app shell includes two script tags in the `<head>`:
+- Put durable project rules in `AGENTS.md` files. Put one-off constraints in the prompt.
+- Put reusable workflows in `.agents/skills/*/SKILL.md`.
+- Put project-scoped Codex settings in `.codex/config.toml`; do not put engineering rules there.
+- Add closer `AGENTS.md` files when a package or app needs stricter local rules. Closer files override or refine this root file.
+
+## Monorepo Coding Rules
+
+- Prefer existing workspace packages, helpers, types, and patterns before introducing new logic.
+- Avoid duplicating behavior that already exists in `packages/*`; extract shared logic when duplication appears more than once.
+- Follow the referenced folder's architecture, naming, file layout, validation style, error handling style, export shape, tests, and documentation style when the user asks to reference or borrow from a folder.
+- Prefer established local patterns and high-performance implementations.
+- Large rewrites are acceptable when they meaningfully improve correctness, performance, maintainability, or pattern consistency.
+- Before large rewrites, inspect call sites, public API boundaries, tests, and runtime constraints. Preserve behavior unless a breaking change is explicitly intended.
+- Keep code dependency direction clear: low-level shared packages must not import apps or runtime-specific infrastructure.
+- Use structured parsers and typed APIs instead of ad hoc string manipulation when practical.
+
+## Type And Utility Organization
+
+- Put reusable public types, interfaces, declarations, and shared type aliases in `types.ts`.
+- Put reusable package-local implementation helpers in `utils.ts` when they are used by multiple files or represent stable shared behavior.
+- Keep one-off feature-local helpers close to their caller.
+- Keep constants in `constants.ts` or `constants/` when they are part of a package API or repeated local pattern.
+- Export through package or folder `index.ts` files according to the existing package style.
+
+## Documentation Comments
+
+- Add JSDoc/TSDoc for exported functions, classes, types, clients, adapters, and public package APIs.
+- Add comments for important or complex internal logic only when the reason is not obvious from the code.
+- Avoid comments that merely restate the implementation.
+- For `packages/*`, public APIs should include `@example` when usage is not trivial.
+- For complex library behavior, include a realistic TypeScript example in either JSDoc `@example` or the package README.
+
+## README And Docs
+
+- Keep root README navigational and architectural.
+- `packages/*` READMEs must follow library documentation style: purpose, installation/import, public API, usage examples, gotchas, and runtime notes.
+- `apps/*` READMEs must follow application usage style: purpose, local development, env, commands, runtime behavior, deployment, and troubleshooting.
+- Before a user-requested push or release-prep workflow, update or generate English and Chinese README files when package behavior changed.
+- Use `README.md` for English and `README.zh-CN.md` for Chinese when both are present.
+- Store repository-level decisions in `docs/adr/`; store package or app-specific decisions under that workspace's `docs/adr/`.
+- Store ongoing notes or backlog items in `docs/notes/` or the closest workspace `docs/notes/`.
+
+## Shopify Polaris Web Components
+
+All admin UI in this project must use Shopify Polaris web components. Do not use custom CSS, raw HTML UI, or other UI libraries for Shopify admin interfaces.
+
+The app shell includes these script tags in the `<head>`:
 
 ```html
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
 <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
 ```
 
-### Key rules
+Rules:
 
-- Use `<s-page>` as the top-level layout component. It provides global padding, background color, and spacing.
-- Use `<s-section>` for content areas within a page. It provides opinionated vertical spacing to children.
-- Do **not** use custom CSS to style Polaris components. They have built-in styling that follows the Shopify admin design system.
-- Do **not** use `<s-stack>` or `<s-grid>` as children of `<s-section>` unless building a complex layout — `<s-section>` provides default vertical spacing.
-- Use `<s-banner>` for error/success/info messages (with `tone="critical"`, `tone="success"`, `tone="info"`).
+- Use `<s-page>` as the top-level layout component.
+- Use `<s-section>` for content areas within a page.
+- Do not use custom CSS to style Polaris components.
+- Do not use `<s-stack>` or `<s-grid>` as direct children of `<s-section>` unless the layout is genuinely complex.
+- Use `<s-banner>` for error, success, and info messages.
 - Use `<s-spinner>` for loading states.
-- Use `<s-text>` for text content (`type="strong"` for bold, `color="subdued"` for secondary text).
-- All user-facing strings injected into component HTML must be escaped to prevent XSS.
+- Use `<s-text>` for text content, including `type="strong"` and `color="subdued"` where appropriate.
+- Escape all user-facing strings injected into component HTML.
+- When generating Polaris web component code and the `validate_component_codeblocks` MCP tool is available, validate with `api: "polaris-app-home"`.
 
-### Common components
+Common components:
 
-| Component                                 | Use for                                                    |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| `<s-page>`                                | Top-level page layout with heading                         |
-| `<s-section>`                             | Content sections within a page                             |
-| `<s-box>`                                 | Custom padding, background, border                         |
-| `<s-text>`                                | Inline text with type/color variants                       |
-| `<s-heading>`                             | Section headings (auto-sizes by nesting depth)             |
-| `<s-banner>`                              | Alerts, errors, info messages                              |
-| `<s-button>`                              | Actions (`variant="primary"`, `"secondary"`, `"tertiary"`) |
-| `<s-spinner>`                             | Loading indicators                                         |
-| `<s-table>`                               | Data tables                                                |
-| `<s-unordered-list>` / `<s-ordered-list>` | Lists                                                      |
-| `<s-badge>`                               | Status indicators                                          |
-| `<s-modal>`                               | Dialogs                                                    |
-| `<s-text-field>`                          | Text inputs                                                |
-| `<s-select>`                              | Dropdowns                                                  |
-| `<s-stack>`                               | Flex layout (inline/block with gap)                        |
-| `<s-grid>`                                | Grid layout                                                |
+| Component                                 | Use for                            |
+| ----------------------------------------- | ---------------------------------- |
+| `<s-page>`                                | Top-level page layout with heading |
+| `<s-section>`                             | Content sections within a page     |
+| `<s-box>`                                 | Custom padding, background, border |
+| `<s-text>`                                | Inline text with variants          |
+| `<s-heading>`                             | Section headings                   |
+| `<s-banner>`                              | Alerts and messages                |
+| `<s-button>`                              | Actions                            |
+| `<s-spinner>`                             | Loading indicators                 |
+| `<s-table>`                               | Data tables                        |
+| `<s-unordered-list>` / `<s-ordered-list>` | Lists                              |
+| `<s-badge>`                               | Status indicators                  |
+| `<s-modal>`                               | Dialogs                            |
+| `<s-text-field>`                          | Text inputs                        |
+| `<s-select>`                              | Dropdowns                          |
+| `<s-stack>`                               | Flex layout                        |
+| `<s-grid>`                                | Grid layout                        |
 
-### Scale system
+## Generated Files And Secrets
 
-Polaris uses a middle-out scale: `small-300` < `small-200` < `small` < `base` < `large` < `large-200` < `large-300`. This applies to `padding`, `gap`, `size`, etc.
+- Do not commit secrets or print secret values in final answers.
+- Treat `.env.*`, `.dev.vars`, Shopify secrets, Cloudflare tokens, Redis credentials, database URLs, and private keys as sensitive.
+- Do not hand-edit generated Shopify or Wrangler files unless the user explicitly asks for generated-output debugging.
+- Root prepare scripts own generated Shopify and Wrangler config.
+- D1 local data lives under `.wrangler/`; do not delete it unless explicitly asked.
 
-### Validation
+## Development Commands
 
-When generating Polaris web component code, use the `validate_component_codeblocks` MCP tool with `api: "polaris-app-home"` to check component names and props are valid.
+- Install: `pnpm install`
+- Prepare local generated config: `pnpm dev:prepare`
+- Local Shopify development: `pnpm dev`
+- Fixed tunnel development: `pnpm dev:tunnel`
+- Prepare deploy config: `pnpm deploy:prepare`
+- Deploy: `pnpm deploy`
+- Workspace lint: `pnpm lint`
+- Workspace format: `pnpm format`
 
-### Reference
+Prefer package-scoped commands for focused work, for example:
 
-- Components: https://shopify.dev/docs/api/app-home
-- Using Polaris web components: https://shopify.dev/docs/api/app-home/using-polaris-components
-- Patterns: https://shopify.dev/docs/api/app-home/patterns
+```bash
+pnpm -F @shamt/server test
+pnpm -F @shamt/server lint
+pnpm -F @shamt/web build
+pnpm -F @shamt/cache test
+```
 
-## Development
+## Verification
 
-- Run `shopify app dev` to start (it launches Wrangler automatically via `shopify.web.toml`)
-- Secrets are in `.dev.vars` (not committed)
-- D1 data is stored locally in `.wrangler/` during dev; Hyperdrive local dev uses `localConnectionString`
+- Run the narrowest relevant lint, test, type, or build command before claiming work is complete.
+- For package code changes, run that package's test or build script when present.
+- For `apps/server`, prefer focused Vitest coverage for runtime, infra, middleware, and Shopify behavior.
+- For `apps/web`, verify build or test when changing routing, env injection, API clients, or UI behavior.
+- For documentation-only changes, inspect the rendered Markdown structure mentally or with file reads; tests are not required unless docs generation scripts changed.
+
+## User Workflow Preferences
+
+- The user may add mid-task notes. Treat messages prefixed with "旁注", "补充约束", "记忆点", or "后续 TODO" as additive context unless they explicitly say to pause.
+- If the user says "暂停", stop implementation and reassess.
+- If the user asks to "reference" or "borrow from" a folder, follow that folder's pattern closely and point out better best-practice alternatives before deviating.
+- Before push-oriented workflows, update docs, check comments/examples for public APIs, run relevant verification, and summarize what changed.
