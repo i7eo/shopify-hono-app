@@ -8,6 +8,13 @@
       "when": 1781597044127,
       "tag": "0000_wild_skreet",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781890300000,
+      "tag": "0001_product_exports_session",
+      "breakpoints": true
     }
   ]
 }

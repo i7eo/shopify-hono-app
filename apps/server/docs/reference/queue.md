@@ -126,11 +126,14 @@ type QueueEnqueueOptions = {
 
 ```ts
 interface QueueProducer {
-  enqueue(message: QueueMessage, options?: QueueEnqueueOptions): Promise<void>;
-  enqueueBatch(
+  enqueue: (
+    message: QueueMessage,
+    options?: QueueEnqueueOptions,
+  ) => Promise<void>;
+  enqueueBatch: (
     messages: QueueMessage[],
     options?: QueueEnqueueOptions,
-  ): Promise<void>;
+  ) => Promise<void>;
 }
 ```
 
@@ -195,9 +198,9 @@ Consumer 抽象统一由 `infra/queue` 创建，并通过 runtime capability 暴
 
 ```ts
 interface QueueConsumer {
-  consume(batch: unknown, context: QueueJobContext): Promise<void>;
-  start(context: QueueJobContext): Promise<void>;
-  stop(): Promise<void>;
+  consume: (batch: unknown, context: QueueJobContext) => Promise<void>;
+  start: (context: QueueJobContext) => Promise<void>;
+  stop: () => Promise<void>;
 }
 ```
 

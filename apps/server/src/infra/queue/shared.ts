@@ -134,5 +134,5 @@ export function getQueueJobName(
   strategy: Pick<QueueRuntimeStrategy, "name">,
   jobName: string,
 ): string {
-  return `${strategy.name}:${jobName}`;
+  return `${strategy.name}/${jobName}`;
 }

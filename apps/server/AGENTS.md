@@ -12,6 +12,23 @@
 - Resource APIs should live as independent modules under `src/app/modules/*`; do not put new business resource routes inside the Shopify app-flow module unless they are truly part of auth/app flow.
 - Normalize errors through the shared `AppError` pattern and existing Hono `onError` behavior.
 - Preserve fail-fast startup behavior for duplicate registry entries and invalid runtime invariants.
+- Business modules must support both Node process and Cloudflare isolate unless a capability boundary explicitly marks a runtime unsupported.
+- Runtime-specific APIs such as `process`, Node built-ins, `R2Bucket`, D1 bindings, Hyperdrive, Cloudflare Queues, pg-boss, or AWS SDK clients must stay in entrypoints, runtime capabilities, or `src/infra/*` adapters.
+- Shared app modules should depend on runtime capability contracts, app-owned stores, Web Fetch/Web Streams, and package-owned schemas/types instead of concrete runtime SDKs.
+
+## Package Ownership Rules
+
+- Database operations and database-backed schemas, types, enums, insert/select models, and status values must come from `@shamt/database` when that package provides them.
+- Env schemas, env types, runtime/provider constants, defaults, and parsing contracts must come from `@shamt/app-env` when that package provides them.
+- Before adding server-local schema, enum, or type definitions, check whether the concept belongs to `packages/database`, `packages/app-env`, or another semantic `packages/*` owner.
+- Server-local definitions are acceptable for HTTP transport, OpenAPI presentation, serialized response types, runtime capability contracts, or module-specific behavior that is not owned by a package.
+
+## Error Handling
+
+- Route handlers and lifecycle hooks must use the shared error normalization pipeline instead of branching around individual SDK error classes.
+- Normalize Shopify SDK errors through `normalizeShopifyError` and return the project `AppError`/JSON error model through the existing global error handler.
+- Do not special-case `InvalidWebhookError`, `InvalidHmacError`, or other Shopify SDK errors in route handlers or `onAppError` unless the shared normalizer cannot represent the behavior.
+- If extra SDK response data is needed, add it to `normalizeShopifyError` details instead of bypassing normalization.
 
 ## Shopify Rules
 

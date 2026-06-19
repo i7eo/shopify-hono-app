@@ -15,8 +15,6 @@ import { normalizeShopifyError } from "./shopify";
  * Use only from global error handling; business code should throw AppError helpers directly.
  */
 export function normalizeError(error: unknown): AppError {
-  if (error instanceof AppError) return error;
-
   const shopifyError = normalizeShopifyError(error);
   if (shopifyError) return shopifyError;
 
@@ -32,6 +30,8 @@ export function normalizeError(error: unknown): AppError {
       },
     });
   }
+
+  if (error instanceof AppError) return error;
 
   if (error instanceof HTTPException) {
     return new AppError({

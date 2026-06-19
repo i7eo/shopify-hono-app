@@ -12,7 +12,6 @@ import {
   type BucketStoredObject,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
-import type { Buffer } from "node:buffer";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 let processBucket: Promise<Bucket> | undefined;
@@ -41,10 +40,7 @@ export async function createProcessBucket(
   const strategy = getBucketEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
-    return new S3CompatibleBucket(
-      await getR2BucketConfig(config),
-      createLimitedNodeUploadBody,
-    );
+    return new S3CompatibleBucket(await getR2BucketConfig(config));
   }
 
   return new ProcessMemoryBucket(
@@ -196,48 +192,4 @@ function getProcessBucketCacheKey(config: RuntimeConfig): string {
   }
 
   return [strategy.provider, config.APP_FILE_DIR].join(":");
-}
-
-/**
- * Converts a Web stream into a Node stream while enforcing the max byte limit.
- */
-async function createLimitedNodeUploadBody(
-  stream: ReadableStream<Uint8Array>,
-  maxBytes: number,
-): Promise<{
-  getByteLength: () => number;
-  value: import("node:stream").Readable;
-}> {
-  const { Readable, Transform } = await import("node:stream");
-  let byteLength = 0;
-  const limiter = new Transform({
-    transform(chunk: Buffer, _encoding, callback) {
-      byteLength += chunk.byteLength;
-
-      if (byteLength > maxBytes) {
-        callback(createPayloadTooLargeError(maxBytes));
-        return;
-      }
-
-      callback(null, chunk);
-    },
-  });
-
-  return {
-    getByteLength: () => byteLength,
-    value: Readable.fromWeb(
-      stream as unknown as NodeReadableStream<Uint8Array>,
-    ).pipe(limiter),
-  };
-}
-
-/**
- * Creates the shared payload-too-large error used by streaming upload guards.
- */
-function createPayloadTooLargeError(maxBytes: number) {
-  return payloadTooLargeError("Upload request body overflow maxsize", {
-    details: {
-      maxSize: maxBytes,
-    },
-  });
 }

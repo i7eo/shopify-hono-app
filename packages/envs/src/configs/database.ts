@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const dataBaseSchema = z.object({
+export const databaseSchema = z.object({
   APP_DATABASE_URL: z.url().optional(),
 });
 
-export type DataBaseSchema = z.infer<typeof dataBaseSchema>;
+export type DatabaseSchema = z.infer<typeof databaseSchema>;

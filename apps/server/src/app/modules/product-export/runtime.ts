@@ -75,6 +75,29 @@ export async function createProductExportShopifyClient(
   return new shopify.clients.Graphql({ session });
 }
 
+export type ProductExportShopifyClientContext = {
+  client: ReturnType<typeof createProductExportGraphqlClient>;
+  session: Session;
+};
+
+/**
+ * Creates a Shopify Admin GraphQL client together with the offline session that
+ * owns background product-export work.
+ */
+export async function createProductExportShopifyClientContext(
+  config: RuntimeConfig,
+  database: Database,
+  shopDomain: string,
+): Promise<ProductExportShopifyClientContext> {
+  const shopify = await getShopifyConfigProvider(config);
+  const session = await loadOfflineSession(config, database, shopDomain);
+
+  return {
+    client: createProductExportGraphqlClient(shopify, session),
+    session,
+  };
+}
+
 /**
  * Loads an active offline Admin session for background jobs.
  */
@@ -86,13 +109,12 @@ async function loadOfflineSession(
   const shopify = await getShopifyConfigProvider(config);
   const storage = createDatabaseShopifySessionStorage(database);
   const sessions = await storage.findSessionsByShop(shopDomain);
-  const session =
-    sessions.find(
-      (candidate) => !candidate.isOnline && candidate.accessToken,
-    ) ?? sessions.find((candidate) => candidate.accessToken);
+  const session = sessions.find(
+    (candidate) => !candidate.isOnline && candidate.accessToken,
+  );
 
   if (!session || !session.isActive(shopify.config.scopes)) {
-    throw unauthorizedError("No active Shopify Admin session found", {
+    throw unauthorizedError("No active offline Shopify Admin session found", {
       details: {
         shopDomain,
       },
@@ -100,4 +122,11 @@ async function loadOfflineSession(
   }
 
   return session;
+}
+
+function createProductExportGraphqlClient(
+  shopify: Awaited<ReturnType<typeof getShopifyConfigProvider>>,
+  session: Session,
+) {
+  return new shopify.clients.Graphql({ session });
 }

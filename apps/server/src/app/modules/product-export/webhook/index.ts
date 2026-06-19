@@ -25,12 +25,13 @@ type BulkOperationFinishWebhookPayload = {
 export async function handleProductExportBulkOperationFinishWebhook(
   c: Context<AppEnv>,
 ) {
-  const payload = parseBulkOperationFinishWebhookPayload(c.var.webhookPayload);
+  const webhook = c.var.webhook;
+  const payload = parseBulkOperationFinishWebhookPayload(webhook.payload);
   const logger = c.get("runtimeLogger");
 
   if (!payload) {
     logger.warn(
-      `Ignored bulk operation finish webhook with invalid payload from ${c.var.webhookShop}`,
+      `Ignored bulk operation finish webhook with invalid payload from ${webhook.shop}`,
     );
 
     return c.json(
@@ -49,14 +50,14 @@ export async function handleProductExportBulkOperationFinishWebhook(
     objectCount: readNullableNumber(payload.object_count),
     partialDataUrl: readNullableString(payload.partial_data_url),
     resultUrl: readNullableString(payload.url),
-    shopDomain: c.var.webhookShop,
+    shopDomain: webhook.shop,
     status: payload.status,
   });
 
   if (record) {
     await enqueueProductExportJob(c, PRODUCT_EXPORT_QUEUE_JOBS.BULK_FINISHED, {
       exportId: record.id,
-      shopDomain: record.shopDomain,
+      shopDomain: webhook.shop,
     });
   } else {
     logger.info(

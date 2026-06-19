@@ -31,35 +31,59 @@ export async function loadActiveShopifyOnlineSession(
 }
 
 /**
- * Exchanges the embedded session token for an online Admin API session.
+ * Loads the active offline session for background Shopify Admin work.
  */
-export async function exchangeShopifyOnlineSession(
+export async function loadActiveShopifyOfflineSession(
   c: Context<AppEnv>,
-): Promise<Session> {
-  const authHeader = c.req.header("Authorization");
-  const sessionToken = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : undefined;
-
-  if (!sessionToken) {
-    throw unauthorizedError("Missing or malformed Authorization header");
-  }
+): Promise<Session | undefined> {
+  const shopDomain = c.var.shopDomain;
+  if (!shopDomain) return undefined;
 
   const config = c.get("runtimeEnv");
   const shopify = await getShopifyConfigProvider(config);
-  const { session } = await shopify.auth.tokenExchange({
-    shop: c.var.shopDomain,
-    sessionToken,
-    requestedTokenType: RequestedTokenType.OnlineAccessToken,
-  });
+  const sessions = await (
+    await getShopifySessionStorage(c)
+  ).findSessionsByShop(shopDomain);
+  const session = sessions.find(
+    (candidate) => !candidate.isOnline && candidate.accessToken,
+  );
 
-  if (!session.accessToken) {
-    throw badGatewayError("Token exchange did not return an access token");
+  if (session?.isActive(shopify.config.scopes)) {
+    return session;
   }
 
-  await (await getShopifySessionStorage(c)).storeSession(session);
+  return undefined;
+}
 
-  return session;
+/**
+ * Exchanges the embedded session token for an online Admin API session.
+ */
+export function exchangeShopifyOnlineSession(
+  c: Context<AppEnv>,
+): Promise<Session> {
+  return exchangeShopifySession(c, RequestedTokenType.OnlineAccessToken);
+}
+
+/**
+ * Exchanges the embedded session token for an offline Admin API session.
+ */
+export function exchangeShopifyOfflineSession(
+  c: Context<AppEnv>,
+): Promise<Session> {
+  return exchangeShopifySession(c, RequestedTokenType.OfflineAccessToken);
+}
+
+/**
+ * Returns an active offline session, creating one through token exchange when
+ * the current embedded request does not have one yet.
+ */
+export async function ensureShopifyOfflineSession(
+  c: Context<AppEnv>,
+): Promise<Session> {
+  return (
+    (await loadActiveShopifyOfflineSession(c)) ??
+    (await exchangeShopifyOfflineSession(c))
+  );
 }
 
 /**
@@ -109,4 +133,34 @@ async function deleteCurrentShopifyOnlineSession(c: Context<AppEnv>) {
   await Promise.all(
     Array.from(sessionIds, (id) => sessionStorage.deleteSession(id)),
   );
+}
+
+async function exchangeShopifySession(
+  c: Context<AppEnv>,
+  requestedTokenType: RequestedTokenType,
+): Promise<Session> {
+  const authHeader = c.req.header("Authorization");
+  const sessionToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : undefined;
+
+  if (!sessionToken) {
+    throw unauthorizedError("Missing or malformed Authorization header");
+  }
+
+  const config = c.get("runtimeEnv");
+  const shopify = await getShopifyConfigProvider(config);
+  const { session } = await shopify.auth.tokenExchange({
+    shop: c.var.shopDomain,
+    sessionToken,
+    requestedTokenType,
+  });
+
+  if (!session.accessToken) {
+    throw badGatewayError("Token exchange did not return an access token");
+  }
+
+  await (await getShopifySessionStorage(c)).storeSession(session);
+
+  return session;
 }

@@ -1,6 +1,5 @@
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { badGatewayError } from "@/shared/exceptions";
-import { isCloudflareRuntime } from "../utils";
 import type { PRODUCT_EXPORT_QUEUE_JOBS } from "./constants";
 import type { QueueJobContext, QueueMessage } from "@/infra/queue";
 import type { AppEnv } from "@/typings";
@@ -71,14 +70,7 @@ export async function enqueueProductExportJobFromContext(
   name: ProductExportJobName,
   payload: ProductExportJobPayload | ProductExportReconcilePayload,
 ): Promise<void> {
-  const { createQueueProducer } = await import("@/infra/queue");
-  const producer = await createQueueProducer(context.runtimeEnv, {
-    queue: isCloudflareRuntime(context.runtimeEnv)
-      ? (context.bindings?.[context.runtimeEnv.APP_QUEUE_BINDING ?? ""] as
-          | Queue
-          | undefined)
-      : undefined,
-  });
+  const producer = await createQueueProducerFromContext(context);
 
   await producer.enqueue(createProductExportQueueMessage(name, payload), {
     idempotencyKey: createIdempotencyKey(name, payload),
@@ -96,14 +88,7 @@ export async function enqueueProductExportJobsFromContext(
 ): Promise<void> {
   if (payloads.length === 0) return;
 
-  const { createQueueProducer } = await import("@/infra/queue");
-  const producer = await createQueueProducer(context.runtimeEnv, {
-    queue: isCloudflareRuntime(context.runtimeEnv)
-      ? (context.bindings?.[context.runtimeEnv.APP_QUEUE_BINDING ?? ""] as
-          | Queue
-          | undefined)
-      : undefined,
-  });
+  const producer = await createQueueProducerFromContext(context);
 
   await producer.enqueueBatch(
     payloads.map((payload) => createProductExportQueueMessage(name, payload)),
@@ -111,6 +96,28 @@ export async function enqueueProductExportJobsFromContext(
       maxAttempts: context.runtimeEnv.APP_QUEUE_CONSUMER_MAX_RETRIES,
     },
   );
+}
+
+function createQueueProducerFromContext(context: QueueJobContext) {
+  const factory = getRuntimeCapability("queueProducerFactory");
+
+  if (!factory) {
+    throw badGatewayError(
+      "Runtime capability is not registered: queueProducerFactory",
+      {
+        expose: true,
+      },
+    );
+  }
+
+  return factory({
+    env: context.bindings ?? {},
+    get(key: string) {
+      if (key === "runtimeEnv") return context.runtimeEnv;
+      if (key === "runtimeLogger") return context.logger;
+      return;
+    },
+  } as Context<AppEnv>);
 }
 
 /**

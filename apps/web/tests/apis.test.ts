@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
+const deleteMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
 const extendMock = vi.hoisted(() =>
   vi.fn(() => ({
+    delete: deleteMock,
     get: getMock,
     post: postMock,
   })),
@@ -72,6 +74,7 @@ describe("shopify client", () => {
     toastMock.mockReset();
     getMock.mockReset();
     postMock.mockReset();
+    deleteMock.mockReset();
     isEmbeddedShopifyAppMock.mockReturnValue(false);
     isStandaloneShopifyAppModeMock.mockReturnValue(true);
     vi.spyOn(globalThis, "open").mockImplementation(() => null);
@@ -207,6 +210,8 @@ describe("shopify api", () => {
   beforeEach(() => {
     vi.resetModules();
     getMock.mockReset();
+    postMock.mockReset();
+    deleteMock.mockReset();
   });
 
   it("fetches shop info through the Shopify client", async () => {
@@ -241,6 +246,132 @@ describe("shopify api", () => {
       },
     });
     expect(getMock).toHaveBeenCalledWith("product", { signal });
+  });
+});
+
+describe("product export api", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    getMock.mockReset();
+    postMock.mockReset();
+    deleteMock.mockReset();
+  });
+
+  it("lists product exports through the Shopify client", async () => {
+    const { listProductExports } = await import("../src/apis/product-exports");
+    const signal = new AbortController().signal;
+    getMock.mockResolvedValueOnce({
+      data: { productExports: [], nextCursor: "next" },
+    });
+
+    await expect(
+      listProductExports(
+        { cursor: "cursor", limit: 20, status: "ready" },
+        signal,
+      ),
+    ).resolves.toEqual({
+      data: { productExports: [], nextCursor: "next" },
+    });
+    expect(getMock).toHaveBeenCalledWith("product-exports", {
+      query: { cursor: "cursor", limit: 20, status: "ready" },
+      signal,
+    });
+  });
+
+  it("creates product exports through the Shopify client", async () => {
+    const { createProductExport } = await import("../src/apis/product-exports");
+    const signal = new AbortController().signal;
+    const response = { data: { id: "export-1", name: "All products" } };
+    postMock.mockResolvedValueOnce(response);
+
+    await expect(
+      createProductExport({ name: "All products" }, signal),
+    ).resolves.toBe(response);
+    expect(postMock).toHaveBeenCalledWith(
+      "product-exports",
+      { name: "All products" },
+      { signal },
+    );
+  });
+
+  it("gets, deletes, resolves, and downloads one product export", async () => {
+    const {
+      deleteProductExport,
+      downloadProductExport,
+      getProductExport,
+      resolveProductExportDownload,
+    } = await import("../src/apis/product-exports");
+    const signal = new AbortController().signal;
+    const response = new Response("csv");
+    getMock.mockResolvedValueOnce({ data: { id: "export-1" } });
+    deleteMock.mockResolvedValueOnce(undefined);
+    getMock.mockResolvedValueOnce({
+      data: { type: "redirect", url: "https://signed.example.com/file.csv" },
+    });
+    getMock.mockResolvedValueOnce(response);
+
+    await expect(getProductExport("export-1", signal)).resolves.toEqual({
+      data: { id: "export-1" },
+    });
+    await expect(deleteProductExport("export-1", signal)).resolves.toBe(
+      undefined,
+    );
+    await expect(
+      resolveProductExportDownload("export-1", signal),
+    ).resolves.toEqual({
+      data: { type: "redirect", url: "https://signed.example.com/file.csv" },
+    });
+    await expect(downloadProductExport("export-1", signal)).resolves.toBe(
+      response,
+    );
+
+    expect(getMock).toHaveBeenNthCalledWith(1, "product-exports/export-1", {
+      signal,
+    });
+    expect(deleteMock).toHaveBeenCalledWith("product-exports/export-1", {
+      signal,
+    });
+    expect(getMock).toHaveBeenNthCalledWith(
+      2,
+      "product-exports/export-1/download",
+      {
+        headers: {
+          Accept: "application/json",
+        },
+        signal,
+      },
+    );
+    expect(getMock).toHaveBeenNthCalledWith(
+      3,
+      "product-exports/export-1/download",
+      {
+        responseType: "response",
+        signal,
+      },
+    );
+  });
+
+  it("starts redirect product export downloads without fetching the R2 URL as a blob", async () => {
+    const click = vi.fn();
+    const anchor = document.createElement("a");
+    vi.spyOn(anchor, "click").mockImplementation(click);
+    vi.spyOn(document, "createElement").mockReturnValue(anchor);
+    getMock.mockResolvedValueOnce({
+      data: { type: "redirect", url: "https://signed.example.com/file.csv" },
+    });
+
+    const { downloadProductExportFile } =
+      await import("../src/apis/product-exports");
+
+    await downloadProductExportFile({
+      id: "export-1",
+      name: "All products",
+    } as never);
+
+    expect(getMock).toHaveBeenCalledOnce();
+    expect(anchor.href).toBe("https://signed.example.com/file.csv");
+    expect(anchor.download).toBe("All products.csv");
+    expect(click).toHaveBeenCalledOnce();
   });
 });
 

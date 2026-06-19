@@ -115,14 +115,14 @@ Cloudflare + R2 不读取这些 S3 credential，而是在 runtime capability 使
 
 ## R2 下载
 
-Node + R2 download 使用 `S3CompatibleBucketDownloadSigner` 和 `@aws-sdk/s3-request-presigner` 生成短期 `GetObjectCommand` 签名 URL。签名 URL 默认由 file module 使用 `300000ms` TTL，并带上：
+R2 download 使用共享的 `R2SignedUrlDownloadSigner` 生成短期 SigV4 signed URL。Node + R2 与 Cloudflare + R2 共用同一套 Web Crypto 签名逻辑；Node 的上传、读取和删除仍通过 `@aws-sdk/client-s3` 访问 S3-compatible API，Cloudflare 的上传、读取和删除仍通过 R2 binding 访问平台内置能力。签名 URL 默认由 file module 使用 `300000ms` TTL，并带上：
 
 ```text
-ResponseContentType: <file.contentType>
-ResponseContentDisposition: attachment; filename*=UTF-8''<encoded originalName>
+response-content-type: <file.contentType>
+response-content-disposition: attachment; filename*=UTF-8''<encoded originalName>
 ```
 
-Cloudflare + R2 download 不生成 S3 signed URL，而是通过 R2 binding `get` 读取 object 并返回私有 stream response。响应仍由 file module 设置：
+没有 signed URL signer 的 provider 会 fallback 到私有 stream response。响应仍由 file module 设置：
 
 ```text
 Content-Type: <file.contentType>
@@ -144,8 +144,8 @@ bucket 会接收一个 runtime-specific upload body adapter：
 
 ## 当前边界
 
-- Node + R2 当前返回 S3-compatible endpoint 的短期签名 URL。
-- Cloudflare + R2 当前返回 Worker stream response。后续如果要改为 custom-domain signed URL，应单独实现 Cloudflare 侧签名策略。
+- Node + R2 与 Cloudflare + R2 当前都返回 S3-compatible endpoint 的短期签名 URL。
+- R2 custom domain signed download 尚未实现；当前签名 URL 使用 `APP_BUCKET_R2_URL` 解析出的 endpoint 与 bucket path。
 - bucket adapter 生命周期由 `disposeBucket(...)` 管理；业务对象生命周期清理不在这里实现，后续 pg-boss 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
 
 ## 测试

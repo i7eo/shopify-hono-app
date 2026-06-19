@@ -1,7 +1,9 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
-import { internalServerError, payloadTooLargeError } from "@/shared/exceptions";
+import { internalServerError } from "@/shared/exceptions";
 import {
   getBucketEnvConfig,
+  normalizeMultipartUploadPartSize,
+  readMultipartUploadParts,
   type Bucket,
   type BucketDeleteInput,
   type BucketOpenInput,
@@ -12,6 +14,7 @@ import {
 import type { RuntimeConfig } from "@/infra/env";
 
 export type IsolateBucketOptions = {
+  partSizeBytes?: number;
   r2?: R2Bucket;
 };
 
@@ -28,7 +31,9 @@ export function createIsolateBucket(
   const strategy = getBucketEnvConfig(config);
 
   if (strategy.provider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
-    return new CloudflareR2Bucket(requireR2Bucket(options.r2));
+    return new CloudflareR2Bucket(requireR2Bucket(options.r2), {
+      partSizeBytes: options.partSizeBytes,
+    });
   }
 
   throw internalServerError("Isolate runtime does not support memory bucket", {
@@ -49,12 +54,19 @@ export function disposeIsolateBucket() {
  * Stores bucket objects through a Cloudflare R2 binding in isolate runtimes.
  */
 export class CloudflareR2Bucket implements Bucket {
-  constructor(private readonly bucket: R2Bucket) {}
+  private readonly partSizeBytes: number;
+
+  constructor(
+    private readonly bucket: R2Bucket,
+    options: Pick<IsolateBucketOptions, "partSizeBytes"> = {},
+  ) {
+    this.partSizeBytes = normalizeMultipartUploadPartSize(
+      options.partSizeBytes,
+    );
+  }
 
   async put(input: BucketPutInput): Promise<BucketStoredObject> {
-    const body = createLimitedWebUploadBody(input.body, input.maxBytes);
-
-    await this.bucket.put(input.key, body.value, {
+    const upload = await this.bucket.createMultipartUpload(input.key, {
       customMetadata: {
         expiresAt: input.expiresAt.toISOString(),
         originalName: input.originalName,
@@ -65,9 +77,27 @@ export class CloudflareR2Bucket implements Bucket {
         contentType: input.contentType,
       },
     });
+    const parts: R2UploadedPart[] = [];
+    let byteSize = 0;
+
+    try {
+      for await (const part of readMultipartUploadParts(
+        input.body,
+        this.partSizeBytes,
+        input.maxBytes,
+      )) {
+        byteSize += part.bytes.byteLength;
+        parts.push(await upload.uploadPart(part.partNumber, part.bytes));
+      }
+
+      await upload.complete(parts);
+    } catch (error) {
+      await upload.abort().catch(() => undefined);
+      throw error;
+    }
 
     return {
-      byteSize: body.getByteLength(),
+      byteSize,
       key: input.key,
       provider: DEFAULT_APP_BUCKET_PROVIDERS.R2,
     };
@@ -106,38 +136,4 @@ function requireR2Bucket(bucket: R2Bucket | undefined): R2Bucket {
   }
 
   return bucket;
-}
-
-/**
- * Passes a Web stream through a byte-counting TransformStream for isolates.
- */
-function createLimitedWebUploadBody(
-  stream: ReadableStream<Uint8Array>,
-  maxBytes: number,
-): {
-  getByteLength: () => number;
-  value: ReadableStream<Uint8Array>;
-} {
-  let byteLength = 0;
-
-  return {
-    getByteLength: () => byteLength,
-    value: stream.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          byteLength += chunk.byteLength;
-
-          if (byteLength > maxBytes) {
-            throw payloadTooLargeError("Upload request body overflow maxsize", {
-              details: {
-                maxSize: maxBytes,
-              },
-            });
-          }
-
-          controller.enqueue(chunk);
-        },
-      }),
-    ),
-  };
 }

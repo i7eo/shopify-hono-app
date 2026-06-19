@@ -141,3 +141,63 @@ describe("scheduler registry", () => {
     });
   });
 });
+
+describe("process scheduler", () => {
+  afterEach(() => {
+    vi.doUnmock("pg-boss");
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("creates pg-boss queues before scheduling tasks", async () => {
+    const calls: string[] = [];
+    const boss = {
+      createQueue: vi.fn((name: string) => {
+        calls.push(`createQueue:${name}`);
+        return Promise.resolve();
+      }),
+      offWork: vi.fn(),
+      schedule: vi.fn((name: string) => {
+        calls.push(`schedule:${name}`);
+        return Promise.resolve();
+      }),
+      start: vi.fn(),
+      stop: vi.fn(),
+      work: vi.fn((name: string) => {
+        calls.push(`work:${name}`);
+        return Promise.resolve();
+      }),
+    };
+
+    vi.doMock("pg-boss", () => ({
+      PgBoss: vi.fn(function PgBoss() {
+        return boss;
+      }),
+    }));
+
+    const { registerSchedulerTask, resetSchedulerTasks } =
+      await import("@/infra/scheduler/registry");
+    const { createProcessScheduler } =
+      await import("@/infra/scheduler/process");
+
+    resetSchedulerTasks();
+    registerSchedulerTask({
+      cron: "*/5 * * * *",
+      handler: vi.fn(),
+      name: "test.five",
+    });
+
+    const scheduler = await createProcessScheduler({
+      APP_DATABASE_PROVIDER: "postgres",
+      APP_DATABASE_URL: "postgres://example.test/app",
+      APP_RUNTIME: "node",
+    } as any);
+
+    await scheduler.start(context);
+
+    expect(boss.createQueue).toHaveBeenCalledWith("test.five");
+    expect(calls.indexOf("createQueue:test.five")).toBeLessThan(
+      calls.indexOf("schedule:test.five"),
+    );
+  });
+});

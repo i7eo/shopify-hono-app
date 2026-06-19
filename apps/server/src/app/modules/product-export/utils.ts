@@ -158,11 +158,106 @@ export function jsonlToCsv(lines: string[]): string {
   return lines.map((line) => productToCsvLine(JSON.parse(line))).join("");
 }
 
+export type ProductExportCsvPartStreamResult = {
+  body: ReadableStream<Uint8Array>;
+  getRowCount: () => number;
+};
+
+/**
+ * Streams Shopify JSONL bytes into CSV rows for one product-export part.
+ *
+ * The transform only buffers the current incomplete JSONL line. Completed rows
+ * are emitted immediately, so large parts do not need `response.text()`.
+ */
+export function createProductExportCsvPartStream(
+  jsonlStream: ReadableStream<Uint8Array>,
+  part: ProductExportPartRecord,
+): ProductExportCsvPartStreamResult {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const reader = jsonlStream.getReader();
+  let buffer = new Uint8Array(0);
+  let offset = part.rangeStart;
+  let rowCount = 0;
+
+  return {
+    body: new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        while (true) {
+          const newlineIndex = buffer.indexOf(10);
+          if (newlineIndex !== -1) {
+            const lineStart = offset;
+            const lineBytes = buffer.subarray(0, newlineIndex);
+            buffer = buffer.subarray(newlineIndex + 1);
+            offset += newlineIndex + 1;
+            const line = decoder.decode(lineBytes);
+
+            if (isLineInPartWindow(line, lineStart, part)) {
+              rowCount += 1;
+              controller.enqueue(
+                encoder.encode(productToCsvLine(JSON.parse(line))),
+              );
+              return;
+            }
+
+            continue;
+          }
+
+          const { done, value } = await reader.read();
+          if (done) {
+            controller.close();
+            return;
+          }
+
+          buffer = concatBytes(buffer, value);
+        }
+      },
+      async cancel(reason) {
+        await reader.cancel(reason).catch(() => undefined);
+      },
+    }),
+    getRowCount: () => rowCount,
+  };
+}
+
+function concatBytes(
+  left: Uint8Array<ArrayBufferLike>,
+  right: Uint8Array<ArrayBufferLike>,
+): Uint8Array<ArrayBuffer> {
+  if (left.byteLength === 0) return new Uint8Array(right);
+  const output = new Uint8Array(left.byteLength + right.byteLength);
+  output.set(left);
+  output.set(right, left.byteLength);
+  return output;
+}
+
+export async function readProductExportCsvPartResult(
+  result: ProductExportCsvPartStreamResult,
+): Promise<{ body: ReadableStream<Uint8Array>; rowCount: number }> {
+  const bytes = await new Response(result.body).arrayBuffer();
+
+  return {
+    body: new Response(bytes).body!,
+    rowCount: result.getRowCount(),
+  };
+}
+
 /**
  * Counts non-empty CSV rows in a part.
  */
 export function countCsvRows(csv: string): number {
   return csv.length === 0 ? 0 : csv.split("\n").filter(Boolean).length;
+}
+
+function isLineInPartWindow(
+  line: string,
+  lineStart: number,
+  part: ProductExportPartRecord,
+): boolean {
+  const nominalStart = part.seq * PRODUCT_EXPORT_JSONL_CHUNK_BYTES;
+  const nominalEnd = nominalStart + PRODUCT_EXPORT_JSONL_CHUNK_BYTES;
+
+  return line.length > 0 && lineStart >= nominalStart && lineStart < nominalEnd;
 }
 
 /**

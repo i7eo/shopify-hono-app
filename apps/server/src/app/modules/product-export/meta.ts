@@ -4,6 +4,7 @@ import { ErrorSchema, ResponseSchema } from "@/shared/models";
 import { apiPath, tags } from "./constants";
 import {
   CreateProductExportBodySchema,
+  ProductExportDownloadTargetSchema,
   ProductExportIdParamsSchema,
   ProductExportListQuerySchema,
   ProductExportListSchema,
@@ -98,6 +99,42 @@ export const getProductExportRoute = createRoute({
     },
     404: {
       description: "Product export not found.",
+      content: {
+        "application/json": {
+          schema: ErrorSchema(z.null()),
+        },
+      },
+    },
+  },
+});
+
+export const downloadProductExportRoute = createRoute({
+  method: "get",
+  path: `${apiPath}/{id}/download`,
+  middleware: [shopifyAdminSession()] as const,
+  tags,
+  summary: "Download product export",
+  description: "Download the generated CSV for a ready product export.",
+  request: {
+    params: ProductExportIdParamsSchema,
+  },
+  responses: {
+    200: {
+      description: "Product export CSV.",
+      content: {
+        "application/json": {
+          schema: ResponseSchema(ProductExportDownloadTargetSchema),
+        },
+        "text/csv": {
+          schema: z.string().openapi({ format: "binary" }),
+        },
+      },
+    },
+    302: {
+      description: "Redirect to a short-lived product export CSV URL.",
+    },
+    404: {
+      description: "Product export file not found.",
       content: {
         "application/json": {
           schema: ErrorSchema(z.null()),

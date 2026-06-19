@@ -1,6 +1,6 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS, DEFAULT_RUNTIMES } from "@shamt/app-env";
 import { sha256Hex } from "@shamt/utils";
-import { internalServerError } from "@/shared/exceptions";
+import { internalServerError, payloadTooLargeError } from "@/shared/exceptions";
 import { getCloudflareTokenId } from "@/utils/cloudflare";
 import type { RuntimeConfig } from "@/infra/env";
 
@@ -55,6 +55,96 @@ export interface Bucket {
 
 export interface BucketDownloadSigner {
   signDownloadUrl: (input: BucketDownloadSignInput) => Promise<string>;
+}
+
+export const MULTIPART_UPLOAD_MIN_PART_SIZE_BYTES = 5 * 1024 * 1024;
+export const DEFAULT_MULTIPART_UPLOAD_PART_SIZE_BYTES = 10 * 1024 * 1024;
+
+export type MultipartUploadPart = {
+  bytes: Uint8Array;
+  partNumber: number;
+};
+
+/**
+ * Normalizes multipart upload part size.
+ *
+ * S3-compatible and Cloudflare R2 multipart uploads require every non-final
+ * part to respect a 5 MiB minimum, so smaller configured values are raised.
+ */
+export function normalizeMultipartUploadPartSize(
+  partSizeBytes = DEFAULT_MULTIPART_UPLOAD_PART_SIZE_BYTES,
+): number {
+  return Math.max(partSizeBytes, MULTIPART_UPLOAD_MIN_PART_SIZE_BYTES);
+}
+
+/**
+ * Splits a Web stream into fixed-size multipart upload parts while enforcing
+ * the caller's object-size limit.
+ */
+export async function* readMultipartUploadParts(
+  stream: ReadableStream<Uint8Array>,
+  partSizeBytes: number,
+  maxBytes: number,
+): AsyncGenerator<MultipartUploadPart> {
+  const reader = stream.getReader();
+  let buffered = new Uint8Array(partSizeBytes);
+  let bufferedLength = 0;
+  let byteSize = 0;
+  let partNumber = 1;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      byteSize += value.byteLength;
+      if (byteSize > maxBytes) {
+        throw createMultipartUploadTooLargeError(maxBytes);
+      }
+
+      let offset = 0;
+      while (offset < value.byteLength) {
+        const writableBytes = Math.min(
+          partSizeBytes - bufferedLength,
+          value.byteLength - offset,
+        );
+        buffered.set(
+          value.subarray(offset, offset + writableBytes),
+          bufferedLength,
+        );
+        bufferedLength += writableBytes;
+        offset += writableBytes;
+
+        if (bufferedLength === partSizeBytes) {
+          yield {
+            bytes: buffered,
+            partNumber,
+          };
+          partNumber += 1;
+          buffered = new Uint8Array(partSizeBytes);
+          bufferedLength = 0;
+        }
+      }
+    }
+
+    if (bufferedLength > 0 || partNumber === 1) {
+      yield {
+        bytes: buffered.subarray(0, bufferedLength),
+        partNumber,
+      };
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  }
+}
+
+export function createMultipartUploadTooLargeError(maxBytes: number) {
+  return payloadTooLargeError("Upload request body overflow maxsize", {
+    details: {
+      maxSize: maxBytes,
+    },
+  });
 }
 
 /**

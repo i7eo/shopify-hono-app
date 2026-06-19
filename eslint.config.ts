@@ -35,7 +35,13 @@ export default defineConfig([
       ],
     },
   },
-  globalIgnores(["**/public/", "**/drizzle.*/*", "**/drizzle.*/**/*"]),
+  globalIgnores([
+    "**/public/",
+    "**/drizzle.*/*",
+    "**/drizzle.*/**/*",
+    "**/routeTree.gen.ts",
+    "**/cloudflare-worker-configuration.d.ts",
+  ]),
   {
     files: ["**/*.config.ts"],
     rules: {

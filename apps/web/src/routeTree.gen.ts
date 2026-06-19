@@ -8,150 +8,150 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as ProductExportIndexRouteImport } from './routes/product-export/index'
-import { Route as ProductDescriptionIndexRouteImport } from './routes/product-description/index'
-import { Route as ProductExportNewRouteImport } from './routes/product-export/new'
-import { Route as ProductDescriptionNewRouteImport } from './routes/product-description/new'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as IndexRouteImport } from "./routes/index";
+import { Route as SettingsIndexRouteImport } from "./routes/settings/index";
+import { Route as ProductExportIndexRouteImport } from "./routes/product-export/index";
+import { Route as ProductDescriptionIndexRouteImport } from "./routes/product-description/index";
+import { Route as ProductExportNewRouteImport } from "./routes/product-export/new";
+import { Route as ProductDescriptionNewRouteImport } from "./routes/product-description/new";
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
+  id: "/settings/",
+  path: "/settings/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProductExportIndexRoute = ProductExportIndexRouteImport.update({
-  id: '/product-export/',
-  path: '/product-export/',
+  id: "/product-export/",
+  path: "/product-export/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProductDescriptionIndexRoute = ProductDescriptionIndexRouteImport.update({
-  id: '/product-description/',
-  path: '/product-description/',
+  id: "/product-description/",
+  path: "/product-description/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProductExportNewRoute = ProductExportNewRouteImport.update({
-  id: '/product-export/new',
-  path: '/product-export/new',
+  id: "/product-export/new",
+  path: "/product-export/new",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProductDescriptionNewRoute = ProductDescriptionNewRouteImport.update({
-  id: '/product-description/new',
-  path: '/product-description/new',
+  id: "/product-description/new",
+  path: "/product-description/new",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/product-description/new': typeof ProductDescriptionNewRoute
-  '/product-export/new': typeof ProductExportNewRoute
-  '/product-description/': typeof ProductDescriptionIndexRoute
-  '/product-export/': typeof ProductExportIndexRoute
-  '/settings/': typeof SettingsIndexRoute
+  "/": typeof IndexRoute;
+  "/product-description/new": typeof ProductDescriptionNewRoute;
+  "/product-export/new": typeof ProductExportNewRoute;
+  "/product-description/": typeof ProductDescriptionIndexRoute;
+  "/product-export/": typeof ProductExportIndexRoute;
+  "/settings/": typeof SettingsIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/product-description/new': typeof ProductDescriptionNewRoute
-  '/product-export/new': typeof ProductExportNewRoute
-  '/product-description': typeof ProductDescriptionIndexRoute
-  '/product-export': typeof ProductExportIndexRoute
-  '/settings': typeof SettingsIndexRoute
+  "/": typeof IndexRoute;
+  "/product-description/new": typeof ProductDescriptionNewRoute;
+  "/product-export/new": typeof ProductExportNewRoute;
+  "/product-description": typeof ProductDescriptionIndexRoute;
+  "/product-export": typeof ProductExportIndexRoute;
+  "/settings": typeof SettingsIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/product-description/new': typeof ProductDescriptionNewRoute
-  '/product-export/new': typeof ProductExportNewRoute
-  '/product-description/': typeof ProductDescriptionIndexRoute
-  '/product-export/': typeof ProductExportIndexRoute
-  '/settings/': typeof SettingsIndexRoute
+  __root__: typeof rootRouteImport;
+  "/": typeof IndexRoute;
+  "/product-description/new": typeof ProductDescriptionNewRoute;
+  "/product-export/new": typeof ProductExportNewRoute;
+  "/product-description/": typeof ProductDescriptionIndexRoute;
+  "/product-export/": typeof ProductExportIndexRoute;
+  "/settings/": typeof SettingsIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/product-description/new'
-    | '/product-export/new'
-    | '/product-description/'
-    | '/product-export/'
-    | '/settings/'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/product-description/new"
+    | "/product-export/new"
+    | "/product-description/"
+    | "/product-export/"
+    | "/settings/";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
-    | '/product-description/new'
-    | '/product-export/new'
-    | '/product-description'
-    | '/product-export'
-    | '/settings'
+    | "/"
+    | "/product-description/new"
+    | "/product-export/new"
+    | "/product-description"
+    | "/product-export"
+    | "/settings";
   id:
-    | '__root__'
-    | '/'
-    | '/product-description/new'
-    | '/product-export/new'
-    | '/product-description/'
-    | '/product-export/'
-    | '/settings/'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/"
+    | "/product-description/new"
+    | "/product-export/new"
+    | "/product-description/"
+    | "/product-export/"
+    | "/settings/";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ProductDescriptionNewRoute: typeof ProductDescriptionNewRoute
-  ProductExportNewRoute: typeof ProductExportNewRoute
-  ProductDescriptionIndexRoute: typeof ProductDescriptionIndexRoute
-  ProductExportIndexRoute: typeof ProductExportIndexRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
+  IndexRoute: typeof IndexRoute;
+  ProductDescriptionNewRoute: typeof ProductDescriptionNewRoute;
+  ProductExportNewRoute: typeof ProductExportNewRoute;
+  ProductDescriptionIndexRoute: typeof ProductDescriptionIndexRoute;
+  ProductExportIndexRoute: typeof ProductExportIndexRoute;
+  SettingsIndexRoute: typeof SettingsIndexRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings/': {
-      id: '/settings/'
-      path: '/settings'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/product-export/': {
-      id: '/product-export/'
-      path: '/product-export'
-      fullPath: '/product-export/'
-      preLoaderRoute: typeof ProductExportIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/product-description/': {
-      id: '/product-description/'
-      path: '/product-description'
-      fullPath: '/product-description/'
-      preLoaderRoute: typeof ProductDescriptionIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/product-export/new': {
-      id: '/product-export/new'
-      path: '/product-export/new'
-      fullPath: '/product-export/new'
-      preLoaderRoute: typeof ProductExportNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/product-description/new': {
-      id: '/product-description/new'
-      path: '/product-description/new'
-      fullPath: '/product-description/new'
-      preLoaderRoute: typeof ProductDescriptionNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/settings/": {
+      id: "/settings/";
+      path: "/settings";
+      fullPath: "/settings/";
+      preLoaderRoute: typeof SettingsIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/product-export/": {
+      id: "/product-export/";
+      path: "/product-export";
+      fullPath: "/product-export/";
+      preLoaderRoute: typeof ProductExportIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/product-description/": {
+      id: "/product-description/";
+      path: "/product-description";
+      fullPath: "/product-description/";
+      preLoaderRoute: typeof ProductDescriptionIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/product-export/new": {
+      id: "/product-export/new";
+      path: "/product-export/new";
+      fullPath: "/product-export/new";
+      preLoaderRoute: typeof ProductExportNewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/product-description/new": {
+      id: "/product-description/new";
+      path: "/product-description/new";
+      fullPath: "/product-description/new";
+      preLoaderRoute: typeof ProductDescriptionNewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -162,7 +162,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProductDescriptionIndexRoute: ProductDescriptionIndexRoute,
   ProductExportIndexRoute: ProductExportIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();

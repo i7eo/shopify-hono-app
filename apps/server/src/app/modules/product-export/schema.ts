@@ -9,7 +9,8 @@ export const ProductExportSchema = selectProductExportSchema
   .extend({
     bucketKey: selectProductExportSchema.shape.bucketKey.openapi({
       description: "Bucket key for the generated CSV file.",
-      example: "test-shop.myshopify.com/product-exports/export-id/products.csv",
+      example:
+        "test-shop.myshopify.com/product-exports/2026/06/export-id/products.csv",
     }),
     bucketProvider: selectProductExportSchema.shape.bucketProvider.openapi({
       description: "Bucket provider used to store the generated CSV file.",
@@ -44,6 +45,10 @@ export const ProductExportSchema = selectProductExportSchema
         description: "Shopify BulkOperation GraphQL ID.",
         example: "gid://shopify/BulkOperation/1234567890",
       }),
+    shopifySessionId: selectProductExportSchema.shape.shopifySessionId.openapi({
+      description: "Offline Shopify session ID used to start the export.",
+      example: "offline_test-shop.myshopify.com",
+    }),
     status: ProductExportStatusSchema.openapi({
       description: "Product export lifecycle status.",
       example: PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING,
@@ -67,6 +72,18 @@ export const CreateProductExportBodySchema = z.object({
 export const ProductExportListSchema = z.object({
   nextCursor: z.string().optional(),
   productExports: z.array(ProductExportSchema),
+});
+
+export const ProductExportDownloadTargetSchema = z.object({
+  type: z.enum(["redirect", "stream"]).openapi({
+    description: "Browser download strategy for the generated CSV.",
+    example: "redirect",
+  }),
+  url: z.string().url().openapi({
+    description:
+      "Download URL. Redirect URLs may point to short-lived R2 URLs.",
+    example: "https://signed.example.com/products.csv",
+  }),
 });
 
 export const ProductExportIdParamsSchema = z.object({

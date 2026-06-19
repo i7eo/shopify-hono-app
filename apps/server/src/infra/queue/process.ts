@@ -119,6 +119,10 @@ export async function createProcessQueueConsumer(
 
   const strategy = getQueueEnvConfig(config);
   const boss = await getProcessQueueBoss(config);
+  const queueJobs = jobs.map((job) => ({
+    definition: job,
+    queueName: getQueueJobName(strategy, job.name),
+  }));
   let consumers: ProcessQueueConsumerController[] = [];
 
   return {
@@ -128,13 +132,18 @@ export async function createProcessQueueConsumer(
     async start(context) {
       if (consumers.length > 0) return;
 
-      consumers = jobs.map((job) =>
+      await Promise.all(
+        queueJobs.map((job) => ensureProcessQueueExists(boss, job.queueName)),
+      );
+
+      consumers = queueJobs.map((job) =>
         createProcessQueueJobConsumer({
           boss,
           context,
-          queueName: getQueueJobName(strategy, job.name),
+          queueName: job.queueName,
           maxBatchSize:
-            job.maxBatchSize ?? config.APP_QUEUE_CONSUMER_MAX_BATCH_SIZE,
+            job.definition.maxBatchSize ??
+            config.APP_QUEUE_CONSUMER_MAX_BATCH_SIZE,
         }),
       );
 
@@ -163,6 +172,13 @@ export async function stopProcessQueueConsumer(): Promise<void> {
   processQueueConsumer = undefined;
 
   await consumer?.stop();
+}
+
+async function ensureProcessQueueExists(
+  boss: PgBoss,
+  queueName: string,
+): Promise<void> {
+  await boss.createQueue(queueName);
 }
 
 function createProcessQueueJobConsumer(input: {

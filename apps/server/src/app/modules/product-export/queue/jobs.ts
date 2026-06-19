@@ -1,10 +1,13 @@
+import { chunk } from "@shamt/utils";
 import { registerQueueJob, type QueueJobContext } from "@/infra/queue";
 import { registerSchedulerTask } from "@/infra/scheduler";
 import { badGatewayError } from "@/shared/exceptions";
+import { createBucketObjectKey } from "@/utils";
 import {
   createProductExportBucket,
   createProductExportDatabase,
   createProductExportShopifyClient,
+  createProductExportShopifyClientContext,
 } from "../runtime";
 import {
   completeProductExportBulkOperation,
@@ -13,15 +16,13 @@ import {
 } from "../service";
 import { createDatabaseProductExportsStore } from "../stores/database";
 import {
-  countCsvRows,
+  createProductExportCsvPartStream,
   CSV_HEADER,
   isCloudflareRuntime,
-  jsonlToCsv,
   parseProductExportJobPayload,
   PRODUCT_EXPORT_PART_STATUSES,
   PRODUCT_EXPORT_RETRYABLE_PART_STATUSES,
   PRODUCT_EXPORT_STATUSES,
-  selectCompleteLines,
 } from "../utils";
 import {
   PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD,
@@ -33,7 +34,6 @@ import {
   PRODUCT_EXPORT_RECONCILE_CRON,
 } from "./constants";
 import {
-  createProductExportQueueMessage,
   enqueueProductExportJobFromContext,
   enqueueProductExportJobsFromContext,
 } from ".";
@@ -47,6 +47,7 @@ import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
 let registered = false;
+const PRODUCT_EXPORT_PART_DELETE_CONCURRENCY = 10;
 
 /**
  * Registers every background entrypoint used by product exports.
@@ -85,24 +86,10 @@ export function registerModuleProductExportJobs(): void {
   registerSchedulerTask({
     cron: PRODUCT_EXPORT_RECONCILE_CRON,
     handler: async (context) => {
-      const { createQueueProducer } = await import("@/infra/queue");
-      const producer = await createQueueProducer(context.runtimeEnv, {
-        queue: isCloudflareRuntime(context.runtimeEnv)
-          ? (context.bindings?.[context.runtimeEnv.APP_QUEUE_BINDING ?? ""] as
-              | Queue
-              | undefined)
-          : undefined,
-      });
-
-      await producer.enqueue(
-        createProductExportQueueMessage(
-          PRODUCT_EXPORT_QUEUE_JOBS.RECONCILE,
-          {},
-        ),
-        {
-          idempotencyKey: PRODUCT_EXPORT_QUEUE_JOBS.RECONCILE,
-          maxAttempts: context.runtimeEnv.APP_QUEUE_CONSUMER_MAX_RETRIES,
-        },
+      await enqueueProductExportJobFromContext(
+        context,
+        PRODUCT_EXPORT_QUEUE_JOBS.RECONCILE,
+        {},
       );
     },
     name: PRODUCT_EXPORT_QUEUE_JOBS.RECONCILE,
@@ -123,7 +110,7 @@ async function startBulkJob(
   if (!record || record.status !== PRODUCT_EXPORT_STATUSES.QUEUED) return;
 
   const database = await createProductExportDatabase(context);
-  const client = await createProductExportShopifyClient(
+  const { client, session } = await createProductExportShopifyClientContext(
     context.runtimeEnv,
     database,
     job.shopDomain,
@@ -131,6 +118,7 @@ async function startBulkJob(
   await startProductExportBulkOperationForRecord({
     client,
     record,
+    shopifySessionId: session.id,
     store,
   });
 }
@@ -293,7 +281,16 @@ async function finalizeJob(
     shopDomain: job.shopDomain,
   });
 
-  if (!record || record.status === PRODUCT_EXPORT_STATUSES.READY) return;
+  if (!record) return;
+
+  if (record.status === PRODUCT_EXPORT_STATUSES.READY) {
+    const bucket = await createProductExportBucket(context);
+    await deleteProductExportPartObjects(
+      await store.listParts(record.id),
+      bucket,
+    );
+    return;
+  }
 
   const stats = await store.getPartStats(record.id);
   if (stats.total === 0 || stats.done !== stats.total) return;
@@ -322,6 +319,7 @@ async function finalizeJob(
     status: PRODUCT_EXPORT_STATUSES.READY,
     updatedAt: new Date(),
   });
+  await deleteProductExportPartObjects(parts, bucket);
 }
 
 /**
@@ -536,12 +534,27 @@ async function processPart(
     });
   }
 
-  const jsonl = await response.text();
-  const csv = jsonlToCsv(selectCompleteLines(jsonl, part));
-  const bytes = new TextEncoder().encode(csv);
-  const key = `${record.shopDomain}/product-exports/${record.id}/parts/${part.seq}.csv`;
+  if (!response.body) {
+    throw badGatewayError(
+      "Product export part response did not include a body",
+      {
+        details: {
+          url: record.resultUrl,
+        },
+      },
+    );
+  }
+
+  const csv = createProductExportCsvPartStream(response.body, part);
+  const key = createBucketObjectKey({
+    date: record.createdAt,
+    filename: `${part.seq}.csv`,
+    id: record.id,
+    namespace: "product-exports",
+    shopDomain: record.shopDomain,
+  });
   const stored = await bucket.put({
-    body: new Response(bytes).body!,
+    body: csv.body,
     contentType: PRODUCT_EXPORT_CSV_CONTENT_TYPE,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     key,
@@ -555,7 +568,7 @@ async function processPart(
     bucketKey: stored.key,
     bucketProvider: stored.provider,
     byteSize: stored.byteSize,
-    rowCount: countCsvRows(csv),
+    rowCount: csv.getRowCount(),
   };
 }
 
@@ -573,18 +586,15 @@ async function finalizeParts(
   bucketProvider: string;
   byteSize: number;
 }> {
-  const chunks: Uint8Array[] = [new TextEncoder().encode(CSV_HEADER)];
-  for (const part of parts) {
-    if (!part.bucketKey) continue;
-
-    const object = await bucket.open({ key: part.bucketKey });
-    chunks.push(new Uint8Array(await new Response(object.body).arrayBuffer()));
-  }
-
-  const body = new Blob(chunks).stream();
-  const key = `${record.shopDomain}/product-exports/${record.id}/products.csv`;
+  const key = createBucketObjectKey({
+    date: record.createdAt,
+    filename: "products.csv",
+    id: record.id,
+    namespace: "product-exports",
+    shopDomain: record.shopDomain,
+  });
   const stored = await bucket.put({
-    body,
+    body: createFinalCsvStream(bucket, parts),
     contentType: PRODUCT_EXPORT_CSV_CONTENT_TYPE,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     key,
@@ -599,6 +609,95 @@ async function finalizeParts(
     bucketProvider: stored.provider,
     byteSize: stored.byteSize,
   };
+}
+
+function createFinalCsvStream(
+  bucket: Bucket,
+  parts: ProductExportPartRecord[],
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const readableParts = parts.filter((part) => part.bucketKey);
+  let index = -1;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (index === -1) {
+        index = 0;
+        controller.enqueue(encoder.encode(CSV_HEADER));
+        return;
+      }
+
+      while (index < readableParts.length) {
+        if (!reader) {
+          const part = readableParts[index];
+          if (!part?.bucketKey) {
+            index += 1;
+            continue;
+          }
+          const object = await bucket.open({ key: part.bucketKey });
+          reader = object.body.getReader();
+        }
+
+        const { done, value } = await reader.read();
+        if (done) {
+          reader = undefined;
+          index += 1;
+          continue;
+        }
+
+        controller.enqueue(value);
+        return;
+      }
+
+      controller.close();
+    },
+    async cancel(reason) {
+      await reader?.cancel(reason).catch(() => undefined);
+    },
+  });
+}
+
+/**
+ * Removes intermediate CSV parts after the final merchant-facing CSV is ready.
+ *
+ * R2 folders are key prefixes, so deleting every part object removes the
+ * temporary folder-like entries while keeping `products.csv` available.
+ */
+export async function deleteProductExportPartObjects(
+  parts: ProductExportPartRecord[],
+  bucket: Bucket,
+): Promise<void> {
+  const errors: Array<{ error: unknown; key: string }> = [];
+  const keys = parts.flatMap((part) =>
+    part.bucketKey ? [part.bucketKey] : [],
+  );
+
+  for (const batch of chunk(keys, PRODUCT_EXPORT_PART_DELETE_CONCURRENCY)) {
+    const results = await Promise.allSettled(
+      batch.map((key) => bucket.delete({ key })),
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") return;
+
+      errors.push({
+        error: result.reason,
+        key: batch[index]!,
+      });
+    });
+  }
+
+  if (errors.length > 0) {
+    throw badGatewayError("Failed to delete product export part objects", {
+      details: {
+        failures: errors.map(({ error, key }) => ({
+          error: error instanceof Error ? error.message : String(error),
+          key,
+        })),
+      },
+    });
+  }
 }
 
 /**

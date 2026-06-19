@@ -7,10 +7,14 @@ import {
 } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ProductExportStatus } from "@/apis/product-exports";
 
 const fetchProductsMock = vi.hoisted(() => vi.fn());
 const fetchShopInfoMock = vi.hoisted(() => vi.fn());
-const uploadFileMock = vi.hoisted(() => vi.fn());
+const createProductExportMock = vi.hoisted(() => vi.fn());
+const deleteProductExportMock = vi.hoisted(() => vi.fn());
+const downloadProductExportFileMock = vi.hoisted(() => vi.fn());
+const listProductExportsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/utils/public-env", () => ({
   DEFAULT_APP_API_PREFIX: "api",
@@ -39,8 +43,11 @@ vi.mock("@/apis/shopify", () => ({
   },
 }));
 
-vi.mock("@/apis/files", () => ({
-  uploadFile: uploadFileMock,
+vi.mock("@/apis/product-exports", () => ({
+  createProductExport: createProductExportMock,
+  deleteProductExport: deleteProductExportMock,
+  downloadProductExportFile: downloadProductExportFileMock,
+  listProductExports: listProductExportsMock,
 }));
 
 vi.mock("sonner", () => ({
@@ -98,18 +105,35 @@ describe("route components", () => {
     fetchShopInfoMock.mockResolvedValue({
       data: { shop: { myshopifyDomain: "shop.myshopify.com", name: "Shop" } },
     });
-    uploadFileMock.mockReset();
-    uploadFileMock.mockResolvedValue({
+    createProductExportMock.mockReset();
+    createProductExportMock.mockResolvedValue({
       data: {
-        byteSize: 128,
-        contentType: "image/png",
-        createdAt: "2026-06-14T00:00:00.000Z",
-        expiresAt: "2026-06-15T00:00:00.000Z",
-        id: "file-1",
-        originalName: "catalog.png",
-        safeName: "catalog.png",
-        status: "available",
-        updatedAt: "2026-06-14T00:00:00.000Z",
+        ...createProductExportRecord({
+          id: "export-created",
+          name: "All products",
+          status: "queued",
+        }),
+      },
+    });
+    deleteProductExportMock.mockReset();
+    deleteProductExportMock.mockResolvedValue(undefined);
+    downloadProductExportFileMock.mockReset();
+    downloadProductExportFileMock.mockResolvedValue(undefined);
+    listProductExportsMock.mockReset();
+    listProductExportsMock.mockResolvedValue({
+      data: {
+        productExports: [
+          createProductExportRecord({
+            id: "ready-export",
+            name: "Summer catalog",
+            status: "ready",
+          }),
+          createProductExportRecord({
+            id: "processing-export",
+            name: "Price review",
+            status: "bulk_operation_running",
+          }),
+        ],
       },
     });
     globalThis.shopify = {
@@ -124,6 +148,7 @@ describe("route components", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -137,10 +162,14 @@ describe("route components", () => {
     expect(screen.getByTestId("outlet")).toBeTruthy();
     expect(document.querySelector("s-app-nav")).toBeTruthy();
     expect(readAppNavLinks()).toEqual([
-      { href: "/", label: "Home" },
-      { href: "/product-export", label: "Product Export" },
-      { href: "/product-description", label: "Product Description" },
-      { href: "/settings", label: "Settings" },
+      { href: "/", label: "Home", rel: "home" },
+      { href: "/product-export", label: "Product Export", rel: undefined },
+      {
+        href: "/product-description",
+        label: "Product Description",
+        rel: undefined,
+      },
+      { href: "/settings", label: "Settings", rel: undefined },
     ]);
     expect(await screen.findByTestId("toaster")).toBeTruthy();
     expect(
@@ -181,11 +210,11 @@ describe("route components", () => {
     render(<Component />);
 
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
-      "Product descriptions",
+      "Product Description",
     );
-    expect(screen.getByText("Classic cotton tee")).toBeTruthy();
-    expect(screen.getByText("Everyday canvas tote")).toBeTruthy();
-    expect(screen.getByText("Approve selected")).toBeTruthy();
+    expect(await screen.findByText("Summer catalog")).toBeTruthy();
+    expect(screen.getByText("Price review")).toBeTruthy();
+    expect(screen.getByText("Processing")).toBeTruthy();
   });
 
   it("renders the product export resource index", async () => {
@@ -204,19 +233,138 @@ describe("route components", () => {
     ).toBeTruthy();
 
     expect(await screen.findByText("Summer catalog")).toBeTruthy();
-    expect(screen.getByText("price-review.csv")).toBeTruthy();
-    expect(screen.getByText("Processing")).toBeTruthy();
+    expect(screen.getByText("Price review")).toBeTruthy();
+    expect(screen.getByText("Running bulk operation")).toBeTruthy();
     expect(
       document.querySelectorAll("s-button[slot='primary-action']"),
     ).toHaveLength(1);
     expect(document.querySelector("s-button")?.getAttribute("href")).toBe(
       "/product-export/new",
     );
+    expect(listProductExportsMock).toHaveBeenCalledWith(
+      { limit: 20 },
+      expect.any(AbortSignal),
+    );
     expect(fetchShopInfoMock).not.toHaveBeenCalled();
     expect(fetchProductsMock).not.toHaveBeenCalled();
   });
 
-  it("renders the new product export details form", async () => {
+  it("renders product export empty and error states", async () => {
+    listProductExportsMock.mockResolvedValueOnce({
+      data: { productExports: [] },
+    });
+    const { Route } = await import("../src/routes/product-export");
+    const Component = Route.options.component as React.ComponentType;
+
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(sectionHeading("No product exports")).toBeTruthy();
+    });
+
+    cleanup();
+    listProductExportsMock.mockRejectedValueOnce(new Error("network failed"));
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(bannerHeading("Unable to load product exports")).toBeTruthy();
+    });
+    expect(screen.getByText("network failed")).toBeTruthy();
+  });
+
+  it("downloads ready product exports and deletes rows from the index", async () => {
+    const { Route } = await import("../src/routes/product-export");
+    const Component = Route.options.component as React.ComponentType;
+
+    render(<Component />);
+
+    expect(await screen.findByText("Summer catalog")).toBeTruthy();
+
+    const buttons = Array.from(document.querySelectorAll("s-button"));
+    const readyDownloadButton = buttons.find(
+      (button) =>
+        button.getAttribute("accessibilityLabel") === "Download Summer catalog",
+    )!;
+    const processingDownloadButton = buttons.find(
+      (button) =>
+        button.getAttribute("accessibilityLabel") === "Download Price review",
+    )!;
+    const deleteButton = buttons.find(
+      (button) =>
+        button.getAttribute("accessibilityLabel") === "Delete Price review",
+    )!;
+
+    expect(readyDownloadButton).toBeTruthy();
+    expect(processingDownloadButton.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(readyDownloadButton);
+    await waitFor(() => {
+      expect(downloadProductExportFileMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "ready-export" }),
+        expect.any(AbortSignal),
+      );
+    });
+
+    fireEvent.click(deleteButton);
+    await waitFor(() => {
+      expect(deleteProductExportMock).toHaveBeenCalledWith(
+        "processing-export",
+        expect.any(AbortSignal),
+      );
+    });
+    expect(listProductExportsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("polls product exports while rows are not terminal", async () => {
+    listProductExportsMock
+      .mockResolvedValueOnce({
+        data: {
+          productExports: [
+            createProductExportRecord({
+              id: "processing-export",
+              name: "Price review",
+              status: "bulk_operation_running",
+            }),
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          productExports: [
+            createProductExportRecord({
+              id: "processing-export",
+              name: "Price review",
+              status: "ready",
+            }),
+          ],
+        },
+      });
+    const nativeSetInterval = globalThis.setInterval;
+    let pollHandler: TimerHandler | undefined;
+    vi.spyOn(globalThis, "setInterval").mockImplementation(
+      (handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+        if (timeout === 1000 * 60 * 5) {
+          pollHandler = handler;
+          return 1 as unknown as ReturnType<typeof setInterval>;
+        }
+
+        return nativeSetInterval(handler, timeout, ...args) as ReturnType<
+          typeof setInterval
+        >;
+      },
+    );
+    const { Route } = await import("../src/routes/product-export");
+    const Component = Route.options.component as React.ComponentType;
+
+    render(<Component />);
+
+    expect(await screen.findByText("Price review")).toBeTruthy();
+    if (typeof pollHandler === "function") pollHandler();
+    await waitFor(() => {
+      expect(listProductExportsMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("renders and submits the new product export form", async () => {
     const { Route } = await import("../src/routes/product-export/new");
     const Component = Route.options.component as React.ComponentType;
 
@@ -226,22 +374,12 @@ describe("route components", () => {
       "Create product export",
     );
     expect(document.querySelector('s-text-field[name="name"]')).toBeTruthy();
-    expect(document.querySelector('s-drop-zone[name="file"]')).toBeTruthy();
+    expect(document.querySelector("s-drop-zone")).toBeNull();
     expect(screen.getByText("Save")).toBeTruthy();
-  });
-
-  it("uploads the selected product export images", async () => {
-    const { Route } = await import("../src/routes/product-export/new");
-    const Component = Route.options.component as React.ComponentType;
-    const file = new File(["image"], "catalog.png", {
-      type: "image/png",
-    });
-
-    render(<Component />);
 
     const form = document.querySelector("form")!;
     const formData = new FormData();
-    formData.set("file", file);
+    formData.set("name", "All products");
     const formDataSpy = vi
       .spyOn(globalThis, "FormData")
       .mockImplementation(function FormDataMock() {
@@ -251,59 +389,31 @@ describe("route components", () => {
     fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(uploadFileMock).toHaveBeenCalledWith(
-        file,
+      expect(createProductExportMock).toHaveBeenCalledWith(
+        { name: "All products" },
         expect.any(AbortSignal),
       );
     });
     expect(globalThis.shopify.loading).toHaveBeenNthCalledWith(1, true);
     expect(globalThis.shopify.loading).toHaveBeenLastCalledWith(false);
     expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
-      "Export action images uploaded.",
+      "Product export created.",
       undefined,
     );
-    expect(screen.getByText("More actions")).toBeTruthy();
-    expect(document.querySelector("s-menu")).toBeTruthy();
-    expect(screen.getByText("Delete")).toBeTruthy();
+    expect(globalThis.location.pathname).toBe("/product-export");
 
     formDataSpy.mockRestore();
   });
 
-  it("renders selected image previews", async () => {
+  it("requires a product export name before submitting", async () => {
     const { Route } = await import("../src/routes/product-export/new");
     const Component = Route.options.component as React.ComponentType;
-    const file = new File(["image"], "catalog-preview.png", {
-      type: "image/png",
-    });
-
-    render(<Component />);
-
-    const dropZone = document.querySelector("s-drop-zone")!;
-    Object.defineProperty(dropZone, "files", {
-      configurable: true,
-      value: [file],
-    });
-    fireEvent.change(dropZone);
-
-    expect(await screen.findByText("catalog-preview...")).toBeTruthy();
-    expect(screen.getByText("PNG")).toBeTruthy();
-    expect(document.querySelector("s-image")).toBeTruthy();
-  });
-
-  it("rejects more images than the public upload limit", async () => {
-    const { Route } = await import("../src/routes/product-export/new");
-    const Component = Route.options.component as React.ComponentType;
-    const files = [
-      new File(["image"], "one.png", { type: "image/png" }),
-      new File(["image"], "two.png", { type: "image/png" }),
-      new File(["image"], "three.png", { type: "image/png" }),
-    ];
 
     render(<Component />);
 
     const form = document.querySelector("form")!;
     const formData = new FormData();
-    for (const file of files) formData.append("file", file);
+    formData.set("name", " ");
     const formDataSpy = vi
       .spyOn(globalThis, "FormData")
       .mockImplementation(function FormDataMock() {
@@ -312,40 +422,8 @@ describe("route components", () => {
 
     fireEvent.submit(form);
 
-    expect(uploadFileMock).not.toHaveBeenCalled();
-    expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
-      "Upload up to 2 images at once.",
-      { isError: true },
-    );
-
-    formDataSpy.mockRestore();
-  });
-
-  it("rejects images larger than the public file size limit", async () => {
-    const { Route } = await import("../src/routes/product-export/new");
-    const Component = Route.options.component as React.ComponentType;
-    const file = new File(["x".repeat(1025)], "large.png", {
-      type: "image/png",
-    });
-
-    render(<Component />);
-
-    const form = document.querySelector("form")!;
-    const formData = new FormData();
-    formData.set("file", file);
-    const formDataSpy = vi
-      .spyOn(globalThis, "FormData")
-      .mockImplementation(function FormDataMock() {
-        return formData;
-      } as unknown as typeof FormData);
-
-    fireEvent.submit(form);
-
-    expect(uploadFileMock).not.toHaveBeenCalled();
-    expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
-      "large.png is larger than 1.0 KB.",
-      { isError: true },
-    );
+    expect(createProductExportMock).not.toHaveBeenCalled();
+    expect(await screen.findByText("Enter an export name.")).toBeTruthy();
 
     formDataSpy.mockRestore();
   });
@@ -371,7 +449,11 @@ describe("route components", () => {
 });
 
 function sectionHeading(heading: string) {
-  return document.querySelector(`s-section[heading="${CSS.escape(heading)}"]`);
+  return findElementByAttribute("s-section", "heading", heading);
+}
+
+function bannerHeading(heading: string) {
+  return findElementByAttribute("s-banner", "heading", heading);
 }
 
 function readAppNavLinks() {
@@ -379,6 +461,49 @@ function readAppNavLinks() {
     (link) => ({
       href: link.getAttribute("href"),
       label: link.textContent?.trim(),
+      rel: link.getAttribute("rel") ?? undefined,
     }),
   );
+}
+
+function findElementByAttribute(
+  selector: string,
+  attribute: string,
+  value: string,
+) {
+  return Array.from(document.querySelectorAll(selector)).find(
+    (element) => element.getAttribute(attribute) === value,
+  );
+}
+
+function createProductExportRecord(overrides: {
+  id: string;
+  name: string;
+  status: ProductExportStatus;
+}) {
+  return {
+    bucketKey:
+      overrides.status === "ready"
+        ? `test-shop.myshopify.com/product-exports/${overrides.id}/products.csv`
+        : null,
+    bucketProvider: overrides.status === "ready" ? "memory" : null,
+    completedAt:
+      overrides.status === "ready" ? "2026-06-18T12:05:00.000Z" : null,
+    createdAt: "2026-06-18T12:00:00.000Z",
+    deletedAt: null,
+    errorCode: null,
+    errorMessage: null,
+    fileSize: overrides.status === "ready" ? 1024 : null,
+    id: overrides.id,
+    name: overrides.name,
+    objectCount: overrides.status === "ready" ? 12 : null,
+    partialDataUrl: null,
+    resultUrl: null,
+    shopDomain: "test-shop.myshopify.com",
+    shopifyBulkOperationId: null,
+    shopifyBulkOperationStatus: null,
+    shopifySessionId: null,
+    status: overrides.status,
+    updatedAt: "2026-06-18T12:01:00.000Z",
+  };
 }

@@ -25,10 +25,19 @@ export interface Variables {
   // Set by shopify-admin middleware
   shopifyAdminClient: ShopifyClient;
   // Set by verify-webhook middleware
-  webhookTopic: string;
-  webhookShop: string;
-  webhookPayload: unknown;
+  webhook: ShopifyWebhookContext;
 }
+
+export type ShopifyWebhookContext = {
+  apiVersion: string;
+  eventId?: string;
+  payload: unknown;
+  shop: string;
+  subTopic?: string;
+  topic: string;
+  triggeredAt?: string;
+  webhookId?: string;
+};
 
 export type RuntimeAppEnv<
   TRuntime extends RuntimeConfig["APP_RUNTIME"] = RuntimeConfig["APP_RUNTIME"],

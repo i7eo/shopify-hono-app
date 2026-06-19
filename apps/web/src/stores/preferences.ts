@@ -36,5 +36,5 @@ export const usePreferencesStore = create<PreferencesState>()(
 );
 
 function createShopScopedStorageKey(scope: string) {
-  return `shopify-hono-app:${readCurrentShop()}:${scope}`;
+  return `${globalThis.__PUBLIC_ENV__?.APP_NAME}:${readCurrentShop()}:${scope}`;
 }

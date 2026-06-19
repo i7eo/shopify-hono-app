@@ -1,14 +1,18 @@
+import { ensureShopifyOfflineSession } from "@/app/modules/shopify/session";
+import { registerConfiguredShopifyWebhooks } from "@/app/modules/shopify/webhook";
 import { badGatewayError } from "@/shared/exceptions";
 import { AppError, createResponse } from "@/shared/models";
 import {
   createProductExportRoute,
   deleteProductExportRoute,
+  downloadProductExportRoute,
   getProductExportRoute,
   listProductExportsRoute,
 } from "./meta";
 import {
   createProductExport,
   deleteProductExport,
+  downloadProductExport,
   getProductExport,
   listProductExports,
 } from "./service";
@@ -19,6 +23,8 @@ export function registerProductExportController(app: AppOpenAPI) {
   app.openapi(createProductExportRoute, async (c) => {
     try {
       const body = c.req.valid("json");
+      const offlineSession = await ensureShopifyOfflineSession(c);
+      await registerConfiguredShopifyWebhooks(c, offlineSession);
       return c.json(
         createResponse({
           data: await createProductExport(c, {
@@ -33,11 +39,13 @@ export function registerProductExportController(app: AppOpenAPI) {
     } catch (error) {
       if (error instanceof AppError) throw error;
 
-      throw badGatewayError("Failed to create product export", {
+      const message = getErrorMessage(error);
+      throw badGatewayError(`Failed to create product export: ${message}`, {
         details: {
           cause: error,
-          message: error instanceof Error ? error.message : String(error),
+          message,
         },
+        expose: true,
       });
     }
   });
@@ -72,6 +80,55 @@ export function registerProductExportController(app: AppOpenAPI) {
     ),
   );
 
+  app.openapi(downloadProductExportRoute, async (c) => {
+    const download = await downloadProductExport(
+      c,
+      c.get("shopDomain"),
+      c.req.param("id"),
+    );
+
+    if (download.type === "redirect") {
+      if (wantsJson(c.req.header("Accept"))) {
+        return c.json(
+          createResponse({
+            data: {
+              type: "redirect",
+              url: download.url,
+            },
+            requestId: c.get("requestId"),
+          }),
+          200,
+        );
+      }
+
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...download.headers,
+          Location: download.url,
+        },
+      });
+    }
+
+    if (wantsJson(c.req.header("Accept"))) {
+      return c.json(
+        createResponse({
+          data: {
+            type: "stream",
+            url: c.req.url,
+          },
+          requestId: c.get("requestId"),
+        }),
+        200,
+      );
+    }
+
+    return new Response(download.body, {
+      status: 200,
+      headers: download.headers,
+    });
+  });
+
   app.openapi(deleteProductExportRoute, async (c) => {
     await deleteProductExport(c, {
       id: c.req.param("id"),
@@ -87,4 +144,12 @@ function parseLimit(value: string | undefined): number {
 
   const limit = Number(value);
   return Number.isFinite(limit) ? limit : 20;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function wantsJson(accept: string | undefined): boolean {
+  return accept?.toLowerCase().includes("application/json") ?? false;
 }

@@ -12,6 +12,29 @@
 - Use `<s-banner>` for messages, `<s-spinner>` for loading, and `<s-text>` for text.
 - Escape user-facing strings that are injected into component HTML.
 - Use React only to orchestrate state, routing, and component composition around Polaris web components.
+- The app shell includes Shopify App Bridge and Polaris scripts in the document head; route code should use those existing web components.
+- When generating Polaris web component code and the `validate_component_codeblocks` MCP tool is available, validate with `api: "polaris-app-home"`.
+
+Common components:
+
+| Component                                 | Use for                            |
+| ----------------------------------------- | ---------------------------------- |
+| `<s-page>`                                | Top-level page layout with heading |
+| `<s-section>`                             | Content sections within a page     |
+| `<s-box>`                                 | Custom padding, background, border |
+| `<s-text>`                                | Inline text with variants          |
+| `<s-heading>`                             | Section headings                   |
+| `<s-banner>`                              | Alerts and messages                |
+| `<s-button>`                              | Actions                            |
+| `<s-spinner>`                             | Loading indicators                 |
+| `<s-table>`                               | Data tables                        |
+| `<s-unordered-list>` / `<s-ordered-list>` | Lists                              |
+| `<s-badge>`                               | Status indicators                  |
+| `<s-modal>`                               | Dialogs                            |
+| `<s-text-field>`                          | Text inputs                        |
+| `<s-select>`                              | Dropdowns                          |
+| `<s-stack>`                               | Flex layout                        |
+| `<s-grid>`                                | Grid layout                        |
 
 ## Env And Browser Boundary
 
@@ -26,6 +49,9 @@
 - Do not duplicate authorization header logic, OAuth recovery, or redirect throttling in pages.
 - Page and route components should call business API functions rather than constructing raw fetch requests.
 - Reuse `@shamt/oh-my-fetch` and existing client hooks before adding client-specific request logic.
+- API schemas, types, enums, and status values that mirror database-backed records must come from `@shamt/database` when available.
+- API files may define browser-safe serialized response types, transport wrappers, or JSON-date adaptations locally when package types are not directly browser-safe.
+- Before adding local API schema/type/enum definitions, check `@shamt/database`, `@shamt/app-env`, and other semantic `packages/*` exports first.
 
 ## File Organization
 

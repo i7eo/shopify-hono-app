@@ -62,23 +62,18 @@ export async function disposeBucket(
 
 /**
  * Creates the configured bucket download signer when the provider supports
- * signed download URLs. Cloudflare R2 binding downloads stream through the
- * Worker, so only Node R2 uses the S3-compatible signer.
+ * signed download URLs.
  */
 export async function createBucketDownloadSigner(
   config: RuntimeConfig,
 ): Promise<BucketDownloadSigner | undefined> {
   const strategy = getBucketEnvConfig(config);
 
-  if (
-    strategy.provider !== DEFAULT_APP_BUCKET_PROVIDERS.R2 ||
-    isIsolateRuntime(config.APP_RUNTIME)
-  ) {
+  if (strategy.provider !== DEFAULT_APP_BUCKET_PROVIDERS.R2) {
     return undefined;
   }
 
-  const { S3CompatibleBucketDownloadSigner } =
-    await import("./process.s3-compatible");
+  const { R2SignedUrlDownloadSigner } = await import("./r2-signed-url");
 
-  return new S3CompatibleBucketDownloadSigner(await getR2BucketConfig(config));
+  return new R2SignedUrlDownloadSigner(await getR2BucketConfig(config));
 }

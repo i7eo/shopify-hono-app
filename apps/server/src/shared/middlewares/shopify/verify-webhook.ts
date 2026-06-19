@@ -2,8 +2,13 @@ import { deserializeValue } from "@shamt/utils";
 import { createMiddleware } from "hono/factory";
 import { DEFAULT_WEBHOOK_MAX_SIZE } from "@/constants";
 import { getShopifyConfigProvider } from "@/infra/provider";
-import { payloadTooLargeError, unauthorizedError } from "@/shared/exceptions";
+import {
+  badRequestError,
+  payloadTooLargeError,
+  unauthorizedError,
+} from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
+import type { WebhookValidation } from "@shopify/shopify-api";
 
 /**
  * Validates Shopify webhook signatures and stores parsed webhook context.
@@ -18,9 +23,7 @@ export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
   });
 
   if (!validation.valid) {
-    throw unauthorizedError("Webhook validation failed", {
-      details: { validation },
-    });
+    throw createInvalidWebhookError(validation);
   }
 
   const payload = deserializeValue(rawBody);
@@ -28,9 +31,16 @@ export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
     throw unauthorizedError("Invalid Shopify webhook JSON payload");
   }
 
-  c.set("webhookTopic", validation.topic);
-  c.set("webhookShop", validation.domain);
-  c.set("webhookPayload", payload);
+  c.set("webhook", {
+    apiVersion: validation.apiVersion,
+    eventId: "eventId" in validation ? validation.eventId : undefined,
+    payload,
+    shop: validation.domain,
+    subTopic: "subTopic" in validation ? validation.subTopic : undefined,
+    topic: validation.topic,
+    triggeredAt: validation.triggeredAt,
+    webhookId: "webhookId" in validation ? validation.webhookId : undefined,
+  });
 
   await next();
 });
@@ -90,5 +100,21 @@ function readContentLength(value: string | null) {
 function createWebhookPayloadTooLargeError(maxSize: number) {
   return payloadTooLargeError("Webhook request body overflow maxsize", {
     details: { maxSize },
+  });
+}
+
+function createInvalidWebhookError(validation: WebhookValidation) {
+  if (validation.valid) {
+    return unauthorizedError("Webhook validation failed");
+  }
+
+  if (validation.reason === "invalid_hmac") {
+    return unauthorizedError("Webhook HMAC validation failed", {
+      details: { validation },
+    });
+  }
+
+  return badRequestError("Webhook request is invalid", {
+    details: { validation },
   });
 }

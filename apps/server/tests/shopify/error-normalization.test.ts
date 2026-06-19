@@ -43,12 +43,27 @@ describe("Shopify error normalization", () => {
       normalizeError(
         new InvalidWebhookError({
           message: "bad webhook",
-          response: new Response(null, { status: 401 }),
+          response: new Response("bad webhook", {
+            status: 400,
+            statusText: "Bad Request",
+            headers: {
+              "x-shopify-error": "webhook",
+            },
+          }),
         }),
       ),
     ).toMatchObject({
       status: 401,
       message: "Invalid Shopify webhook request",
+      details: {
+        response: {
+          code: 400,
+          headers: {
+            "x-shopify-error": "webhook",
+          },
+          statusText: "Bad Request",
+        },
+      },
     });
   });
 

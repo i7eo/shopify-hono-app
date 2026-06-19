@@ -19,6 +19,7 @@ describe("infra providers", () => {
 
   it("reuses env provider while the effective env signature is unchanged", async () => {
     stubRuntimeEnv();
+    vi.resetModules();
     const getRuntimeConfig = vi.fn((rawEnv) => ({
       ...(rawEnv as Record<string, unknown>),
       parsedAt: getRuntimeConfig.mock.calls.length,

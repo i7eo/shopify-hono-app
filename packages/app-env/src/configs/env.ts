@@ -1,7 +1,7 @@
 import {
   appConfigSchema,
   cacheConfigSchema,
-  dataBaseSchema,
+  databaseSchema,
   envConfigSchema,
   extendConfigSchema,
   fileConfigSchema,
@@ -22,7 +22,7 @@ export const configSchema = extendConfigSchema(
   $appConfigSchema,
 )
   .extend(cacheConfigSchema.shape)
-  .extend(dataBaseSchema.shape)
+  .extend(databaseSchema.shape)
   .extend(envConfigSchema.shape)
   .extend(logConfigSchema.shape)
   .extend(redisSchema.shape)

@@ -1,14 +1,14 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import { internalServerError } from "@/shared/exceptions";
-import type {
-  Bucket,
-  BucketDeleteInput,
-  BucketDownloadSigner,
-  BucketDownloadSignInput,
-  BucketOpenInput,
-  BucketPutInput,
-  BucketReadableObject,
-  BucketStoredObject,
+import {
+  normalizeMultipartUploadPartSize,
+  readMultipartUploadParts,
+  type Bucket,
+  type BucketDeleteInput,
+  type BucketOpenInput,
+  type BucketPutInput,
+  type BucketReadableObject,
+  type BucketStoredObject,
 } from "./shared";
 
 export type S3CompatibleBucketConfig = {
@@ -18,15 +18,13 @@ export type S3CompatibleBucketConfig = {
   secretAccessKey: string;
 };
 
-export type S3CompatibleUploadBody = {
-  getByteLength: () => number;
-  value: unknown;
+export type S3CompatibleBucketOptions = {
+  /**
+   * Multipart upload part size. S3-compatible APIs require every non-final
+   * part to be at least 5 MiB, so smaller configured values are raised to 5 MiB.
+   */
+  partSizeBytes?: number;
 };
-
-export type CreateS3CompatibleUploadBody = (
-  stream: ReadableStream<Uint8Array>,
-  maxBytes: number,
-) => Promise<S3CompatibleUploadBody> | S3CompatibleUploadBody;
 
 /**
  * Stores bucket objects through the S3-compatible API used by Cloudflare R2.
@@ -35,33 +33,19 @@ export class S3CompatibleBucket implements Bucket {
   private clientPromise:
     | Promise<import("@aws-sdk/client-s3").S3Client>
     | undefined;
+  private readonly partSizeBytes: number;
 
   constructor(
     private readonly config: S3CompatibleBucketConfig,
-    private readonly createUploadBody: CreateS3CompatibleUploadBody,
-  ) {}
+    options: S3CompatibleBucketOptions = {},
+  ) {
+    this.partSizeBytes = normalizeMultipartUploadPartSize(
+      options.partSizeBytes,
+    );
+  }
 
   async put(input: BucketPutInput): Promise<BucketStoredObject> {
-    const [{ PutObjectCommand }, body] = await Promise.all([
-      import("@aws-sdk/client-s3"),
-      this.createUploadBody(input.body, input.maxBytes),
-    ]);
-    const client = await this.getClient();
-
-    await client.send(
-      new PutObjectCommand({
-        Body: body.value as never,
-        Bucket: this.config.bucketName,
-        ContentType: input.contentType,
-        Key: input.key,
-      }),
-    );
-
-    return {
-      byteSize: body.getByteLength(),
-      key: input.key,
-      provider: DEFAULT_APP_BUCKET_PROVIDERS.R2,
-    };
+    return await this.multipartPut(input);
   }
 
   async open(input: BucketOpenInput): Promise<BucketReadableObject> {
@@ -103,44 +87,91 @@ export class S3CompatibleBucket implements Bucket {
     this.clientPromise ??= createS3CompatibleClient(this.config);
     return this.clientPromise;
   }
-}
 
-/**
- * Creates short-lived S3-compatible download URLs for R2 objects.
- */
-export class S3CompatibleBucketDownloadSigner implements BucketDownloadSigner {
-  private clientPromise:
-    | Promise<import("@aws-sdk/client-s3").S3Client>
-    | undefined;
-
-  constructor(private readonly config: S3CompatibleBucketConfig) {}
-
-  async signDownloadUrl(input: BucketDownloadSignInput): Promise<string> {
-    const [{ GetObjectCommand }, { getSignedUrl }] = await Promise.all([
-      import("@aws-sdk/client-s3"),
-      import("@aws-sdk/s3-request-presigner"),
-    ]);
+  private async multipartPut(
+    input: BucketPutInput,
+  ): Promise<BucketStoredObject> {
+    const {
+      AbortMultipartUploadCommand,
+      CompleteMultipartUploadCommand,
+      CreateMultipartUploadCommand,
+      UploadPartCommand,
+    } = await import("@aws-sdk/client-s3");
     const client = await this.getClient();
-
-    return getSignedUrl(
-      client,
-      new GetObjectCommand({
+    const createResult = await client.send(
+      new CreateMultipartUploadCommand({
         Bucket: this.config.bucketName,
+        ContentType: input.contentType,
         Key: input.key,
-        ResponseContentDisposition: getAttachmentDisposition(
-          input.originalName,
-        ),
-        ResponseContentType: input.contentType,
       }),
-      {
-        expiresIn: Math.ceil(input.expiresInMilliseconds / 1000),
-      },
     );
-  }
+    const uploadId = createResult.UploadId;
 
-  private getClient() {
-    this.clientPromise ??= createS3CompatibleClient(this.config);
-    return this.clientPromise;
+    if (!uploadId) {
+      throw internalServerError("Failed to start R2 multipart upload", {
+        details: {
+          key: input.key,
+        },
+      });
+    }
+
+    const parts: Array<{ ETag: string; PartNumber: number }> = [];
+    let byteSize = 0;
+
+    try {
+      for await (const part of readMultipartUploadParts(
+        input.body,
+        this.partSizeBytes,
+        input.maxBytes,
+      )) {
+        byteSize += part.bytes.byteLength;
+
+        const result = await client.send(
+          new UploadPartCommand({
+            Body: part.bytes as never,
+            Bucket: this.config.bucketName,
+            ContentLength: part.bytes.byteLength,
+            Key: input.key,
+            PartNumber: part.partNumber,
+            UploadId: uploadId,
+          }),
+        );
+
+        parts.push({
+          ETag: result.ETag ?? "",
+          PartNumber: part.partNumber,
+        });
+      }
+
+      await client.send(
+        new CompleteMultipartUploadCommand({
+          Bucket: this.config.bucketName,
+          Key: input.key,
+          MultipartUpload: {
+            Parts: parts,
+          },
+          UploadId: uploadId,
+        }),
+      );
+
+      return {
+        byteSize,
+        key: input.key,
+        provider: DEFAULT_APP_BUCKET_PROVIDERS.R2,
+      };
+    } catch (error) {
+      await client
+        .send(
+          new AbortMultipartUploadCommand({
+            Bucket: this.config.bucketName,
+            Key: input.key,
+            UploadId: uploadId,
+          }),
+        )
+        .catch(() => undefined);
+
+      throw error;
+    }
   }
 }
 
@@ -176,20 +207,4 @@ function toWebReadableStream(body: unknown): ReadableStream<Uint8Array> {
   }
 
   throw internalServerError("Unsupported R2 response body type");
-}
-
-/**
- * Builds an RFC 5987 attachment disposition for signed download responses.
- */
-function getAttachmentDisposition(filename: string): string {
-  return `attachment; filename*=UTF-8''${encodeRFC5987Value(filename)}`;
-}
-
-function encodeRFC5987Value(value: string): string {
-  return encodeURIComponent(value).replaceAll(/['()*]/g, (char) => {
-    const codePoint = char.codePointAt(0);
-    return codePoint === undefined
-      ? ""
-      : `%${codePoint.toString(16).toUpperCase()}`;
-  });
 }

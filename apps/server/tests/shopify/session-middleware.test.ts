@@ -598,6 +598,77 @@ describe("Shopify online session helpers", () => {
     expect(context.var.shopifyAccessToken).toBe("new-token");
   });
 
+  it("reuses active offline sessions for the current shop", async () => {
+    const session = {
+      accessToken: "offline-token",
+      isActive: vi.fn(() => true),
+      isOnline: false,
+      shop: "shop.myshopify.com",
+    };
+    const findSessionsByShop = vi.fn(() => [session]);
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({ findSessionsByShop })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        config: { scopes: ["read_products"] },
+      })),
+    }));
+
+    const { ensureShopifyOfflineSession } =
+      await import("@/app/modules/shopify/session");
+    const context = createMockContext({
+      vars: { shopDomain: "shop.myshopify.com" },
+    });
+
+    await expect(ensureShopifyOfflineSession(context as never)).resolves.toBe(
+      session,
+    );
+    expect(findSessionsByShop).toHaveBeenCalledWith("shop.myshopify.com");
+    expect(session.isActive).toHaveBeenCalledWith(["read_products"]);
+  });
+
+  it("exchanges session tokens for offline sessions when none are active", async () => {
+    const session = {
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+      accessToken: "offline-token",
+    };
+    const findSessionsByShop = vi.fn(() => []);
+    const storeSession = vi.fn();
+    const tokenExchange = vi.fn(() => ({ session }));
+    vi.doMock("@/app/modules/shopify/session-storage", () => ({
+      getShopifySessionStorage: vi.fn(() => ({
+        findSessionsByShop,
+        storeSession,
+      })),
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        auth: { tokenExchange },
+        config: { scopes: ["read_products"] },
+      })),
+    }));
+
+    const { ensureShopifyOfflineSession } =
+      await import("@/app/modules/shopify/session");
+    const context = createMockContext({
+      headers: { Authorization: "Bearer session-token" },
+      vars: { shopDomain: "shop.myshopify.com" },
+    });
+
+    await expect(ensureShopifyOfflineSession(context as never)).resolves.toBe(
+      session,
+    );
+    expect(tokenExchange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shop: "shop.myshopify.com",
+        sessionToken: "session-token",
+      }),
+    );
+    expect(storeSession).toHaveBeenCalledWith(session);
+  });
+
   it("rejects malformed token exchange inputs and sessions without access tokens", async () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(),
@@ -919,6 +990,8 @@ describe("verifyWebhook middleware", () => {
       valid: true,
       topic: "APP_UNINSTALLED",
       domain: "shop.myshopify.com",
+      webhookId: "webhook-1",
+      apiVersion: "2026-04",
     }));
     vi.doMock("@/infra/provider", () => ({
       getShopifyConfigProvider: vi.fn(() => ({
@@ -940,9 +1013,13 @@ describe("verifyWebhook middleware", () => {
       rawRequest: context.req.raw,
       rawBody: '{"shop_id":1}',
     });
-    expect(context.var.webhookTopic).toBe("APP_UNINSTALLED");
-    expect(context.var.webhookShop).toBe("shop.myshopify.com");
-    expect(context.var.webhookPayload).toEqual({ shop_id: 1 });
+    expect(context.var.webhook).toEqual({
+      apiVersion: "2026-04",
+      payload: { shop_id: 1 },
+      shop: "shop.myshopify.com",
+      topic: "APP_UNINSTALLED",
+      webhookId: "webhook-1",
+    });
     expect(next).toHaveBeenCalledOnce();
   });
 
@@ -1108,7 +1185,7 @@ describe("verifyWebhook middleware", () => {
   });
 
   it("rejects invalid webhook signatures", async () => {
-    const validation = { valid: false, reason: "hmac" };
+    const validation = { valid: false, reason: "invalid_hmac" };
     vi.doMock("@/infra/provider", () => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: { validate: vi.fn(() => validation) },
@@ -1127,7 +1204,37 @@ describe("verifyWebhook middleware", () => {
         vi.fn(),
       ),
     ).rejects.toSatisfy((error) => {
-      expectAppError(error, 401, "Webhook validation failed");
+      expectAppError(error, 401, "Webhook HMAC validation failed");
+      expect(error).toMatchObject({ details: { validation } });
+      return true;
+    });
+  });
+
+  it("rejects invalid webhook requests with a bad request error", async () => {
+    const validation = {
+      missingHeaders: ["X-Shopify-Webhook-Id"],
+      reason: "missing_headers",
+      valid: false,
+    };
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => ({
+        webhooks: { validate: vi.fn(() => validation) },
+      })),
+    }));
+
+    const { verifyWebhook } =
+      await import("@/shared/middlewares/shopify/verify-webhook");
+
+    await expect(
+      verifyWebhook(
+        createMockContext({
+          method: "POST",
+          body: JSON.stringify({ ok: true }),
+        }) as never,
+        vi.fn(),
+      ),
+    ).rejects.toSatisfy((error) => {
+      expectAppError(error, 400, "Webhook request is invalid");
       expect(error).toMatchObject({ details: { validation } });
       return true;
     });

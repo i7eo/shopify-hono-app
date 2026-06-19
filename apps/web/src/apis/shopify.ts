@@ -1,8 +1,5 @@
 import { shopifyClient } from "@/utils/client.shopify";
-
-export interface ApiResponse<TData> {
-  data?: TData;
-}
+import type { ApiResponse } from "@/typings/json-api";
 
 export interface ShopInfo {
   name?: string;

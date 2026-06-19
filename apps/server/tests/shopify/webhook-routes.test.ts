@@ -1,3 +1,4 @@
+import { InvalidWebhookError } from "@shopify/shopify-api";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { disposeRuntimeCapabilities } from "@/app/runtime/capabilities";
@@ -19,9 +20,13 @@ describe("Shopify webhook routes", () => {
 
     vi.doMock("@/shared/middlewares", () => ({
       verifyWebhook: async (c: any, next: any) => {
-        c.set("webhookTopic", "TEST_TOPIC");
-        c.set("webhookShop", "shop.myshopify.com");
-        c.set("webhookPayload", webhookPayload);
+        c.set("webhook", {
+          apiVersion: "2026-04",
+          payload: webhookPayload,
+          shop: "shop.myshopify.com",
+          topic: "TEST_TOPIC",
+          webhookId: "webhook-1",
+        });
         await next();
       },
     }));
@@ -73,15 +78,15 @@ describe("Shopify webhook routes", () => {
 
   it.each([
     [
-      "/webhooks/customers/data-request",
+      "/webhooks/privacy/customers-data-request",
       'Customer data request from shop.myshopify.com: {"id":1}',
     ],
     [
-      "/webhooks/customers/redact",
+      "/webhooks/privacy/customers-redact",
       'Customer redact request from shop.myshopify.com: {"id":1}',
     ],
     [
-      "/webhooks/shop/redact",
+      "/webhooks/privacy/shop-redact",
       'Shop redact request from shop.myshopify.com: {"id":1}',
     ],
   ])("handles privacy webhook route %s", async (path, logMessage) => {
@@ -188,6 +193,139 @@ describe("Shopify webhook routes", () => {
 
     expect(app.route).toHaveBeenCalledWith("/webhooks", expect.any(Object));
   });
+
+  it("registers configured Shopify webhooks for an offline session", async () => {
+    vi.doUnmock("@/app/modules/shopify/webhook");
+    const addHandlers = vi.fn();
+    const register = vi.fn(() => ({
+      APP_UNINSTALLED: [{ success: true }],
+      BULK_OPERATIONS_FINISH: [{ success: true }],
+    }));
+    const getShopifyConfigProvider = vi.fn(() => ({
+      webhooks: {
+        addHandlers,
+        register,
+      },
+    }));
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider,
+    }));
+
+    const { registerConfiguredShopifyWebhooks } =
+      await import("@/app/modules/shopify/webhook");
+    const { SHOPIFY_WEBHOOK_BASE_PATH, SHOPIFY_WEBHOOK_ROUTE_PATHS } =
+      await import("@/app/modules/shopify/webhook/constants");
+    const context = {
+      get: vi.fn((key) => {
+        if (key === "runtimeEnv") return runtimeConfig;
+        if (key === "runtimeLogger") return logger;
+      }),
+    };
+    const session = {
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+    };
+
+    const result = await registerConfiguredShopifyWebhooks(
+      context as never,
+      session as never,
+    );
+
+    expect(getShopifyConfigProvider).toHaveBeenCalledWith(runtimeConfig);
+    expect(addHandlers).toHaveBeenCalledWith({
+      APP_UNINSTALLED: expect.objectContaining({
+        callbackUrl: `${SHOPIFY_WEBHOOK_BASE_PATH}${SHOPIFY_WEBHOOK_ROUTE_PATHS.APP_UNINSTALLED}`,
+        deliveryMethod: "http",
+      }),
+      BULK_OPERATIONS_FINISH: expect.objectContaining({
+        callbackUrl: `${SHOPIFY_WEBHOOK_BASE_PATH}${SHOPIFY_WEBHOOK_ROUTE_PATHS.BULK_OPERATIONS_FINISH}`,
+        deliveryMethod: "http",
+      }),
+    });
+    expect(register).toHaveBeenCalledWith({ session });
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Registered Shopify webhooks for shop.myshopify.com",
+      ),
+    );
+    expect(result).toEqual({
+      APP_UNINSTALLED: [{ success: true }],
+      BULK_OPERATIONS_FINISH: [{ success: true }],
+    });
+  });
+
+  it("adds Shopify webhook handlers only once per Shopify SDK instance", async () => {
+    vi.doUnmock("@/app/modules/shopify/webhook");
+    const addHandlers = vi.fn();
+    const register = vi.fn(() => ({}));
+    const shopify = {
+      webhooks: {
+        addHandlers,
+        register,
+      },
+    };
+    vi.doMock("@/infra/provider", () => ({
+      getShopifyConfigProvider: vi.fn(() => shopify),
+    }));
+
+    const { registerConfiguredShopifyWebhooks } =
+      await import("@/app/modules/shopify/webhook");
+    const context = {
+      get: vi.fn((key) => {
+        if (key === "runtimeEnv") return runtimeConfig;
+        if (key === "runtimeLogger") return logger;
+      }),
+    };
+    const session = {
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+    };
+
+    await registerConfiguredShopifyWebhooks(context as never, session as never);
+    await registerConfiguredShopifyWebhooks(context as never, session as never);
+
+    expect(addHandlers).toHaveBeenCalledOnce();
+    expect(register).toHaveBeenCalledTimes(2);
+  });
+
+  it("normalizes Shopify SDK webhook errors through the app error model", async () => {
+    vi.doUnmock("@/app/modules/shopify/webhook");
+    vi.doMock("@/shared/middlewares", () => ({
+      verifyWebhook: () => {
+        throw new InvalidWebhookError({
+          message: "Could not validate request HMAC",
+          response: new Response("Could not validate request HMAC", {
+            status: 401,
+            statusText: "Unauthorized",
+            headers: {
+              "content-type": "text/plain",
+              "x-shopify-error": "webhook",
+            },
+          }),
+        });
+      },
+    }));
+
+    const { createWebhookRoutes } =
+      await import("@/app/modules/shopify/webhook");
+    const { onAppError } = await import("@/app/lifecycle/error");
+    const app = new Hono<AppEnv>();
+    onAppError(app);
+    app.route("/webhooks", createWebhookRoutes());
+
+    const response = await app.request("/webhooks/app/uninstalled", {
+      method: "POST",
+      body: "{}",
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("x-shopify-error")).toBeNull();
+    await expect(response.json()).resolves.toMatchObject({
+      code: 401,
+      message: "Invalid Shopify webhook request",
+      success: false,
+    });
+  });
 });
 
 function createProductExportRecord(
@@ -212,6 +350,7 @@ function createProductExportRecord(
     shopDomain: "shop.myshopify.com",
     shopifyBulkOperationId: null,
     shopifyBulkOperationStatus: null,
+    shopifySessionId: null,
     status: "queued",
     updatedAt: now,
     ...overrides,

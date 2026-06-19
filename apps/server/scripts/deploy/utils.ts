@@ -63,5 +63,5 @@ export function sanitizePackageName(name: string) {
     .replaceAll(/[^\w.-]/g, "-")
     .toLowerCase();
 
-  return normalized || "shopify-hono-app";
+  return normalized;
 }

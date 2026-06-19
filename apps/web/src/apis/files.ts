@@ -1,9 +1,11 @@
 import { shopifyClient } from "@/utils/client.shopify";
-import type { InsertFile } from "@shamt/database";
+import type { ApiResponse, JsonSerializedDates } from "@/typings/json-api";
+import type { SelectFile } from "@shamt/database";
 
-export interface ApiResponse<TData> {
-  data?: TData;
-}
+export type FileResource = JsonSerializedDates<
+  SelectFile,
+  "createdAt" | "deletedAt" | "expiresAt" | "updatedAt"
+>;
 
 /**
  * Uploads a raw file body to the backend file module.
@@ -13,7 +15,7 @@ export function uploadFile(file: File, signal?: AbortSignal) {
   headers.set("Content-Type", file.type || "application/octet-stream");
   headers.set("X-File-Name", file.name);
 
-  return shopifyClient.post<ApiResponse<InsertFile>, File>("files", file, {
+  return shopifyClient.post<ApiResponse<FileResource>, File>("files", file, {
     headers,
     signal,
   });

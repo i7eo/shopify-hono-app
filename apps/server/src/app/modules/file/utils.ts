@@ -1,5 +1,7 @@
 import { badRequestError } from "@/shared/exceptions";
+import { createBucketObjectKey } from "@/utils";
 import type { FileRecord, PublicFile } from "./types";
+export { getAttachmentDisposition } from "@/utils";
 
 /**
  * Converts the internal database row into the public API file shape.
@@ -94,28 +96,10 @@ export function createBucketKey(input: {
   safeName: string;
   shopDomain: string;
 }): string {
-  const year = String(input.now.getUTCFullYear());
-  const month = String(input.now.getUTCMonth() + 1).padStart(2, "0");
-  const safeShopDomain = input.shopDomain.replaceAll(/[^a-z0-9.-]/gi, "-");
-
-  return `${safeShopDomain}/${year}/${month}/${input.id}/${input.safeName}`;
-}
-
-/**
- * Builds a safe attachment Content-Disposition header value.
- */
-export function getAttachmentDisposition(filename: string): string {
-  return `attachment; filename*=UTF-8''${encodeRFC5987Value(filename)}`;
-}
-
-/**
- * Encodes a filename according to RFC 5987 for HTTP header usage.
- */
-export function encodeRFC5987Value(value: string): string {
-  return encodeURIComponent(value).replaceAll(/['()*]/g, (char) => {
-    const codePoint = char.codePointAt(0);
-    return codePoint === undefined
-      ? ""
-      : `%${codePoint.toString(16).toUpperCase()}`;
+  return createBucketObjectKey({
+    date: input.now,
+    filename: input.safeName,
+    id: input.id,
+    shopDomain: input.shopDomain,
   });
 }

@@ -10,11 +10,11 @@ import { name } from "../../../../package.json";
 import { registerProcessRuntimeCapabilities } from "./capabilities";
 
 export async function bootstrap() {
-  // error catch first
-  await registerProcessExceptions();
-
   registerProcessRuntimeCapabilities();
   registerJobs();
+
+  // error catch first
+  await registerProcessExceptions();
 
   const env = getEnvProvider();
   const app = await bootstrapApp({

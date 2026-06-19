@@ -8,20 +8,43 @@ import { runtimeConfig } from "./shopify/test-utils";
 import type { FileRecord } from "@/app/modules/file/types";
 import type { Context } from "hono";
 
+const cloudflareTokenVerifyRequest = vi.fn(() =>
+  Promise.resolve(
+    Response.json({
+      result: {
+        id: "access_key",
+      },
+    }),
+  ),
+);
+
+vi.mock("@/infra/provider", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/infra/provider")>();
+
+  return {
+    ...original,
+    getClientProvider: () => ({
+      dispose: vi.fn(),
+      request: cloudflareTokenVerifyRequest,
+    }),
+  };
+});
+
 describe("file download runtime capability", () => {
   afterEach(() => disposeRuntimeCapabilities());
 
-  it("streams R2 downloads through the Cloudflare binding", async () => {
+  it("redirects R2 downloads through a Cloudflare-compatible signed URL", async () => {
     const { registerCloudflareIsolateRuntimeCapabilities } =
       await import("@/app/runtime/isolate/cloudflare/capabilities");
     const runtimeEnv = getRuntimeConfig({
       ...runtimeConfig,
       APP_BUCKET_PROVIDER: "r2",
+      APP_BUCKET_R2_URL:
+        "https://account-id.r2.cloudflarestorage.com/product-export",
+      APP_CLOUDFLARE_USER_TOKEN: "token_value",
       APP_RUNTIME: "cloudflare",
     });
-    const r2 = createR2Binding({
-      "shop/file.csv": new TextEncoder().encode("r2-body"),
-    });
+    const r2 = createR2Binding();
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const context = {
       env: {
@@ -52,56 +75,38 @@ describe("file download runtime capability", () => {
     const resolver = await factory?.(context);
     const download = await resolver?.resolve({ file });
 
-    expect(download?.type).toBe("stream");
+    expect(download?.type).toBe("redirect");
     expect(download?.headers).toEqual({
       "Cache-Control": "private, no-store",
-      "Content-Disposition": "attachment; filename*=UTF-8''file.csv",
-      "Content-Length": "7",
-      "Content-Type": "text/csv",
     });
-    expect(r2.get).toHaveBeenCalledWith("shop/file.csv");
+    expect(r2.get).not.toHaveBeenCalled();
 
-    if (download?.type !== "stream") {
-      throw new Error("Expected a stream download");
+    if (download?.type !== "redirect") {
+      throw new Error("Expected a redirect download");
     }
 
-    await expect(new Response(download.body).text()).resolves.toBe("r2-body");
+    const url = new URL(download.url);
+    expect(url.origin).toBe("https://account-id.r2.cloudflarestorage.com");
+    expect(url.pathname).toBe("/product-export/shop/file.csv");
+    expect(url.searchParams.get("X-Amz-Algorithm")).toBe("AWS4-HMAC-SHA256");
+    expect(url.searchParams.get("X-Amz-Credential")).toMatch(
+      /^access_key\/\d{8}\/auto\/s3\/aws4_request$/,
+    );
+    expect(url.searchParams.get("response-content-disposition")).toBe(
+      "attachment; filename*=UTF-8''file.csv",
+    );
+    expect(url.searchParams.get("response-content-type")).toBe("text/csv");
   });
 });
 
-function createR2Binding(initialObjects: Record<string, Uint8Array>): R2Bucket {
-  const objects = new Map(Object.entries(initialObjects));
+function createR2Binding(): R2Bucket {
   const bucket: R2Bucket = {
     createMultipartUpload: vi.fn(),
-    delete: vi.fn((key: string) => {
-      objects.delete(key);
-      return Promise.resolve();
-    }),
-    get: vi.fn((key: string) => {
-      const bytes = objects.get(key);
-      const object: R2ObjectBody | null = bytes
-        ? {
-            body: streamFromBytes(bytes),
-            size: bytes.byteLength,
-          }
-        : null;
-      return Promise.resolve(object);
-    }),
-    put: vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
-      objects.set(key, new Uint8Array(await new Response(body).arrayBuffer()));
-      return null;
-    }),
+    delete: vi.fn(),
+    get: vi.fn(),
+    put: vi.fn(),
     resumeMultipartUpload: vi.fn(),
   };
 
   return bucket;
-}
-
-function streamFromBytes(bytes: Uint8Array): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(bytes);
-      controller.close();
-    },
-  });
 }

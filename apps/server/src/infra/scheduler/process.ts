@@ -40,6 +40,7 @@ export async function createProcessScheduler(
     async start(context) {
       await Promise.all(
         tasks.map(async (task) => {
+          await ensureProcessSchedulerQueueExists(boss, task.name);
           await boss.schedule(task.name, task.cron, {
             name: task.name,
           });
@@ -70,6 +71,13 @@ export async function stopProcessScheduler(): Promise<void> {
   processScheduler = undefined;
 
   await scheduler?.stop();
+}
+
+async function ensureProcessSchedulerQueueExists(
+  boss: PgBoss,
+  queueName: string,
+): Promise<void> {
+  await boss.createQueue(queueName);
 }
 
 export async function disposeProcessScheduler(): Promise<void> {

@@ -131,7 +131,7 @@ file module 使用这些 runtime capabilities：
 
 file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher。
 
-Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 stream 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder；通用 queue/scheduler infra 已可用于 product-export 等模块，但 file module 的后台任务尚未迁移到它。
+Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder；通用 queue/scheduler infra 已可用于 product-export 等模块，但 file module 的后台任务尚未迁移到它。
 
 ## 下载与删除
 
@@ -143,7 +143,7 @@ Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket facto
 | ------------ | -------- | --------------------- |
 | `node`       | `memory` | `200` stream          |
 | `node`       | `r2`     | `302` signed redirect |
-| `cloudflare` | `r2`     | `200` stream          |
+| `cloudflare` | `r2`     | `302` signed redirect |
 
 Memory download 返回：
 
@@ -154,7 +154,7 @@ Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>
 Cache-Control: private, no-store
 ```
 
-Node R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `GetObjectCommand` 带上 `ResponseContentType` 与 `ResponseContentDisposition`。Cloudflare R2 download 通过 Worker R2 binding `get` 读取 object，并返回与 memory download 相同的私有 stream response。
+R2 download 返回 `300000ms` 短期 SigV4 signed URL redirect，并在签名 query 中带上 `response-content-type` 与 `response-content-disposition`。Node 与 Cloudflare runtime 共用同一套 Web Crypto signer；没有 signed URL signer 的 provider 才返回与 memory download 相同的私有 stream response。
 
 删除时会先删除 bucket object，然后把数据库记录标记为 `deleted`。
 
@@ -162,7 +162,7 @@ Node R2 download 返回 `300000ms` 短期签名 URL redirect，并由签名 `Get
 
 - 后台过期清理尚未实现。
 - file module 的 Cloudflare Queue-backed background tasks 尚未实现。
-- R2 custom-domain signed download 尚未实现。当前 Node 返回 S3-compatible endpoint 的短期签名 URL，Cloudflare 返回 R2 binding stream。
+- R2 custom-domain signed download 尚未实现。当前 R2 provider 返回 S3-compatible endpoint 的短期签名 URL。
 - Multipart 解析当前只支持文件字段，不接收普通表单字段。
 
 ## 测试

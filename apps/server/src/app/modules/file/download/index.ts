@@ -21,8 +21,8 @@ export class BucketFileDownloadResolver implements FileDownloadResolver {
    * Returns a short-lived redirect when a signer exists, otherwise streams the
    * object through the configured bucket.
    *
-   * Example: Node R2 redirects to an S3 signed URL; Cloudflare R2 streams from
-   * the request-bound R2 binding.
+   * Example: R2 redirects to a short-lived signed URL in both Node and
+   * Cloudflare runtimes.
    */
   async resolve(input: FileDownloadInput): Promise<FileDownload> {
     if (

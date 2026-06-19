@@ -274,7 +274,7 @@ describe("queue batch consumer", () => {
 });
 
 describe("queue runtime strategy", () => {
-  it("defaults node to pg-boss and prefixes job names", () => {
+  it("defaults node to pg-boss and prefixes job names with pg-boss safe characters", () => {
     const strategy = getQueueEnvConfig({
       APP_DATABASE_PROVIDER: "postgres",
       APP_QUEUE_NAME: "shopify-app",
@@ -286,8 +286,8 @@ describe("queue runtime strategy", () => {
       provider: "pg-boss",
       runtime: "node",
     });
-    expect(getQueueJobName(strategy, "product-export:start")).toBe(
-      "shopify-app:product-export:start",
+    expect(getQueueJobName(strategy, "product-export.start-bulk")).toBe(
+      "shopify-app/product-export.start-bulk",
     );
   });
 
@@ -388,5 +388,71 @@ describe("cloudflare queue producer", () => {
         delaySeconds: 10,
       },
     ]);
+  });
+});
+
+describe("process queue consumer", () => {
+  afterEach(() => {
+    vi.doUnmock("pg-boss");
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("creates registered pg-boss queues before polling them", async () => {
+    const calls: string[] = [];
+    const boss = {
+      complete: vi.fn(),
+      createQueue: vi.fn((name: string) => {
+        calls.push(`createQueue:${name}`);
+        return Promise.resolve();
+      }),
+      fail: vi.fn(),
+      fetch: vi.fn((name: string) => {
+        calls.push(`fetch:${name}`);
+        return Promise.resolve([]);
+      }),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    vi.doMock("pg-boss", () => ({
+      PgBoss: vi.fn(function PgBoss() {
+        return boss;
+      }),
+    }));
+
+    const { registerQueueJob, resetQueueJobs } =
+      await import("@/infra/queue/registry");
+    const { createProcessQueueConsumer } =
+      await import("@/infra/queue/process");
+
+    resetQueueJobs();
+    registerQueueJob({
+      handler: vi.fn(),
+      name: "test.one",
+    });
+    registerQueueJob({
+      handler: vi.fn(),
+      name: "test.two",
+    });
+
+    const consumer = await createProcessQueueConsumer({
+      APP_DATABASE_PROVIDER: "postgres",
+      APP_DATABASE_URL: "postgres://example.test/app",
+      APP_QUEUE_NAME: "default",
+      APP_RUNTIME: "node",
+    } as any);
+
+    await consumer.start(context);
+    await consumer.stop();
+
+    expect(boss.createQueue).toHaveBeenCalledWith("default/test.one");
+    expect(boss.createQueue).toHaveBeenCalledWith("default/test.two");
+    expect(calls.indexOf("createQueue:default/test.one")).toBeLessThan(
+      calls.indexOf("fetch:default/test.one"),
+    );
+    expect(calls.indexOf("createQueue:default/test.two")).toBeLessThan(
+      calls.indexOf("fetch:default/test.two"),
+    );
   });
 });

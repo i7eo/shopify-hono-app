@@ -1,7 +1,22 @@
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import { badGatewayError, notFoundError } from "@/shared/exceptions";
+import {
+  DEFAULT_APP_BUCKET_PROVIDERS,
+  type DEFAULT_APP_BUCKET_PROVIDERS_VALUES,
+} from "@shamt/app-env";
+import {
+  getRuntimeCapability,
+  type RuntimeCapabilityInstances,
+  type RuntimeCapabilityName,
+} from "@/app/runtime/capabilities";
+import {
+  badGatewayError,
+  internalServerError,
+  notFoundError,
+} from "@/shared/exceptions";
 import { enqueueProductExportJob } from "./queue";
-import { PRODUCT_EXPORT_QUEUE_JOBS } from "./queue/constants";
+import {
+  PRODUCT_EXPORT_CSV_CONTENT_TYPE,
+  PRODUCT_EXPORT_QUEUE_JOBS,
+} from "./queue/constants";
 import { createDatabaseProductExportsStoreFromPromise } from "./stores/database";
 import {
   mapBulkOperationStatus,
@@ -17,6 +32,7 @@ import type {
   ProductExportsPage,
   ProductExportStore,
 } from "./types";
+import type { FileDownload } from "@/app/modules/file/types";
 import type { ShopifyClient } from "@/infra/provider";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -90,6 +106,7 @@ export async function createProductExport(
     shopDomain: input.shopDomain,
     shopifyBulkOperationId: null,
     shopifyBulkOperationStatus: null,
+    shopifySessionId: null,
     status: PRODUCT_EXPORT_STATUSES.QUEUED,
     updatedAt: now,
   };
@@ -144,6 +161,67 @@ export async function deleteProductExport(
 }
 
 /**
+ * Resolves a ready product export into an authenticated CSV download.
+ */
+export async function downloadProductExport(
+  c: Context<AppEnv>,
+  shopDomain: string,
+  id: string,
+): Promise<FileDownload> {
+  const record = await getProductExportsStore(c).findById({
+    id,
+    shopDomain,
+  });
+
+  if (
+    !record ||
+    record.status !== PRODUCT_EXPORT_STATUSES.READY ||
+    !record.bucketKey ||
+    !record.bucketProvider
+  ) {
+    throw notFoundError("Product export file not found", {
+      details: { id, shopDomain },
+      expose: true,
+    });
+  }
+
+  if (!isBucketProvider(record.bucketProvider)) {
+    throw notFoundError("Product export file not found", {
+      details: { id, shopDomain },
+      expose: true,
+    });
+  }
+
+  const resolver = await getFactory("moduleFileDownloadResolverFactory")(c);
+
+  return resolver.resolve({
+    file: {
+      bucketKey: record.bucketKey,
+      bucketProvider: record.bucketProvider,
+      byteSize: record.fileSize ?? 0,
+      contentType: PRODUCT_EXPORT_CSV_CONTENT_TYPE,
+      createdAt: record.createdAt,
+      deletedAt: null,
+      expiresAt: record.completedAt ?? record.updatedAt,
+      id: record.id,
+      originalName: "products.csv",
+      safeName: "products.csv",
+      shopDomain: record.shopDomain,
+      status: "available",
+      updatedAt: record.updatedAt,
+    },
+  });
+}
+
+function isBucketProvider(
+  value: string,
+): value is DEFAULT_APP_BUCKET_PROVIDERS_VALUES {
+  return Object.values(DEFAULT_APP_BUCKET_PROVIDERS).includes(
+    value as DEFAULT_APP_BUCKET_PROVIDERS_VALUES,
+  );
+}
+
+/**
  * Applies Shopify BulkOperation completion data to the matching export.
  *
  * This handler is idempotent: repeated webhooks update the same record.
@@ -182,6 +260,7 @@ export async function completeProductExportBulkOperation(
 export async function startProductExportBulkOperationForRecord(input: {
   client: ShopifyClient;
   record: ProductExportRecord;
+  shopifySessionId: string;
   store: ProductExportStore;
 }): Promise<ProductExportRecord> {
   if (input.record.shopifyBulkOperationId) return input.record;
@@ -192,6 +271,7 @@ export async function startProductExportBulkOperationForRecord(input: {
       ...input.record,
       shopifyBulkOperationId: bulkOperation.id,
       shopifyBulkOperationStatus: bulkOperation.status,
+      shopifySessionId: input.shopifySessionId,
       status: PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING,
       updatedAt: new Date(),
     };
@@ -293,6 +373,22 @@ export function getProductExportsStore(c: Context<AppEnv>): ProductExportStore {
   return createDatabaseProductExportsStoreFromPromise(
     Promise.resolve(databaseFactory(c)),
   );
+}
+
+/**
+ * Resolves a required runtime capability and fails loudly when it is missing.
+ */
+function getFactory<K extends RuntimeCapabilityName>(
+  name: K,
+): RuntimeCapabilityInstances[K] {
+  const factory = getRuntimeCapability(name);
+  if (!factory) {
+    throw internalServerError(`Runtime capability is not registered: ${name}`, {
+      expose: true,
+    });
+  }
+
+  return factory;
 }
 
 /**

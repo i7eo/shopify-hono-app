@@ -1,7 +1,4 @@
-const ignoredFiles = new Set([
-  "apps/server/typings/cloudflare-worker-configuration.d.ts",
-  "apps/web/src/routeTree.gen.ts",
-]);
+const ignoredFiles = new Set();
 
 function createTasks(commands: string[]) {
   return (files: string[]) => {
@@ -37,9 +34,5 @@ export default {
     "stylelint --fix --allow-empty-input",
     "prettier --write --ignore-unknown",
   ]),
-  // "*.vue": createTasks([
-  //   "eslint --fix --max-warnings=0 --report-unused-disable-directives",
-  //   "prettier --write --ignore-unknown",
-  // ]),
   "*": createTasks(["prettier --write --ignore-unknown"]),
 };

@@ -49,8 +49,8 @@ catalogs:
     "simple-git-hooks": "^2.13.1"
     "@unconfig/stylelint-config": "^0.1.10"
     "@unconfig/ts-config-latest": "^0.0.1"
-    "rolldown": "^1.1.1"
-    "rolldown-plugin-dts": "^0.25.2"
+    "rolldown": "^1.1.2"
+    "rolldown-plugin-dts": "^0.26.0"
     "tsx": "^4.22.4"
     "turbo": "^2.9.14"
     "@manypkg/get-packages": "^3.1.0"
@@ -70,7 +70,7 @@ catalogs:
     "tailwindcss": "^4.3.1"
     "@tailwindcss/vite": "^4.3.1"
   "hono":
-    "hono": "^4.12.25"
+    "hono": "^4.12.26"
   "drizzle":
     "drizzle-orm": "^0.45.2"
     "drizzle-zod": "^0.8.3"
@@ -91,8 +91,8 @@ catalogs:
     "@testing-library/react": "^16.3.2"
     "jsdom": "^29.1.1"
   "cloudflare":
-    "@cloudflare/workers-types": "^4.20260616.1"
-    "wrangler": "^4.101.0"
+    "@cloudflare/workers-types": "^4.20260617.1"
+    "wrangler": "^4.102.0"
 
 minimumReleaseAgeExclude:
   - hono@4.12.23

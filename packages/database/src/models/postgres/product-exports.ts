@@ -7,6 +7,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { postgresShopifySessions } from "./shopify-sessions";
 
 export const PRODUCT_EXPORT_STATUS_VALUES = [
   "queued",
@@ -41,6 +42,10 @@ export const productExports = pgTable(
   {
     id: text("id").primaryKey(),
     shopDomain: text("shop_domain").notNull(),
+    shopifySessionId: text("shopify_session_id").references(
+      () => postgresShopifySessions.id,
+      { onDelete: "set null" },
+    ),
     name: text("name").notNull(),
     status: productExportStatusEnum("status").notNull(),
     shopifyBulkOperationId: text("shopify_bulk_operation_id"),

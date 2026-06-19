@@ -1,57 +1,124 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  deleteProductExport,
+  downloadProductExportFile,
+  listProductExports,
+  type ProductExport,
+  type ProductExportStatus,
+} from "@/apis/product-exports";
 import { Empty } from "@/components/empty";
 
 export const Route = createFileRoute("/product-export/")({
-  component: ProductExport,
+  component: ProductExportIndex,
 });
 
-const EXPORT_ACTION_DELAY_MS = 1000000;
+const PRODUCT_EXPORT_POLL_MS = 1000 * 60 * 5;
+const TERMINAL_STATUSES = new Set<ProductExportStatus>([
+  "canceled",
+  "failed",
+  "ready",
+]);
 
-const exportActionRows = [
-  {
-    createdAt: "Today",
-    fileName: "summer-catalog.csv",
-    id: "summer-catalog",
-    name: "Summer catalog",
-    status: "Ready",
-    tone: "success",
-  },
-  {
-    createdAt: "Yesterday",
-    fileName: "price-review.csv",
-    id: "price-review",
-    name: "Price review",
-    status: "Processing",
-    tone: "info",
-  },
-  {
-    createdAt: "Last week",
-    fileName: "archive-export.csv",
-    id: "archive-export",
-    name: "Archive export",
-    status: "Failed",
-    tone: "critical",
-  },
-] as const;
+type LoadState = "idle" | "loading" | "ready" | "error";
 
-type ExportActionRow = (typeof exportActionRows)[number];
+function ProductExportIndex() {
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [productExports, setProductExports] = useState<ProductExport[]>([]);
 
-function ProductExport() {
-  const [rows, setRows] = useState<ExportActionRow[]>([]);
+  const loadExports = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      if (!options.silent) {
+        setLoadState("loading");
+        setErrorMessage("");
+      }
+
+      try {
+        const response = await listProductExports(
+          { limit: 20 },
+          controller.signal,
+        );
+        setProductExports(response.data?.productExports ?? []);
+        setLoadState("ready");
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setErrorMessage(getErrorMessage(error));
+          setLoadState("error");
+        }
+      } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = undefined;
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    const timer = globalThis.setTimeout(() => {
-      setRows([...exportActionRows]);
-    }, EXPORT_ACTION_DELAY_MS);
+    loadExports().catch((error: unknown) => {
+      setErrorMessage(getErrorMessage(error));
+      setLoadState("error");
+    });
 
     return () => {
-      globalThis.clearTimeout(timer);
+      abortControllerRef.current?.abort();
     };
-  }, []);
+  }, [loadExports]);
+
+  useEffect(() => {
+    if (!productExports.some((row) => !TERMINAL_STATUSES.has(row.status))) {
+      return;
+    }
+
+    const timer = globalThis.setInterval(() => {
+      loadExports({ silent: true }).catch((error: unknown) => {
+        setErrorMessage(getErrorMessage(error));
+        setLoadState("error");
+      });
+    }, PRODUCT_EXPORT_POLL_MS);
+
+    return () => {
+      globalThis.clearInterval(timer);
+    };
+  }, [loadExports, productExports]);
+
+  async function handleDownload(productExport: ProductExport) {
+    const controller = new AbortController();
+    setLoading(true);
+
+    try {
+      await downloadProductExportFile(productExport, controller.signal);
+      showToast("Product export download started.");
+    } catch (error) {
+      showToast(getErrorMessage(error), { isError: true });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(productExport: ProductExport) {
+    const controller = new AbortController();
+    setLoading(true);
+
+    try {
+      await deleteProductExport(productExport.id, controller.signal);
+      showToast("Product export deleted.");
+      await loadExports({ silent: true });
+    } catch (error) {
+      showToast(getErrorMessage(error), { isError: true });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <s-page heading="Product Export">
+    <s-page heading="Product export">
       <s-button
         href="/product-export/new"
         slot="primary-action"
@@ -60,87 +127,150 @@ function ProductExport() {
         Create
       </s-button>
 
-      {rows.length === 0 ? (
+      {loadState === "loading" ? (
+        <s-section>
+          <s-spinner
+            accessibilityLabel="Loading product export actions"
+            size="base"
+          ></s-spinner>
+        </s-section>
+      ) : loadState === "error" ? (
+        <s-section>
+          <s-banner heading="Unable to load product exports" tone="critical">
+            <s-text>{errorMessage}</s-text>
+          </s-banner>
+        </s-section>
+      ) : productExports.length === 0 ? (
         <Empty
-          heading="No export actions"
-          message="Create an export action to upload and process a product export file."
+          heading="No product exports"
+          message="Create a product export to generate a CSV file from your Shopify products."
           scope="inline"
         />
       ) : (
-        <s-section padding="none" accessibilityLabel="Product export actions">
+        <s-section padding="none" accessibilityLabel="Product exports">
           <s-table>
-            <s-grid
-              slot="filters"
-              gap="small-200"
-              gridTemplateColumns="1fr auto"
-            >
-              <s-text-field
-                label="Search export actions"
-                labelAccessibilityVisibility="exclusive"
-                icon="search"
-                placeholder="Searching all export actions"
-              ></s-text-field>
-              <s-button
-                icon="sort"
-                variant="secondary"
-                accessibilityLabel="Sort"
-                interestFor="export-actions-sort-tooltip"
-                commandFor="export-actions-sort"
-              ></s-button>
-              <s-tooltip id="export-actions-sort-tooltip">
-                <s-text>Sort</s-text>
-              </s-tooltip>
-              <s-popover id="export-actions-sort">
-                <s-stack gap="none">
-                  <s-box padding="small">
-                    <s-choice-list label="Sort by" name="Sort by">
-                      <s-choice value="name" selected>
-                        Export action
-                      </s-choice>
-                      <s-choice value="file">File</s-choice>
-                      <s-choice value="created">Created</s-choice>
-                      <s-choice value="status">Status</s-choice>
-                    </s-choice-list>
-                  </s-box>
-                  <s-divider></s-divider>
-                  <s-box padding="small">
-                    <s-choice-list label="Order by" name="Order by">
-                      <s-choice value="ascending" selected>
-                        A-Z
-                      </s-choice>
-                      <s-choice value="descending">Z-A</s-choice>
-                    </s-choice-list>
-                  </s-box>
-                </s-stack>
-              </s-popover>
-            </s-grid>
-
             <s-table-header-row>
-              <s-table-header listSlot="primary">Export action</s-table-header>
-              <s-table-header>File</s-table-header>
+              <s-table-header listSlot="primary">Export</s-table-header>
               <s-table-header>Created</s-table-header>
+              <s-table-header>Products</s-table-header>
               <s-table-header listSlot="secondary">Status</s-table-header>
+              <s-table-header>Actions</s-table-header>
             </s-table-header-row>
             <s-table-body>
-              {rows.map((row) => (
-                <s-table-row clickDelegate={`${row.id}-checkbox`} key={row.id}>
-                  <s-table-cell>
-                    <s-stack direction="inline" gap="small" alignItems="center">
-                      <s-checkbox id={`${row.id}-checkbox`}></s-checkbox>
-                      <s-link href="/product-export/new">{row.name}</s-link>
-                    </s-stack>
-                  </s-table-cell>
-                  <s-table-cell>{row.fileName}</s-table-cell>
-                  <s-table-cell>{row.createdAt}</s-table-cell>
-                  <s-table-cell>
-                    <s-badge tone={row.tone}>{row.status}</s-badge>
-                  </s-table-cell>
-                </s-table-row>
-              ))}
+              {productExports.map((productExport) => {
+                const status = getStatusDisplay(productExport.status);
+                const canDownload = productExport.status === "ready";
+
+                return (
+                  <s-table-row key={productExport.id}>
+                    <s-table-cell>
+                      <s-text type="strong">{productExport.name}</s-text>
+                    </s-table-cell>
+                    <s-table-cell>
+                      {formatDateTime(productExport.createdAt)}
+                    </s-table-cell>
+                    <s-table-cell>
+                      {formatCount(productExport.objectCount)}
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-badge tone={status.tone}>{status.label}</s-badge>
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-stack direction="inline" gap="small-200">
+                        <s-button
+                          accessibilityLabel={`Download ${productExport.name}`}
+                          disabled={!canDownload}
+                          icon="download"
+                          variant="secondary"
+                          onClick={() => {
+                            handleDownload(productExport).catch(
+                              (error: unknown) => {
+                                showToast(getErrorMessage(error), {
+                                  isError: true,
+                                });
+                              },
+                            );
+                          }}
+                        >
+                          Download
+                        </s-button>
+                        <s-button
+                          accessibilityLabel={`Delete ${productExport.name}`}
+                          icon="delete"
+                          tone="critical"
+                          variant="secondary"
+                          onClick={() => {
+                            handleDelete(productExport).catch(
+                              (error: unknown) => {
+                                showToast(getErrorMessage(error), {
+                                  isError: true,
+                                });
+                              },
+                            );
+                          }}
+                        >
+                          Delete
+                        </s-button>
+                      </s-stack>
+                    </s-table-cell>
+                  </s-table-row>
+                );
+              })}
             </s-table-body>
           </s-table>
         </s-section>
       )}
     </s-page>
   );
+}
+
+function getStatusDisplay(status: ProductExportStatus): {
+  label: string;
+  tone: "critical" | "info" | "success" | "warning";
+} {
+  switch (status) {
+    case "ready":
+      return { label: "Ready", tone: "success" };
+    case "failed":
+      return { label: "Failed", tone: "critical" };
+    case "canceled":
+      return { label: "Canceled", tone: "critical" };
+    case "requires_node_finalize":
+      return { label: "Requires Node finalize", tone: "warning" };
+    case "bulk_operation_running":
+      return { label: "Running bulk operation", tone: "info" };
+    case "bulk_operation_completed":
+      return { label: "Bulk operation completed", tone: "info" };
+    case "generating_csv":
+      return { label: "Generating CSV", tone: "info" };
+    case "queued":
+      return { label: "Queued", tone: "info" };
+  }
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatCount(value: number | null) {
+  return typeof value === "number" ? String(value) : "-";
+}
+
+function setLoading(isLoading: boolean) {
+  globalThis.shopify?.loading(isLoading);
+}
+
+function showToast(
+  message: string,
+  options?: Parameters<(typeof globalThis.shopify)["toast"]["show"]>[1],
+) {
+  globalThis.shopify?.toast.show(message, options);
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }

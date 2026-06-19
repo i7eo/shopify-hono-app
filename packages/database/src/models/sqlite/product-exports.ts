@@ -9,12 +9,17 @@ import {
   PRODUCT_EXPORT_PART_STATUS_VALUES,
   PRODUCT_EXPORT_STATUS_VALUES,
 } from "../postgres/product-exports";
+import { sqliteShopifySessions } from "./shopify-sessions";
 
 export const sqliteProductExports = sqliteTable(
   "product_exports",
   {
     id: text("id").primaryKey(),
     shopDomain: text("shop_domain").notNull(),
+    shopifySessionId: text("shopify_session_id").references(
+      () => sqliteShopifySessions.id,
+      { onDelete: "set null" },
+    ),
     name: text("name").notNull(),
     status: text("status", { enum: PRODUCT_EXPORT_STATUS_VALUES }).notNull(),
     shopifyBulkOperationId: text("shopify_bulk_operation_id"),

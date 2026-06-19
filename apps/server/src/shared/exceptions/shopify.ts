@@ -116,15 +116,7 @@ function createShopifyErrorDetails(error: ShopifyError) {
     cause: error,
     name: error.name,
     message: error.message,
-    response:
-      error instanceof HttpResponseError
-        ? {
-            body: error.response.body,
-            code: error.response.code,
-            headers: error.response.headers,
-            statusText: error.response.statusText,
-          }
-        : undefined,
+    response: getShopifyErrorResponseDetails(error),
     graphql:
       error instanceof GraphqlQueryError
         ? {
@@ -134,4 +126,45 @@ function createShopifyErrorDetails(error: ShopifyError) {
           }
         : undefined,
   };
+}
+
+function getShopifyErrorResponseDetails(error: ShopifyError) {
+  if (error instanceof HttpResponseError) {
+    return {
+      body: error.response.body,
+      code: error.response.code,
+      headers: error.response.headers,
+      statusText: error.response.statusText,
+    };
+  }
+
+  if (error instanceof InvalidWebhookError) {
+    return getInvalidWebhookResponseDetails(error.response);
+  }
+}
+
+function getInvalidWebhookResponseDetails(response: unknown) {
+  if (response instanceof Response) {
+    return {
+      code: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      statusText: response.statusText,
+    };
+  }
+
+  if (response && typeof response === "object") {
+    const value = response as {
+      headers?: unknown;
+      statusCode?: unknown;
+      statusText?: unknown;
+    };
+
+    return {
+      code: value.statusCode,
+      headers: value.headers,
+      statusText: value.statusText,
+    };
+  }
+
+  return;
 }

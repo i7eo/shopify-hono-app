@@ -35,6 +35,19 @@
 - Keep code dependency direction clear: low-level shared packages must not import apps or runtime-specific infrastructure.
 - Use structured parsers and typed APIs instead of ad hoc string manipulation when practical.
 
+## Workspace Semantic Ownership
+
+- Treat workspace package names as semantic ownership boundaries.
+- When app code uses env concepts, first check `@shamt/app-env` for schemas, types, enums, defaults, constants, parsing helpers, and runtime/provider contracts.
+- When app code uses database-backed data shapes, first check `@shamt/database` for table schemas, Drizzle-Zod schemas, status values, insert/select types, and inferred types.
+- When a `packages/*` export already represents a concept, derive, adapt, or compose from that export instead of duplicating schema, enum, type, constant, utility, or behavior logic in `apps/*`.
+- App-local schema, type, enum, or utility logic is acceptable only when the owning package does not provide the concept, or when the app boundary deliberately needs a serialized, browser-safe, public, runtime capability, or transport-specific adaptation.
+- Package code should provide stable exports for the schemas, types, enums, constants, defaults, parsing helpers, and utilities that belong to that package's domain.
+- Packages must not duplicate logic from sibling packages. Import the owning package when dependency direction allows it, or extract the shared concept to the correct lower-level package.
+- Reusable packages must not import `apps/*` or runtime-specific app infrastructure.
+- When adding a package-owned concept, update package entrypoints, README, examples, and nearby guidance when needed.
+- After app or package changes, check nearby imports and new local definitions for package-owned concepts that should be reused from `packages/*`.
+
 ## Type And Utility Organization
 
 - Put reusable public types, interfaces, declarations, and shared type aliases in `types.ts`.
@@ -61,50 +74,6 @@
 - Store repository-level decisions and task-oriented documentation in `docs/guides/`; store package or app-specific guide material under that workspace's `docs/guides/`.
 - Store descriptions, explanations, and usage manuals in `docs/reference/` or the closest workspace `docs/reference/`.
 - Store ongoing notes or backlog items in `docs/notes/` or the closest workspace `docs/notes/`.
-
-## Shopify Polaris Web Components
-
-All admin UI in this project must use Shopify Polaris web components. Do not use custom CSS, raw HTML UI, or other UI libraries for Shopify admin interfaces.
-
-The app shell includes these script tags in the `<head>`:
-
-```html
-<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
-```
-
-Rules:
-
-- Use `<s-page>` as the top-level layout component.
-- Use `<s-section>` for content areas within a page.
-- Do not use custom CSS to style Polaris components.
-- Do not use `<s-stack>` or `<s-grid>` as direct children of `<s-section>` unless the layout is genuinely complex.
-- Use `<s-banner>` for error, success, and info messages.
-- Use `<s-spinner>` for loading states.
-- Use `<s-text>` for text content, including `type="strong"` and `color="subdued"` where appropriate.
-- Escape all user-facing strings injected into component HTML.
-- When generating Polaris web component code and the `validate_component_codeblocks` MCP tool is available, validate with `api: "polaris-app-home"`.
-
-Common components:
-
-| Component                                 | Use for                            |
-| ----------------------------------------- | ---------------------------------- |
-| `<s-page>`                                | Top-level page layout with heading |
-| `<s-section>`                             | Content sections within a page     |
-| `<s-box>`                                 | Custom padding, background, border |
-| `<s-text>`                                | Inline text with variants          |
-| `<s-heading>`                             | Section headings                   |
-| `<s-banner>`                              | Alerts and messages                |
-| `<s-button>`                              | Actions                            |
-| `<s-spinner>`                             | Loading indicators                 |
-| `<s-table>`                               | Data tables                        |
-| `<s-unordered-list>` / `<s-ordered-list>` | Lists                              |
-| `<s-badge>`                               | Status indicators                  |
-| `<s-modal>`                               | Dialogs                            |
-| `<s-text-field>`                          | Text inputs                        |
-| `<s-select>`                              | Dropdowns                          |
-| `<s-stack>`                               | Flex layout                        |
-| `<s-grid>`                                | Grid layout                        |
 
 ## Generated Files And Secrets
 

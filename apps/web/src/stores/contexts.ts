@@ -56,5 +56,5 @@ export const useContextsStore = create<ContextsState>()(
 );
 
 function createShopScopedStorageKey(scope: string) {
-  return `shopify-hono-app:${readCurrentShop()}:${scope}`;
+  return `${globalThis.__PUBLIC_ENV__?.APP_NAME}:${readCurrentShop()}:${scope}`;
 }
