@@ -22,7 +22,7 @@
     "db:generate:pg": "drizzle-kit generate --config ./drizzle.pg.generate.config.ts",
     "db:generate:d1": "drizzle-kit generate --config ./drizzle.d1.generate.config.ts",
     "db:migrate:pg": "node --env-file=../../.env.production ./node_modules/drizzle-kit/bin.cjs migrate --config ./drizzle.pg.config.ts",
-    "db:migrate:d1": "node --env-file=../../.env.production ./node_modules/wrangler/bin/wrangler.js d1 migrations apply i7eo_shopify_app_d1 --remote",
+    "db:migrate:d1": "node --env-file=../../.env.production ./node_modules/wrangler/bin/wrangler.js d1 migrations apply i7eo-shopify-app-d1 --env production --remote",
     "db:seed:dev:pg": "node --env-file=../../.env.development --import tsx ./scripts/database/seed.pg.ts",
     "db:seed:prod:pg": "CONFIRM_PROD_SEED=true node --env-file=../../.env.production --import tsx ./scripts/database/seed.pg.ts",
     "db:seed:dev:d1": "node --env-file=../../.env.development --import tsx ./scripts/database/seed.d1.ts",
@@ -37,7 +37,7 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1072.0",
+    "@aws-sdk/client-s3": "^3.1073.0",
     "@hono/node-server": "^2.0.5",
     "@hono/zod-openapi": "^1.4.0",
     "@hono/zod-validator": "^0.8.0",

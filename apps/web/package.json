@@ -58,7 +58,7 @@
     "@vitejs/plugin-react": "catalog:react",
     "@vitest/coverage-v8": "catalog:test",
     "jsdom": "catalog:test",
-    "sharp": "^0.35.1",
+    "sharp": "^0.35.2",
     "svgo": "^4.0.1",
     "tsx": "catalog:dx",
     "typescript": "catalog:",
