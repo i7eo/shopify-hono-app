@@ -9,12 +9,17 @@ async function main() {
   const config = configSchema.parse(process.env);
 
   if (config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE) {
-    await executeCommand("pnpm", ["-F", "@shamt/server", "cf:deploy"]);
+    await executeCommand("pnpm", ["--dir", "apps/server", "run", "cf:deploy"]);
     return;
   }
 
   if (config.APP_RUNTIME === DEFAULT_RUNTIMES.NODE) {
-    await executeCommand("pnpm", ["-F", "@shamt/server", "node:deploy"]);
+    await executeCommand("pnpm", [
+      "--dir",
+      "apps/server",
+      "run",
+      "node:deploy",
+    ]);
     return;
   }
 

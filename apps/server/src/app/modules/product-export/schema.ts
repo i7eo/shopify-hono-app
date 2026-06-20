@@ -1,22 +1,27 @@
 import { z } from "@hono/zod-openapi";
 import { PRODUCT_EXPORT_STATUS_VALUES } from "@shamt/database/models/postgres";
-import { selectProductExportSchema } from "@shamt/database/sql-schemas/postgres";
+import { selectPostgresProductExportSchema } from "@shamt/database/sql-schemas/postgres";
 import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
+import { PRODUCT_EXPORT_TEMPLATE_CODES } from "./templates";
 import { PRODUCT_EXPORT_STATUSES } from "./utils";
 
 export const ProductExportStatusSchema = z.enum(PRODUCT_EXPORT_STATUS_VALUES);
+export const ProductExportTemplateCodeSchema = z.enum(
+  PRODUCT_EXPORT_TEMPLATE_CODES,
+);
 
-export const ProductExportSchema = selectProductExportSchema
+export const ProductExportSchema = selectPostgresProductExportSchema
   .extend({
-    bucketKey: selectProductExportSchema.shape.bucketKey.openapi({
+    bucketKey: selectPostgresProductExportSchema.shape.bucketKey.openapi({
       description: "Bucket key for the generated CSV file.",
       example:
         "test-shop.myshopify.com/product-exports/2026/06/export-id/products.csv",
     }),
-    bucketProvider: selectProductExportSchema.shape.bucketProvider.openapi({
-      description: "Bucket provider used to store the generated CSV file.",
-      example: "r2",
-    }),
+    bucketProvider:
+      selectPostgresProductExportSchema.shape.bucketProvider.openapi({
+        description: "Bucket provider used to store the generated CSV file.",
+        example: "r2",
+      }),
     completedAt: z.string().datetime().nullable().openapi({
       description: "Completion timestamp.",
       example: null,
@@ -29,30 +34,35 @@ export const ProductExportSchema = selectProductExportSchema
       description: "Soft deletion timestamp.",
       example: null,
     }),
-    id: selectProductExportSchema.shape.id.openapi({
+    id: selectPostgresProductExportSchema.shape.id.openapi({
       description: "Product export ID.",
       example: "8f07a37b-b7dc-41f0-a9d5-3f9c28e12f2a",
     }),
-    name: selectProductExportSchema.shape.name.openapi({
+    name: selectPostgresProductExportSchema.shape.name.openapi({
       description: "Merchant-facing export name.",
       example: "All products",
     }),
-    shopDomain: selectProductExportSchema.shape.shopDomain.openapi({
+    shopDomain: selectPostgresProductExportSchema.shape.shopDomain.openapi({
       description: "Shopify shop domain that owns the export.",
       example: "test-shop.myshopify.com",
     }),
     shopifyBulkOperationId:
-      selectProductExportSchema.shape.shopifyBulkOperationId.openapi({
+      selectPostgresProductExportSchema.shape.shopifyBulkOperationId.openapi({
         description: "Shopify BulkOperation GraphQL ID.",
         example: "gid://shopify/BulkOperation/1234567890",
       }),
-    shopifySessionId: selectProductExportSchema.shape.shopifySessionId.openapi({
-      description: "Offline Shopify session ID used to start the export.",
-      example: "offline_test-shop.myshopify.com",
-    }),
+    shopifySessionId:
+      selectPostgresProductExportSchema.shape.shopifySessionId.openapi({
+        description: "Offline Shopify session ID used to start the export.",
+        example: "offline_test-shop.myshopify.com",
+      }),
     status: ProductExportStatusSchema.openapi({
       description: "Product export lifecycle status.",
       example: PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING,
+    }),
+    template: ProductExportTemplateCodeSchema.openapi({
+      description: "Product export file template code.",
+      example: "basic",
     }),
     updatedAt: z.string().datetime().openapi({
       description: "Update timestamp.",
@@ -68,7 +78,39 @@ export const CreateProductExportBodySchema = z.object({
     description: "Export name.",
     example: "All products",
   }),
+  template: ProductExportTemplateCodeSchema.openapi({
+    description: "Export file template.",
+    example: "basic",
+  }),
 });
+
+export const ProductExportTemplateSchema = z.object({
+  code: ProductExportTemplateCodeSchema.openapi({
+    description: "Stable template code.",
+    example: "basic",
+  }),
+  fields: z.array(z.string()).openapi({
+    description: "Shopify Product fields exported by this template.",
+    example: [
+      "id",
+      "title",
+      "handle",
+      "status",
+      "vendor",
+      "productType",
+      "createdAt",
+      "updatedAt",
+    ],
+  }),
+  label: z.string().openapi({
+    description: "Human-readable template label.",
+    example: "Basic",
+  }),
+});
+
+export const ProductExportTemplateListSchema = z.array(
+  ProductExportTemplateSchema,
+);
 
 export const ProductExportListSchema = z.object({
   pagination: PaginationSchema,

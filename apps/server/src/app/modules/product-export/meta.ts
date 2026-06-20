@@ -9,6 +9,7 @@ import {
   ProductExportListQuerySchema,
   ProductExportListSchema,
   ProductExportSchema,
+  ProductExportTemplateListSchema,
 } from "./schema";
 
 export const createProductExportRoute = createRoute({
@@ -72,6 +73,33 @@ export const listProductExportsRoute = createRoute({
       content: {
         "application/json": {
           schema: ResponseSchema(ProductExportListSchema),
+        },
+      },
+    },
+  },
+});
+
+export const listProductExportTemplatesRoute = createRoute({
+  method: "get",
+  path: `${apiPath}/reference/templates`,
+  middleware: [shopifyAdminSession()] as const,
+  tags,
+  summary: "List product export templates",
+  description: "List product export file templates supported by the server.",
+  responses: {
+    200: {
+      description: "Product export template list.",
+      content: {
+        "application/json": {
+          schema: ResponseSchema(ProductExportTemplateListSchema),
+        },
+      },
+    },
+    401: {
+      description: "Missing or invalid Shopify session token.",
+      content: {
+        "application/json": {
+          schema: ErrorSchema(z.null()),
         },
       },
     },

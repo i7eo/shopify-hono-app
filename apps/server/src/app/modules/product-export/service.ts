@@ -7,6 +7,7 @@ import {
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
 import {
   badGatewayError,
   internalServerError,
@@ -20,6 +21,7 @@ import {
   PRODUCT_EXPORT_QUEUE_JOBS,
 } from "./queue/constants";
 import { createDatabaseProductExportsStoreFromPromise } from "./stores/database";
+import { listProductExportTemplates as listTemplates } from "./templates";
 import { mapBulkOperationStatus, PRODUCT_EXPORT_STATUSES } from "./utils";
 import type {
   ListProductExportsInput,
@@ -105,6 +107,7 @@ export async function createProductExport(
     shopifyBulkOperationStatus: null,
     shopifySessionId: null,
     status: PRODUCT_EXPORT_STATUSES.QUEUED,
+    template: input.template,
     updatedAt: now,
   };
 
@@ -136,6 +139,13 @@ export async function listProductExports(
     shopDomain: input.shopDomain,
     status: input.status,
   });
+}
+
+/**
+ * Lists product export templates owned by the product-export module.
+ */
+export function listProductExportTemplates() {
+  return listTemplates();
 }
 
 /**
@@ -200,7 +210,9 @@ export async function downloadProductExport(
     });
   }
 
-  const resolver = await getFactory("moduleFileDownloadResolverFactory")(c);
+  const resolver = await getFactory("moduleFileDownloadResolverFactory")(
+    createRuntimeResourceContextFromHono(c),
+  );
 
   return resolver.resolve({
     file: {
@@ -379,7 +391,7 @@ export function getProductExportsStore(c: Context<AppEnv>): ProductExportStore {
   }
 
   return createDatabaseProductExportsStoreFromPromise(
-    Promise.resolve(databaseFactory(c)),
+    Promise.resolve(databaseFactory(createRuntimeResourceContextFromHono(c))),
   );
 }
 

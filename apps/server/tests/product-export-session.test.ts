@@ -67,6 +67,7 @@ function createProductExportStore(
     getPartStats: vi.fn(),
     list: vi.fn(),
     listParts: vi.fn(),
+    listPartsPage: vi.fn(),
     listPartsByStatus: vi.fn(),
     listRecoverableExports: vi.fn(),
     markPartDone: vi.fn(),
@@ -100,6 +101,7 @@ function createProductExportRecord(
     shopifyBulkOperationStatus: null,
     shopifySessionId: null,
     status: "queued",
+    template: "basic",
     updatedAt: now,
     ...overrides,
   };

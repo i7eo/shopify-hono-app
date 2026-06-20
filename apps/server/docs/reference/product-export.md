@@ -6,13 +6,35 @@
 
 所有路由都注册在 `/{APP_API_PREFIX}/product-exports` 下，并且需要 `shopifyAdminSession()`。
 
-| 方法   | 路径                                 | 响应                                |
-| ------ | ------------------------------------ | ----------------------------------- |
-| POST   | `/api/product-exports`               | `202` JSON product export metadata  |
-| GET    | `/api/product-exports`               | `200` JSON list，包含 `pagination`  |
-| GET    | `/api/product-exports/{id}`          | `200` JSON product export metadata  |
-| GET    | `/api/product-exports/{id}/download` | `200` stream/JSON 或 `302` redirect |
-| DELETE | `/api/product-exports/{id}`          | `204` empty response                |
+| 方法   | 路径                                       | 响应                                |
+| ------ | ------------------------------------------ | ----------------------------------- |
+| POST   | `/api/product-exports`                     | `202` JSON product export metadata  |
+| GET    | `/api/product-exports`                     | `200` JSON list，包含 `pagination`  |
+| GET    | `/api/product-exports/reference/templates` | `200` JSON template array           |
+| GET    | `/api/product-exports/{id}`                | `200` JSON product export metadata  |
+| GET    | `/api/product-exports/{id}/download`       | `200` stream/JSON 或 `302` redirect |
+| DELETE | `/api/product-exports/{id}`                | `204` empty response                |
+
+创建导出时 body 至少包含 `name` 与 `template`。当前内置 template 为 `basic`，字段列表由 server 的 product export template module 统一返回，前端只消费接口数据，不维护独立字段列表：
+
+```json
+[
+  {
+    "code": "basic",
+    "label": "Basic",
+    "fields": [
+      "id",
+      "title",
+      "handle",
+      "status",
+      "vendor",
+      "productType",
+      "createdAt",
+      "updatedAt"
+    ]
+  }
+]
+```
 
 ## 列表分页
 
@@ -67,6 +89,8 @@ packages/database/src/models/sqlite/product-exports.ts
 ```
 
 `index.ts` 按 Drizzle database kind 分发 PostgreSQL 或 SQLite/D1 store；`postgres.ts` 与 `sqlite.ts` 放置 dialect-specific 查询；`shared.ts` 放置分页转换、cursor 读取、page offset 和 part 统计聚合。列表查询会多取一条记录判断 `hasNext`；page 模式额外执行 `count` 返回 `total`，cursor 模式不计算总数以避免深翻页带来的额外扫描。Part 状态统计在数据库侧聚合，避免把大量 part 记录读入应用内存。
+
+Finalize 和 ready 后的临时 part object 清理会通过 `listPartsPage` 按 `seq` 分页读取 part metadata，避免一次性把全部 part 行加载到应用内存。Cloudflare runtime 在 finalize 前使用 `getPartStats().total` 判断 part 数量；超过 `PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD` 时会把导出标记为 `failed`，错误码为 `CLOUDFLARE_FINALIZE_UNSUPPORTED`。这是明确的 runtime 边界：Cloudflare Queue 任务不能在执行中切换到 Node，因此不会再写入 `requires_node_finalize` 等待不存在的本地 handoff。
 
 ## 下载
 

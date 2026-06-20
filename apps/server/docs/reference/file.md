@@ -146,16 +146,15 @@ Node D1 通过 Cloudflare D1 HTTP API 访问，需要 `APP_DATABASE_D1_NAME`、`
 常用数据库命令：
 
 ```bash
-pnpm --dir apps/server run db:pg:generate
-pnpm --dir apps/server run db:d1:generate
-pnpm --dir apps/server run db:pg:migrate
-pnpm --dir apps/server run db:d1:migrate
-pnpm --dir apps/server run db:pg:seed:dev
-pnpm --dir apps/server run db:d1:seed:dev
-pnpm --dir apps/server run db:d1:seed:dev:remote
+pnpm --dir apps/server run db:generate:pg
+pnpm --dir apps/server run db:generate:d1
+pnpm --dir apps/server run db:migrate:pg
+pnpm --dir apps/server run db:migrate:d1
+pnpm --dir apps/server run db:seed:dev:pg
+pnpm --dir apps/server run db:seed:dev:d1
 ```
 
-`db:pg:seed:dev` 会通过 `scripts/database/seed.pg.ts` 写入一条 Shopify offline session 和一条 file metadata。`db:d1:seed:dev` / `db:d1:seed:dev:remote` 会通过 `scripts/database/seed.d1.ts` 调用 Wrangler D1 执行同等 seed SQL。
+`db:seed:dev:pg` 会通过 `scripts/database/seed.pg.ts` 写入一条 Shopify offline session 和一条 file metadata。`db:seed:dev:d1` 会通过 `scripts/database/seed.d1.ts` 调用 Wrangler D1 写入远端 development D1；显式本地 Wrangler D1 调试可临时设置 `D1_SEED_LOCAL=true` 后复用同一命令。
 
 ## Runtime Capabilities
 
@@ -169,7 +168,7 @@ file module 使用这些 runtime capabilities：
 
 file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver。
 
-Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。file module 当前没有模块专属后台 dispatcher；后续过期清理、对象删除重试等后台工作应注册到通用 queue/scheduler infra。
+Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。development 的 R2 binding 需要与 D1 一样保持 `remote: true`，否则写入会进入 Wrangler 本地 R2 模拟，但下载 resolver 生成的 signed URL 会指向远端 R2，最终表现为业务接口成功而 R2 返回 `NoSuchKey`。file module 当前没有模块专属后台 dispatcher；后续过期清理、对象删除重试等后台工作应注册到通用 queue/scheduler infra。
 
 ## 下载与删除
 

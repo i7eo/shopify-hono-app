@@ -1,4 +1,5 @@
 import type { FileDownloadResolver } from "@/app/modules/file/types";
+import type { RuntimeResourceContext } from "@/app/runtime/resource-context";
 import type { Bucket } from "@/infra/bucket";
 import type { Database } from "@/infra/database";
 import type { RuntimeConfig } from "@/infra/env";
@@ -24,22 +25,23 @@ export type RuntimeEnvSourceResolver = (
   context: Context<AppEnv>,
 ) => Record<string, unknown>;
 export type DatabaseFactory = (
-  context: Context<AppEnv>,
+  context: RuntimeResourceContext,
 ) => Database | Promise<Database>;
 export type BucketFactory = (
-  context: Context<AppEnv>,
+  context: RuntimeResourceContext,
 ) => Bucket | Promise<Bucket>;
 export type QueueProducerFactory = (
-  context: Context<AppEnv>,
+  context: RuntimeResourceContext,
 ) => QueueProducer | Promise<QueueProducer>;
+export type RuntimeQueueConsumer = QueueConsumer<any>;
 export type QueueConsumerFactory = (
   config: RuntimeConfig,
-) => QueueConsumer | Promise<QueueConsumer>;
+) => RuntimeQueueConsumer | Promise<RuntimeQueueConsumer>;
 export type SchedulerFactory = (
   config: RuntimeConfig,
 ) => Scheduler | Promise<Scheduler>;
 export type ModuleFileDownloadResolverFactory = (
-  context: Context<AppEnv>,
+  context: RuntimeResourceContext,
 ) => FileDownloadResolver | Promise<FileDownloadResolver>;
 
 export interface RuntimeCapabilityInstances {

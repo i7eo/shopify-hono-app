@@ -1,3 +1,4 @@
+import type { ProductExportTemplateCode } from "./templates";
 import type { RuntimeConfig } from "@/infra/env";
 import type { PaginatedPage, PaginationInput } from "@/shared/models";
 import type {
@@ -42,6 +43,7 @@ export type ProductExportCreateInput = {
   name: string;
   runtimeEnv: RuntimeConfig;
   shopDomain: string;
+  template: ProductExportTemplateCode;
 };
 
 export type ProductExportPartStats = {
@@ -66,6 +68,11 @@ export type ProductExportStore = {
   getPartStats: (exportId: string) => Promise<ProductExportPartStats>;
   list: (input: ProductExportListInput) => Promise<ProductExportsPage>;
   listParts: (exportId: string) => Promise<ProductExportPartRecord[]>;
+  listPartsPage: (input: {
+    afterSeq?: number;
+    exportId: string;
+    limit: number;
+  }) => Promise<ProductExportPartRecord[]>;
   listPartsByStatus: (input: {
     exportId: string;
     statuses: ProductExportPartStatus[];

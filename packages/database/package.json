@@ -21,6 +21,11 @@
       "import": "./src/models/sqlite/index.ts",
       "require": "./src/models/sqlite/index.ts"
     },
+    "./constants": {
+      "types": "./src/constants/index.ts",
+      "import": "./src/constants/index.ts",
+      "require": "./src/constants/index.ts"
+    },
     "./sql-schemas/postgres": {
       "types": "./src/sql-schemas/postgres/index.ts",
       "import": "./src/sql-schemas/postgres/index.ts",
@@ -57,6 +62,11 @@
         "types": "./dist/esm/models/sqlite.d.mts",
         "import": "./dist/esm/models/sqlite.mjs",
         "require": "./dist/cjs/models/sqlite.cjs"
+      },
+      "./constants": {
+        "types": "./dist/esm/constants/index.d.mts",
+        "import": "./dist/esm/constants/index.mjs",
+        "require": "./dist/cjs/constants/index.cjs"
       },
       "./sql-schemas/postgres": {
         "types": "./dist/esm/sql-schemas/postgres.d.mts",

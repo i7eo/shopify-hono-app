@@ -23,7 +23,7 @@ export const fileBucketProviderEnum = pgEnum(
   DEFAULT_APP_BUCKET_PROVIDERS,
 );
 
-export const files = pgTable(
+export const postgresFiles = pgTable(
   "files",
   {
     id: text("id").primaryKey(),

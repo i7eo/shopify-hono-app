@@ -7,25 +7,17 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import {
+  PRODUCT_EXPORT_PART_STATUS_VALUES,
+  PRODUCT_EXPORT_STATUS_VALUES,
+  PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
+} from "../../constants";
 import { postgresShopifySessions } from "./shopify-sessions";
-
-export const PRODUCT_EXPORT_STATUS_VALUES = [
-  "queued",
-  "bulk_operation_running",
-  "bulk_operation_completed",
-  "generating_csv",
-  "ready",
-  "requires_node_finalize",
-  "failed",
-  "canceled",
-] as const;
-
-export const PRODUCT_EXPORT_PART_STATUS_VALUES = [
-  "pending",
-  "processing",
-  "done",
-  "failed",
-] as const;
+export {
+  PRODUCT_EXPORT_PART_STATUS_VALUES,
+  PRODUCT_EXPORT_STATUS_VALUES,
+  PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
+} from "../../constants";
 
 export const productExportStatusEnum = pgEnum(
   "product_export_status",
@@ -37,7 +29,7 @@ export const productExportPartStatusEnum = pgEnum(
   PRODUCT_EXPORT_PART_STATUS_VALUES,
 );
 
-export const productExports = pgTable(
+export const postgresProductExports = pgTable(
   "product_exports",
   {
     id: text("id").primaryKey(),
@@ -47,6 +39,11 @@ export const productExports = pgTable(
       { onDelete: "set null" },
     ),
     name: text("name").notNull(),
+    template: text("template", {
+      enum: PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
+    })
+      .notNull()
+      .default("basic"),
     status: productExportStatusEnum("status").notNull(),
     shopifyBulkOperationId: text("shopify_bulk_operation_id"),
     shopifyBulkOperationStatus: text("shopify_bulk_operation_status"),
@@ -86,13 +83,13 @@ export const productExports = pgTable(
   ],
 );
 
-export const productExportParts = pgTable(
+export const postgresProductExportParts = pgTable(
   "product_export_parts",
   {
     id: text("id").primaryKey(),
     exportId: text("export_id")
       .notNull()
-      .references(() => productExports.id, { onDelete: "cascade" }),
+      .references(() => postgresProductExports.id, { onDelete: "cascade" }),
     seq: bigint("seq", { mode: "number" }).notNull(),
     status: productExportPartStatusEnum("status").notNull(),
     rangeStart: bigint("range_start", { mode: "number" }).notNull(),

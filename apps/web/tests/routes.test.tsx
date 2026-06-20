@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
   fireEvent,
@@ -7,6 +8,7 @@ import {
 } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createQueryClient } from "@/utils/client.query";
 import type { ProductExportStatus } from "@/apis/product-exports";
 
 const fetchProductsMock = vi.hoisted(() => vi.fn());
@@ -14,7 +16,11 @@ const fetchShopInfoMock = vi.hoisted(() => vi.fn());
 const createProductExportMock = vi.hoisted(() => vi.fn());
 const deleteProductExportMock = vi.hoisted(() => vi.fn());
 const downloadProductExportFileMock = vi.hoisted(() => vi.fn());
+const getProductExportMock = vi.hoisted(() => vi.fn());
 const listProductExportsMock = vi.hoisted(() => vi.fn());
+const listProductExportTemplatesMock = vi.hoisted(() => vi.fn());
+const locationStateMock = vi.hoisted(() => vi.fn(() => ({})));
+const navigateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/utils/public-env", () => ({
   DEFAULT_APP_API_PREFIX: "api",
@@ -47,6 +53,8 @@ vi.mock("@/apis/product-exports", () => ({
   createProductExport: createProductExportMock,
   deleteProductExport: deleteProductExportMock,
   downloadProductExportFile: downloadProductExportFileMock,
+  getProductExport: getProductExportMock,
+  listProductExportTemplates: listProductExportTemplatesMock,
   listProductExports: listProductExportsMock,
 }));
 
@@ -86,6 +94,13 @@ vi.mock("@tanstack/react-router", () => {
       (config: Record<string, unknown> = {}) =>
         makeRoute("__root__", config),
     Outlet: () => <main data-testid="outlet" />,
+    useLocation: (options?: {
+      select?: (location: { state: Record<string, unknown> }) => unknown;
+    }) => {
+      const location = { state: locationStateMock() };
+      return options?.select ? options.select(location) : location;
+    },
+    useNavigate: () => navigateMock,
   };
 });
 
@@ -119,6 +134,24 @@ describe("route components", () => {
     deleteProductExportMock.mockResolvedValue(undefined);
     downloadProductExportFileMock.mockReset();
     downloadProductExportFileMock.mockResolvedValue(undefined);
+    getProductExportMock.mockReset();
+    getProductExportMock.mockResolvedValue({
+      data: createProductExportRecord({
+        id: "export-created",
+        name: "All products",
+        status: "queued",
+      }),
+    });
+    listProductExportTemplatesMock.mockReset();
+    listProductExportTemplatesMock.mockResolvedValue({
+      data: [
+        {
+          code: "basic",
+          fields: ["id", "title"],
+          label: "Basic",
+        },
+      ],
+    });
     listProductExportsMock.mockReset();
     listProductExportsMock.mockResolvedValue(
       createListResponse([
@@ -134,6 +167,9 @@ describe("route components", () => {
         }),
       ]),
     );
+    locationStateMock.mockReset();
+    locationStateMock.mockReturnValue({});
+    navigateMock.mockReset();
     globalThis.shopify = {
       loading: vi.fn(),
       toast: { show: vi.fn() },
@@ -155,7 +191,7 @@ describe("route components", () => {
     const Component = Route.options.component as React.ComponentType;
     const NotFound = Route.options.notFoundComponent as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     expect(screen.getByTestId("outlet")).toBeTruthy();
     expect(document.querySelector("s-app-nav")).toBeTruthy();
@@ -237,10 +273,10 @@ describe("route components", () => {
     const { Route } = await import("../src/routes/index");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
-      "Product content hub",
+      "Unmanual",
     );
     expect(sectionHeading("Setup guide")).toBeTruthy();
     expect(sectionHeading("Needs attention")).toBeTruthy();
@@ -251,7 +287,7 @@ describe("route components", () => {
     const { Route } = await import("../src/routes/product-description");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
       "Product Description",
@@ -265,7 +301,7 @@ describe("route components", () => {
     const { Route } = await import("../src/routes/product-export");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
       "Product export",
@@ -280,11 +316,10 @@ describe("route components", () => {
     expect(screen.getByText("Price review")).toBeTruthy();
     expect(screen.getByText("Running bulk operation")).toBeTruthy();
     expect(
-      document.querySelectorAll("s-button[slot='primary-action']"),
-    ).toHaveLength(1);
-    expect(document.querySelector("s-button")?.getAttribute("href")).toBe(
-      "/product-export/new",
-    );
+      document.querySelector(
+        's-button[slot="primary-action"][href="/product-export/new"]',
+      ),
+    ).toBeTruthy();
     expect(listProductExportsMock).toHaveBeenCalledWith(
       { limit: 20 },
       expect.any(AbortSignal),
@@ -298,7 +333,7 @@ describe("route components", () => {
     const { Route } = await import("../src/routes/product-export");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     await waitFor(() => {
       expect(sectionHeading("No product exports")).toBeTruthy();
@@ -306,7 +341,7 @@ describe("route components", () => {
 
     cleanup();
     listProductExportsMock.mockRejectedValueOnce(new Error("network failed"));
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     await waitFor(() => {
       expect(bannerHeading("Unable to load product exports")).toBeTruthy();
@@ -315,10 +350,58 @@ describe("route components", () => {
   });
 
   it("downloads ready product exports and deletes rows from the index", async () => {
+    listProductExportsMock
+      .mockResolvedValueOnce(
+        createListResponse([
+          createProductExportRecord({
+            id: "ready-export",
+            name: "Summer catalog",
+            status: "ready",
+          }),
+          createProductExportRecord({
+            id: "second-ready-export",
+            name: "Winter catalog",
+            status: "ready",
+          }),
+          createProductExportRecord({
+            id: "processing-export",
+            name: "Price review",
+            status: "bulk_operation_running",
+          }),
+        ]),
+      )
+      .mockResolvedValue(
+        createListResponse([
+          createProductExportRecord({
+            id: "ready-export",
+            name: "Summer catalog",
+            status: "ready",
+          }),
+          createProductExportRecord({
+            id: "second-ready-export",
+            name: "Winter catalog",
+            status: "ready",
+          }),
+        ]),
+      );
+    let resolveDownload: (() => void) | undefined;
+    downloadProductExportFileMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDownload = resolve;
+      }),
+    );
+    let resolveDelete: (() => void) | undefined;
+    deleteProductExportMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
     const { Route } = await import("../src/routes/product-export");
+    const { productExportKeys } =
+      await import("../src/routes/product-export/-queries");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    const { queryClient } = renderWithQueryClient(<Component />);
 
     expect(await screen.findByText("Summer catalog")).toBeTruthy();
 
@@ -331,9 +414,17 @@ describe("route components", () => {
       (button) =>
         button.getAttribute("accessibilityLabel") === "Download Price review",
     )!;
+    const secondReadyDownloadButton = buttons.find(
+      (button) =>
+        button.getAttribute("accessibilityLabel") === "Download Winter catalog",
+    )!;
     const deleteButton = buttons.find(
       (button) =>
         button.getAttribute("accessibilityLabel") === "Delete Price review",
+    )!;
+    const readyDeleteButton = buttons.find(
+      (button) =>
+        button.getAttribute("accessibilityLabel") === "Delete Summer catalog",
     )!;
 
     expect(readyDownloadButton).toBeTruthy();
@@ -342,16 +433,41 @@ describe("route components", () => {
     await waitFor(() => {
       expect(downloadProductExportFileMock).toHaveBeenCalledWith(
         expect.objectContaining({ id: "ready-export" }),
-        expect.any(AbortSignal),
       );
     });
+    expect(readyDownloadButton.hasAttribute("loading")).toBe(true);
+    expect(secondReadyDownloadButton.hasAttribute("loading")).toBe(false);
+    resolveDownload?.();
 
     fireEvent.click(deleteButton);
+    const confirmDeleteButton = document.querySelector(
+      's-modal#delete-product-export-modal s-button[slot="primary-action"]',
+    )!;
+    fireEvent.click(confirmDeleteButton);
+
     await waitFor(() => {
-      expect(deleteProductExportMock).toHaveBeenCalledWith(
-        "processing-export",
-        expect.any(AbortSignal),
-      );
+      expect(deleteProductExportMock).toHaveBeenCalledWith("processing-export");
+    });
+    expect(deleteButton.hasAttribute("loading")).toBe(true);
+    expect(readyDeleteButton.hasAttribute("loading")).toBe(false);
+    resolveDelete?.();
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryData(
+          productExportKeys.list({ limit: 20 }),
+        ) as ReturnType<typeof createListResponse>,
+      ).toMatchObject({
+        data: {
+          result: [
+            {
+              id: "ready-export",
+            },
+            {
+              id: "second-ready-export",
+            },
+          ],
+        },
+      });
     });
     expect(listProductExportsMock).toHaveBeenCalledTimes(2);
   });
@@ -393,7 +509,7 @@ describe("route components", () => {
     const { Route } = await import("../src/routes/product-export");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     expect(await screen.findByText("Price review")).toBeTruthy();
     if (typeof pollHandler === "function") pollHandler();
@@ -404,9 +520,31 @@ describe("route components", () => {
 
   it("renders and submits the new product export form", async () => {
     const { Route } = await import("../src/routes/product-export/new");
+    const { productExportKeys } =
+      await import("../src/routes/product-export/-queries");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    const { queryClient } = renderWithQueryClient(<Component />);
+    queryClient.setQueryData(
+      productExportKeys.list({ limit: 20 }),
+      createListResponse([
+        createProductExportRecord({
+          id: "ready-export",
+          name: "Summer catalog",
+          status: "ready",
+        }),
+      ]),
+    );
+    queryClient.setQueryData(
+      productExportKeys.list({ limit: 20, status: "ready" }),
+      createListResponse([
+        createProductExportRecord({
+          id: "ready-export",
+          name: "Summer catalog",
+          status: "ready",
+        }),
+      ]),
+    );
 
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
       "Create product export",
@@ -418,6 +556,7 @@ describe("route components", () => {
     const form = document.querySelector("form")!;
     const formData = new FormData();
     formData.set("name", "All products");
+    formData.set("template", "basic");
     const formDataSpy = vi
       .spyOn(globalThis, "FormData")
       .mockImplementation(function FormDataMock() {
@@ -427,18 +566,53 @@ describe("route components", () => {
     fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(createProductExportMock).toHaveBeenCalledWith(
-        { name: "All products" },
-        expect.any(AbortSignal),
-      );
+      expect(createProductExportMock).toHaveBeenCalledWith({
+        name: "All products",
+        template: "basic",
+      });
     });
     expect(globalThis.shopify.loading).toHaveBeenNthCalledWith(1, true);
     expect(globalThis.shopify.loading).toHaveBeenLastCalledWith(false);
-    expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
-      "Product export created.",
-      undefined,
-    );
-    expect(globalThis.location.pathname).toBe("/product-export");
+    expect(navigateMock).toHaveBeenCalledWith({
+      params: { id: "export-created" },
+      replace: true,
+      state: expect.any(Function),
+      to: "/product-export/$id",
+    });
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryData(
+          productExportKeys.list({ limit: 20 }),
+        ) as ReturnType<typeof createListResponse>,
+      ).toMatchObject({
+        data: {
+          result: [
+            {
+              id: "export-created",
+              name: "All products",
+            },
+            {
+              id: "ready-export",
+              name: "Summer catalog",
+            },
+          ],
+        },
+      });
+      expect(
+        queryClient.getQueryData(
+          productExportKeys.list({ limit: 20, status: "ready" }),
+        ) as ReturnType<typeof createListResponse>,
+      ).toMatchObject({
+        data: {
+          result: [
+            {
+              id: "ready-export",
+              name: "Summer catalog",
+            },
+          ],
+        },
+      });
+    });
 
     formDataSpy.mockRestore();
   });
@@ -447,11 +621,12 @@ describe("route components", () => {
     const { Route } = await import("../src/routes/product-export/new");
     const Component = Route.options.component as React.ComponentType;
 
-    render(<Component />);
+    renderWithQueryClient(<Component />);
 
     const form = document.querySelector("form")!;
     const formData = new FormData();
     formData.set("name", " ");
+    formData.set("template", "basic");
     const formDataSpy = vi
       .spyOn(globalThis, "FormData")
       .mockImplementation(function FormDataMock() {
@@ -461,9 +636,39 @@ describe("route components", () => {
     fireEvent.submit(form);
 
     expect(createProductExportMock).not.toHaveBeenCalled();
-    expect(await screen.findByText("Enter an export name.")).toBeTruthy();
+    await waitFor(() => {
+      expect(document.querySelector("s-banner")?.textContent).toContain(
+        "Enter an export file name.",
+      );
+    });
 
     formDataSpy.mockRestore();
+  });
+
+  it("shows the created banner on detail pages only after create navigation", async () => {
+    const { ProductExportEditor } =
+      await import("../src/routes/product-export/-components/editor");
+    const productExport = createProductExportRecord({
+      id: "export-created",
+      name: "All products",
+      status: "queued",
+    });
+
+    renderWithQueryClient(
+      <ProductExportEditor mode="detail" productExport={productExport} />,
+    );
+
+    expect(bannerHeading("All products export created")).toBeUndefined();
+
+    cleanup();
+    locationStateMock.mockReturnValue({
+      productExportCreateSucceeded: true,
+    });
+    renderWithQueryClient(
+      <ProductExportEditor mode="detail" productExport={productExport} />,
+    );
+
+    expect(bannerHeading("All products export created")).toBeTruthy();
   });
 
   it("renders and submits the settings form", async () => {
@@ -488,6 +693,25 @@ describe("route components", () => {
 
 function sectionHeading(heading: string) {
   return findElementByAttribute("s-section", "heading", heading);
+}
+
+function renderWithQueryClient(element: React.ReactElement) {
+  const queryClient = createQueryClient();
+  queryClient.setDefaultOptions({
+    mutations: {
+      retry: false,
+    },
+    queries: {
+      retry: false,
+    },
+  });
+
+  return {
+    ...render(
+      <QueryClientProvider client={queryClient}>{element}</QueryClientProvider>,
+    ),
+    queryClient,
+  };
 }
 
 function bannerHeading(heading: string) {

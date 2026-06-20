@@ -1,4 +1,4 @@
-import { files } from "@shamt/database/models/postgres";
+import { postgresFiles } from "@shamt/database/models/postgres";
 import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { getListCursor, getPageOffset, toFilesPage } from "./shared";
 import type {
@@ -18,8 +18,8 @@ export async function createPostgresFile(
   database: PostgresDatabase,
   file: FileRecord,
 ): Promise<void> {
-  await database.db.insert(files).values(file).onConflictDoUpdate({
-    target: files.id,
+  await database.db.insert(postgresFiles).values(file).onConflictDoUpdate({
+    target: postgresFiles.id,
     set: file,
   });
 }
@@ -33,8 +33,13 @@ export async function findPostgresFileById(
 ): Promise<FileRecord | null> {
   const [file] = await database.db
     .select()
-    .from(files)
-    .where(and(eq(files.id, input.id), eq(files.shopDomain, input.shopDomain)))
+    .from(postgresFiles)
+    .where(
+      and(
+        eq(postgresFiles.id, input.id),
+        eq(postgresFiles.shopDomain, input.shopDomain),
+      ),
+    )
     .limit(1);
 
   return file ?? null;
@@ -51,9 +56,9 @@ export async function listPostgresFiles(
   const where = getPostgresListWhere(input, cursor);
   const query = database.db
     .select()
-    .from(files)
+    .from(postgresFiles)
     .where(where)
-    .orderBy(desc(files.createdAt), desc(files.id))
+    .orderBy(desc(postgresFiles.createdAt), desc(postgresFiles.id))
     .limit(input.pagination.limit + 1);
 
   const rows: FileRecord[] =
@@ -76,13 +81,18 @@ export async function updatePostgresFileStatus(
   input: FileStatusUpdate,
 ): Promise<void> {
   await database.db
-    .update(files)
+    .update(postgresFiles)
     .set({
       deletedAt: input.deletedAt,
       status: input.status,
       updatedAt: new Date(),
     })
-    .where(and(eq(files.id, input.id), eq(files.shopDomain, input.shopDomain)));
+    .where(
+      and(
+        eq(postgresFiles.id, input.id),
+        eq(postgresFiles.shopDomain, input.shopDomain),
+      ),
+    );
 }
 
 /**
@@ -95,13 +105,18 @@ export async function deletePostgresFile(
   const now = new Date();
 
   await database.db
-    .update(files)
+    .update(postgresFiles)
     .set({
       deletedAt: now,
       status: "deleted",
       updatedAt: now,
     })
-    .where(and(eq(files.id, input.id), eq(files.shopDomain, input.shopDomain)));
+    .where(
+      and(
+        eq(postgresFiles.id, input.id),
+        eq(postgresFiles.shopDomain, input.shopDomain),
+      ),
+    );
 }
 
 async function countPostgresFiles(
@@ -110,7 +125,7 @@ async function countPostgresFiles(
 ): Promise<number> {
   const [row] = await database.db
     .select({ total: sql<number>`count(*)` })
-    .from(files)
+    .from(postgresFiles)
     .where(where);
 
   return Number(row?.total ?? 0);
@@ -118,17 +133,20 @@ async function countPostgresFiles(
 
 function getPostgresListWhere(input: FileListInput, cursor: SeekCursor | null) {
   const conditions = [
-    eq(files.shopDomain, input.shopDomain),
-    isNull(files.deletedAt),
-    ne(files.status, "deleted"),
-    ne(files.status, "failed"),
+    eq(postgresFiles.shopDomain, input.shopDomain),
+    isNull(postgresFiles.deletedAt),
+    ne(postgresFiles.status, "deleted"),
+    ne(postgresFiles.status, "failed"),
   ];
 
   if (cursor) {
     conditions.push(
       or(
-        lt(files.createdAt, cursor.createdAt),
-        and(eq(files.createdAt, cursor.createdAt), lt(files.id, cursor.id)),
+        lt(postgresFiles.createdAt, cursor.createdAt),
+        and(
+          eq(postgresFiles.createdAt, cursor.createdAt),
+          lt(postgresFiles.id, cursor.id),
+        ),
       )!,
     );
   }

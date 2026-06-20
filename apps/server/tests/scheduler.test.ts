@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createScheduler,
   registerSchedulerTask,
   type SchedulerTaskContext,
 } from "@/infra/scheduler";
-import { runCloudflareScheduledTasks } from "@/infra/scheduler/isolate";
+import {
+  createIsolateScheduler,
+  runCloudflareScheduledTasks,
+} from "@/infra/scheduler/isolate";
 import {
   findSchedulerTasksByCron,
   resetSchedulerTasks,
@@ -130,7 +132,7 @@ describe("scheduler registry", () => {
       name: "test:five",
     });
 
-    const scheduler = await createScheduler({
+    const scheduler = await createIsolateScheduler({
       APP_RUNTIME: "cloudflare",
     } as any);
     await scheduler.run("*/5 * * * *", context);

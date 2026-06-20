@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBucket, createBucketDownloadSigner } from "@/infra/bucket";
+import { createBucketDownloadSigner } from "@/infra/bucket";
 import { createIsolateBucket } from "@/infra/bucket/isolate";
+import { getProcessBucket } from "@/infra/bucket/process";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { runtimeConfig } from "./shopify/test-utils";
 
@@ -276,6 +277,36 @@ describe("isolate R2 binding bucket", () => {
       { etag: "etag-2", partNumber: 2 },
     ]);
   });
+
+  it("aborts binding multipart uploads when maxParts is exceeded", async () => {
+    const r2 = createR2Binding();
+    const bucket = createIsolateBucket(createCloudflareR2Config(), {
+      partSizeBytes: 5 * 1024 * 1024,
+      r2,
+    });
+    const bytes = new Uint8Array(11 * 1024 * 1024);
+
+    await expect(
+      bucket.put({
+        body: streamFromBytes(bytes),
+        contentType: "text/plain",
+        expiresAt: new Date(Date.now() + 1000),
+        key: "test-shop/max-parts.txt",
+        maxBytes: bytes.byteLength,
+        maxParts: 2,
+        originalName: "max-parts.txt",
+        safeName: "max-parts.txt",
+        shopDomain: "test-shop.myshopify.com",
+      }),
+    ).rejects.toMatchObject({
+      status: 413,
+    });
+
+    const upload = await getFirstR2MultipartUpload(r2);
+    expect(upload.uploadPart).toHaveBeenCalledTimes(2);
+    expect(upload.abort).toHaveBeenCalledOnce();
+    expect(upload.complete).not.toHaveBeenCalled();
+  });
 });
 
 describe("process R2 S3-compatible download signer", () => {
@@ -323,7 +354,7 @@ describe("process R2 S3-compatible bucket", () => {
   });
 
   it("uploads through multipart with the default 10 MiB part size", async () => {
-    const bucket = await createBucket(createNodeR2Config());
+    const bucket = await getProcessBucket(createNodeR2Config());
     const bytes = new Uint8Array(12 * 1024 * 1024);
     bytes.fill(65);
 
@@ -413,6 +444,46 @@ describe("process R2 S3-compatible bucket", () => {
         .filter((command) => command.type === "upload-part")
         .map((command) => command.input.ContentLength),
     ).toEqual([6 * 1024 * 1024, 6 * 1024 * 1024, 1024 * 1024]);
+  });
+
+  it("aborts S3-compatible multipart uploads when maxParts is exceeded", async () => {
+    const { S3CompatibleBucket } =
+      await import("@/infra/bucket/process.s3-compatible");
+    const bucket = new S3CompatibleBucket(
+      {
+        accessKeyId: "access_key",
+        bucketName: "product-export",
+        endpoint: "https://account-id.r2.cloudflarestorage.com",
+        secretAccessKey: "secret",
+      },
+      {
+        partSizeBytes: 5 * 1024 * 1024,
+      },
+    );
+    const bytes = new Uint8Array(11 * 1024 * 1024);
+
+    await expect(
+      bucket.put({
+        body: streamFromBytes(bytes),
+        contentType: "text/plain",
+        expiresAt: new Date(Date.now() + 1000),
+        key: "test-shop/max-parts.txt",
+        maxBytes: bytes.byteLength,
+        maxParts: 2,
+        originalName: "max-parts.txt",
+        safeName: "max-parts.txt",
+        shopDomain: "test-shop.myshopify.com",
+      }),
+    ).rejects.toMatchObject({
+      status: 413,
+    });
+
+    expect(sentCommands.map((command) => command.type)).toEqual([
+      "create-multipart",
+      "upload-part",
+      "upload-part",
+      "abort-multipart",
+    ]);
   });
 });
 

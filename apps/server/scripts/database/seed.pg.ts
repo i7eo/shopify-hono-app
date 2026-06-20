@@ -1,6 +1,6 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS } from "@shamt/app-env";
 import {
-  files,
+  postgresFiles,
   postgresShopifySessions,
 } from "@shamt/database/models/postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -20,7 +20,7 @@ async function main() {
   const db = drizzle({
     client: pool,
     schema: {
-      files,
+      postgresFiles,
       shopifySessions: postgresShopifySessions,
     },
   });
@@ -50,7 +50,7 @@ async function main() {
         shop: postgresShopifySessions.shop,
       });
     const [file] = await db
-      .insert(files)
+      .insert(postgresFiles)
       .values({
         bucketKey: `${SEED_SHOP_DOMAIN}/2026/06/${SEED_FILE_ID}/seed.csv`,
         bucketProvider: DEFAULT_APP_BUCKET_PROVIDERS.MEMORY,
@@ -66,7 +66,7 @@ async function main() {
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: files.id,
+        target: postgresFiles.id,
         set: {
           bucketProvider: DEFAULT_APP_BUCKET_PROVIDERS.MEMORY,
           byteSize: 128,
@@ -79,10 +79,10 @@ async function main() {
         },
       })
       .returning({
-        bucketProvider: files.bucketProvider,
-        id: files.id,
-        shopDomain: files.shopDomain,
-        status: files.status,
+        bucketProvider: postgresFiles.bucketProvider,
+        id: postgresFiles.id,
+        shopDomain: postgresFiles.shopDomain,
+        status: postgresFiles.status,
       });
 
     console.info(

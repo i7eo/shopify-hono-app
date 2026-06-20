@@ -7,6 +7,7 @@ import type {
 import type { HttpRequestConfig } from "@shamt/oh-my-fetch";
 
 export type ProductExportStatus = SelectProductExport["status"];
+export type ProductExportTemplateCode = SelectProductExport["template"];
 
 export type ProductExport = JsonSerializedDates<
   SelectProductExport,
@@ -42,7 +43,20 @@ export interface ProductExportListInput {
   status?: ProductExportStatus;
 }
 
-export type CreateProductExportInput = Pick<InsertProductExport, "name">;
+export type CreateProductExportInput = Pick<
+  InsertProductExport,
+  "name" | "template"
+>;
+
+export type ProductExportTemplate = {
+  code: ProductExportTemplateCode;
+  fields: string[];
+  label: string;
+};
+
+export type ProductExportTemplatesResponse = ApiResponse<
+  ProductExportTemplate[]
+>;
 
 export type ProductExportDownloadTarget =
   | {
@@ -78,6 +92,16 @@ export function createProductExport(
     ApiResponse<ProductExport>,
     CreateProductExportInput
   >("product-exports", input, { signal });
+}
+
+/**
+ * Lists server-owned product export file templates.
+ */
+export function listProductExportTemplates(signal?: AbortSignal) {
+  return shopifyClient.get<ProductExportTemplatesResponse>(
+    "product-exports/reference/templates",
+    { signal },
+  );
 }
 
 /**

@@ -31,6 +31,12 @@ export default defineConfig([
             camelCase: true,
             pascalCase: true,
           },
+          ignore: [
+            "^-components$",
+            String.raw`^-queries\.ts$`,
+            "^-queries$",
+            String.raw`^README(?:\.[\w-]+)?\.md$`,
+          ],
         },
       ],
     },

@@ -9,7 +9,10 @@ const isDev = process.env.APP_ENV === "development";
 const sourcemap = !isDev;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = "src";
-const input = resolve(__dirname, "src/index.ts");
+const input = {
+  index: resolve(__dirname, "src/index.ts"),
+  "constants/index": resolve(__dirname, "src/constants/index.ts"),
+};
 const outputDir = resolve(__dirname, "dist");
 
 const common = defineConfig({

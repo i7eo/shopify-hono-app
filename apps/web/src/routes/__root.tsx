@@ -1,6 +1,7 @@
 import { createRootRouteWithContext } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { NotFound } from "@/components/errors";
+import { RouteError } from "@/components/errors/route-error";
 import { Loading } from "@/components/loading";
 import { EmbeddedLayout } from "@/layouts/embedded";
 import { StandaloneLayout } from "@/layouts/standalone";
@@ -68,5 +69,6 @@ export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
   component: RootComponent,
+  errorComponent: RouteError,
   notFoundComponent: () => <NotFound scope="page" />,
 });

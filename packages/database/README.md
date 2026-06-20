@@ -17,6 +17,7 @@ adapter.
 | Entry                                  | Purpose                                |
 | -------------------------------------- | -------------------------------------- |
 | `@shamt/database`                      | Models, Drizzle-Zod schemas, and types |
+| `@shamt/database/constants`            | Shared database-domain constants       |
 | `@shamt/database/models/postgres`      | PostgreSQL Drizzle table models        |
 | `@shamt/database/models/sqlite`        | SQLite/D1 Drizzle table models         |
 | `@shamt/database/sql-schemas/postgres` | PostgreSQL Drizzle-Zod schemas         |
@@ -29,7 +30,7 @@ The package keeps PostgreSQL and SQLite/D1 models separate because the two
 dialects represent dates, booleans, enums, and integers differently. The app
 layer maps both dialects behind the same store interfaces.
 
-`files`
+`postgresFiles`
 
 | Column            | Type        | Notes                          |
 | ----------------- | ----------- | ------------------------------ |
@@ -105,23 +106,67 @@ The columns mirror `postgresShopifySessions`, using SQLite-compatible column
 types: boolean values are stored as integer booleans, `expires` values as text,
 and `userId` as a bigint blob.
 
-`productExports`
+`postgresProductExports` and `sqliteProductExports`
 
 Product export job metadata table. PostgreSQL and SQLite/D1 variants mirror the
 same logical shape and keep dialect-specific date/status storage inside their
 own model files.
 
+The table includes a required `template` column that defaults to `basic`.
+Template codes are exported from `@shamt/database/constants` as
+`PRODUCT_EXPORT_TEMPLATE_CODE_VALUES`.
+
 Key query indexes:
 
-- `product_exports_shop_created_at_idx` on `shop_domain`, `created_at`
-- `product_exports_shop_status_idx` on `shop_domain`, `status`
-- `product_exports_shop_status_created_at_idx` on `shop_domain`, `status`, `created_at`
+- `product_exports_shop_created_id_idx` on `shop_domain`, `created_at`, `id`
+- `product_exports_shop_status_created_id_idx` on `shop_domain`, `status`, `created_at`, `id`
+- `product_exports_status_updated_id_idx` on `status`, `updated_at`, `id`
+- `product_exports_bulk_operation_idx` on `shopify_bulk_operation_id`
 
-`productExportParts`
+`postgresProductExportParts` and `sqliteProductExportParts`
 
 Product export part rows used by the export worker. The server store aggregates
 part status counts in the database rather than loading every part into
 application memory.
+
+`postgresReferences` and `sqliteReferences`
+
+Shop-scoped reference data table for standard options and operator-managed
+reference values.
+
+| Column        | Type        | Notes                                      |
+| ------------- | ----------- | ------------------------------------------ |
+| `id`          | text        | primary key                                |
+| `shop_domain` | text        | Shopify shop owner boundary                |
+| `namespace`   | text        | reference namespace, such as `gender`      |
+| `code`        | text        | stable machine-readable code               |
+| `label`       | text        | human-readable label                       |
+| `enabled`     | boolean/int | whether this reference can be selected     |
+| `system`      | boolean/int | whether this is a system default reference |
+| `sort_order`  | integer     | display and cursor ordering                |
+| `created_at`  | timestamp   | creation timestamp                         |
+| `updated_at`  | timestamp   | update timestamp                           |
+| `deleted_at`  | timestamp   | nullable soft-delete timestamp             |
+
+Reference indexes:
+
+- `references_shop_namespace_code_idx` on `shop_domain`, `namespace`, `code`
+- `references_shop_namespace_sort_idx` on `shop_domain`, `namespace`, `enabled`, `sort_order`, `code`
+
+## Constants
+
+`@shamt/database/constants` owns product export enum-like values shared by
+database schemas and app code:
+
+```ts
+import {
+  PRODUCT_EXPORT_PART_STATUS_VALUES,
+  PRODUCT_EXPORT_STATUS_VALUES,
+  PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
+} from "@shamt/database/constants";
+```
+
+Use these exports instead of duplicating status or template arrays in app code.
 
 ## Zod Schemas
 
@@ -129,19 +174,36 @@ The package exports Drizzle-Zod schemas for inserts and selects:
 
 ```ts
 import {
-  insertFileSchema,
+  insertPostgresFileSchema,
+  insertPostgresProductExportPartSchema,
+  insertPostgresProductExportSchema,
+  insertPostgresReferenceSchema,
   insertPostgresShopifySessionSchema,
   insertSqliteFileSchema,
+  insertSqliteProductExportPartSchema,
+  insertSqliteProductExportSchema,
+  insertSqliteReferenceSchema,
   insertSqliteShopifySessionSchema,
-  selectFileSchema,
+  selectPostgresFileSchema,
+  selectPostgresProductExportPartSchema,
+  selectPostgresProductExportSchema,
+  selectPostgresReferenceSchema,
   selectPostgresShopifySessionSchema,
   selectSqliteFileSchema,
+  selectSqliteProductExportPartSchema,
+  selectSqliteProductExportSchema,
+  selectSqliteReferenceSchema,
   selectSqliteShopifySessionSchema,
 } from "@shamt/database";
 ```
 
 It also exports inferred types such as `InsertFile`, `SelectFile`,
-`InsertSqliteFile`, `SelectSqliteFile`, `InsertPostgresShopifySession`,
+`InsertSqliteFile`, `SelectSqliteFile`, `InsertProductExport`,
+`SelectProductExport`, `InsertProductExportPart`, `SelectProductExportPart`,
+`InsertSqliteProductExport`, `SelectSqliteProductExport`,
+`InsertSqliteProductExportPart`, `SelectSqliteProductExportPart`,
+`InsertReference`, `SelectReference`, `InsertSqliteReference`,
+`SelectSqliteReference`, `InsertPostgresShopifySession`,
 `SelectPostgresShopifySession`, `InsertSqliteShopifySession`, and
 `SelectSqliteShopifySession`.
 
@@ -151,7 +213,9 @@ Create a Drizzle client in an app and pass the shared schema:
 
 ```ts
 import {
-  files,
+  postgresFiles,
+  postgresProductExports,
+  postgresReferences,
   postgresShopifySessions,
 } from "@shamt/database/models/postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -161,7 +225,9 @@ const pool = new Pool({ connectionString: process.env.APP_DATABASE_URL });
 const db = drizzle({
   client: pool,
   schema: {
-    files,
+    files: postgresFiles,
+    productExports: postgresProductExports,
+    references: postgresReferences,
     shopifySessions: postgresShopifySessions,
   },
 });
@@ -172,6 +238,8 @@ Create a D1/SQLite Drizzle client with the SQLite schema:
 ```ts
 import {
   sqliteFiles,
+  sqliteProductExports,
+  sqliteReferences,
   sqliteShopifySessions,
 } from "@shamt/database/models/sqlite";
 import { drizzle } from "drizzle-orm/d1";
@@ -179,6 +247,8 @@ import { drizzle } from "drizzle-orm/d1";
 const db = drizzle(env.DB, {
   schema: {
     files: sqliteFiles,
+    productExports: sqliteProductExports,
+    references: sqliteReferences,
     shopifySessions: sqliteShopifySessions,
   },
 });
@@ -187,13 +257,13 @@ const db = drizzle(env.DB, {
 Use models in queries:
 
 ```ts
-import { files } from "@shamt/database/models/postgres";
+import { postgresFiles } from "@shamt/database/models/postgres";
 import { eq } from "drizzle-orm";
 
 const rows = await db
   .select()
-  .from(files)
-  .where(eq(files.shopDomain, "example.myshopify.com"));
+  .from(postgresFiles)
+  .where(eq(postgresFiles.shopDomain, "example.myshopify.com"));
 ```
 
 ## Boundaries
@@ -202,6 +272,9 @@ const rows = await db
 - Runtime strategy belongs in apps, such as `apps/server/src/infra/database`.
 - Migrations are generated from app-owned Drizzle config.
 - File metadata has PostgreSQL and SQLite/D1 schemas.
+- Product export metadata, part metadata, and template code values live in this
+  package.
+- Reference data has PostgreSQL and SQLite/D1 schemas.
 - Shopify session storage has PostgreSQL and SQLite/D1 schemas.
 - Node D1 support is implemented in the app layer by wrapping Cloudflare's D1
   HTTP API as a `D1Database`-compatible client.

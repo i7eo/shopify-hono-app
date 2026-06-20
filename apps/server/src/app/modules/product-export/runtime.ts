@@ -1,10 +1,9 @@
-import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { createDatabaseShopifySessionStorage } from "@/app/modules/shopify/session-storage/database";
-import { createBucket, type Bucket } from "@/infra/bucket";
-import { createDatabase, type Database } from "@/infra/database";
+import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { getShopifyConfigProvider } from "@/infra/provider";
-import { unauthorizedError } from "@/shared/exceptions";
-import { isCloudflareRuntime } from "./utils";
+import { badGatewayError, unauthorizedError } from "@/shared/exceptions";
+import type { Bucket } from "@/infra/bucket";
+import type { Database } from "@/infra/database";
 import type { RuntimeConfig } from "@/infra/env";
 import type { QueueJobContext } from "@/infra/queue";
 import type { SchedulerTaskContext } from "@/infra/scheduler";
@@ -21,25 +20,18 @@ type ProductExportRuntimeContext = QueueJobContext | SchedulerTaskContext;
 export async function createProductExportDatabase(
   context: ProductExportRuntimeContext,
 ): Promise<Database> {
-  const config = context.runtimeEnv;
+  const databaseFactory = getRuntimeCapability("databaseFactory");
 
-  if (!isCloudflareRuntime(config)) {
-    return await createDatabase(config);
+  if (!databaseFactory) {
+    throw badGatewayError(
+      "Runtime capability is not registered: databaseFactory",
+      {
+        expose: true,
+      },
+    );
   }
 
-  if (config.APP_DATABASE_PROVIDER === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
-    return await createDatabase(config, {
-      d1: context.bindings?.[config.APP_DATABASE_D1_BINDING ?? ""] as
-        | D1Database
-        | undefined,
-    });
-  }
-
-  return await createDatabase(config, {
-    hyperdrive: context.bindings?.[config.APP_HYPERDRIVER_BINDING ?? ""] as
-      | Hyperdrive
-      | undefined,
-  });
+  return await databaseFactory(context);
 }
 
 /**
@@ -48,17 +40,18 @@ export async function createProductExportDatabase(
 export async function createProductExportBucket(
   context: ProductExportRuntimeContext,
 ): Promise<Bucket> {
-  const config = context.runtimeEnv;
+  const bucketFactory = getRuntimeCapability("bucketFactory");
 
-  if (!isCloudflareRuntime(config)) {
-    return await createBucket(config);
+  if (!bucketFactory) {
+    throw badGatewayError(
+      "Runtime capability is not registered: bucketFactory",
+      {
+        expose: true,
+      },
+    );
   }
 
-  return await createBucket(config, {
-    r2: context.bindings?.[config.APP_BUCKET_R2_BINDING ?? ""] as
-      | R2Bucket
-      | undefined,
-  });
+  return await bucketFactory(context);
 }
 
 /**

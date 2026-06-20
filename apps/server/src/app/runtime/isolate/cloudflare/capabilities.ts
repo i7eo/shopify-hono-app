@@ -1,26 +1,29 @@
-import {
-  DEFAULT_APP_DATABASE_PROVIDERS,
-  DEFAULT_RUNTIMES,
-} from "@shamt/app-env";
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
   setRuntimeCapability,
   type ModuleHealthDiskCheckResult,
 } from "@/app/runtime/capabilities";
+import { createBucketDownloadSigner } from "@/infra/bucket";
 import {
-  createBucket,
-  createBucketDownloadSigner,
-  disposeBucket,
-} from "@/infra/bucket";
-import { createDatabase, disposeDatabase } from "@/infra/database";
+  createIsolateBucket,
+  disposeIsolateBucket,
+} from "@/infra/bucket/isolate";
+import {
+  createIsolateDatabase,
+  disposeIsolateDatabase,
+} from "@/infra/database/isolate";
 import { setupIsolateLogger } from "@/infra/logger/isolate";
 import {
-  createQueueConsumer,
-  createQueueProducer,
-  disposeQueueConsumer,
-  disposeQueueProducer,
-} from "@/infra/queue";
-import { createScheduler, disposeScheduler } from "@/infra/scheduler";
+  createIsolateQueueConsumer,
+  createIsolateQueueProducer,
+  disposeIsolateQueueConsumer,
+  disposeIsolateQueueProducer,
+} from "@/infra/queue/isolate";
+import {
+  createIsolateScheduler,
+  disposeIsolateScheduler,
+} from "@/infra/scheduler/isolate";
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
   isCloudflareD1Database,
@@ -46,35 +49,50 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
   setRuntimeCapability("moduleHealthProcessDiskChecker", isolateNotSupport);
   setRuntimeCapability(
     "databaseFactory",
-    (c) => getDatabase(c),
+    (context) => getDatabase(context),
     disposeDatabaseCapability,
   );
   setRuntimeCapability(
     "bucketFactory",
-    (c) => getBucket(c),
+    (context) =>
+      createIsolateBucket(context.runtimeEnv, {
+        r2: requireConfiguredCloudflareBinding(
+          context.bindings ?? {},
+          context.runtimeEnv.APP_BUCKET_R2_BINDING,
+          "APP_BUCKET_R2_BINDING",
+          isCloudflareR2Bucket,
+        ),
+      }),
     disposeBucketCapability,
   );
   setRuntimeCapability(
     "queueProducerFactory",
-    (c) => getQueueProducer(c),
+    (context) => getQueueProducer(context),
     disposeQueueProducerCapability,
   );
   setRuntimeCapability(
     "queueConsumerFactory",
-    (config) => createQueueConsumer(config),
+    (config) => createIsolateQueueConsumer(config),
     disposeQueueConsumerCapability,
   );
   setRuntimeCapability(
     "schedulerFactory",
-    (config) => createScheduler(config),
+    (config) => createIsolateScheduler(config),
     disposeSchedulerCapability,
   );
   setRuntimeCapability(
     "moduleFileDownloadResolverFactory",
-    async (c) =>
+    async (context) =>
       new BucketFileDownloadResolver(
-        await getBucket(c),
-        await createBucketDownloadSigner(c.get("runtimeEnv")),
+        await createIsolateBucket(context.runtimeEnv, {
+          r2: requireConfiguredCloudflareBinding(
+            context.bindings ?? {},
+            context.runtimeEnv.APP_BUCKET_R2_BINDING,
+            "APP_BUCKET_R2_BINDING",
+            isCloudflareR2Bucket,
+          ),
+        }),
+        await createBucketDownloadSigner(context.runtimeEnv),
       ),
   );
 }
@@ -86,14 +104,17 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
  * - APP_DATABASE_PROVIDER=d1 requires APP_DATABASE_D1_BINDING.
  * - APP_DATABASE_PROVIDER=postgres requires APP_HYPERDRIVER_BINDING.
  */
-function getDatabase(c: Context<AppEnv>) {
-  const context = c as Context<RuntimeAppEnv<"cloudflare">>;
-  const config = c.get("runtimeEnv");
+function getDatabase(context: {
+  bindings?: Record<string, unknown>;
+  runtimeEnv: RuntimeAppEnv<"cloudflare">["Variables"]["runtimeEnv"];
+}) {
+  const config = context.runtimeEnv;
+  const bindings = context.bindings ?? {};
 
   if (config.APP_DATABASE_PROVIDER === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
-    return createDatabase(config, {
+    return createIsolateDatabase(config, {
       d1: requireConfiguredCloudflareBinding(
-        context.env,
+        bindings,
         config.APP_DATABASE_D1_BINDING,
         "APP_DATABASE_D1_BINDING",
         isCloudflareD1Database,
@@ -101,9 +122,9 @@ function getDatabase(c: Context<AppEnv>) {
     });
   }
 
-  return createDatabase(config, {
+  return createIsolateDatabase(config, {
     hyperdrive: requireConfiguredCloudflareBinding(
-      context.env,
+      bindings,
       config.APP_HYPERDRIVER_BINDING,
       "APP_HYPERDRIVER_BINDING",
       isCloudflareHyperdrive,
@@ -115,32 +136,15 @@ function getDatabase(c: Context<AppEnv>) {
  * Creates the runtime bucket once request runtime env is available.
  * Cloudflare supports the r2 provider through the request-bound R2 binding.
  */
-function getBucket(c: Context<AppEnv>) {
-  const context = c as Context<RuntimeAppEnv<"cloudflare">>;
-  const config = c.get("runtimeEnv");
+function getQueueProducer(context: {
+  bindings?: Record<string, unknown>;
+  runtimeEnv: RuntimeAppEnv<"cloudflare">["Variables"]["runtimeEnv"];
+}) {
+  const config = context.runtimeEnv;
 
-  return createBucket(config, {
-    r2: requireConfiguredCloudflareBinding(
-      context.env,
-      config.APP_BUCKET_R2_BINDING,
-      "APP_BUCKET_R2_BINDING",
-      isCloudflareR2Bucket,
-    ),
-  });
-}
-
-/**
- * Creates the runtime queue producer once request runtime env is available.
- * Cloudflare supports the queues provider through the request-bound Queue
- * binding.
- */
-function getQueueProducer(c: Context<AppEnv>) {
-  const context = c as Context<RuntimeAppEnv<"cloudflare">>;
-  const config = c.get("runtimeEnv");
-
-  return createQueueProducer(config, {
+  return createIsolateQueueProducer(config, {
     queue: requireConfiguredCloudflareBinding(
-      context.env,
+      context.bindings ?? {},
       config.APP_QUEUE_BINDING,
       "APP_QUEUE_BINDING",
       isCloudflareQueue,
@@ -165,35 +169,35 @@ function requireConfiguredCloudflareBinding<T>(
  * Disposes isolate database infrastructure when one is cached.
  */
 function disposeDatabaseCapability() {
-  return disposeDatabase({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+  return disposeIsolateDatabase();
 }
 
 /**
  * Disposes isolate bucket infrastructure when one is cached.
  */
 function disposeBucketCapability() {
-  return disposeBucket({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+  return disposeIsolateBucket();
 }
 
 /**
  * Disposes isolate queue infrastructure when one is cached.
  */
 function disposeQueueProducerCapability() {
-  return disposeQueueProducer({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+  return disposeIsolateQueueProducer();
 }
 
 /**
  * Disposes isolate queue consumer infrastructure when one is cached.
  */
 function disposeQueueConsumerCapability() {
-  return disposeQueueConsumer({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+  return disposeIsolateQueueConsumer();
 }
 
 /**
  * Disposes isolate scheduler infrastructure when one is cached.
  */
 function disposeSchedulerCapability() {
-  return disposeScheduler({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
+  return disposeIsolateScheduler();
 }
 
 /**

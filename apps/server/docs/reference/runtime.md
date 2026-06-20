@@ -49,9 +49,12 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 
 共享业务代码只读取 capability，不直接 import Node-only 或 Cloudflare-only 实现。这样可以保护 Cloudflare bundle 的 import graph。
 
-database、bucket、queue 和 scheduler 各自还保留自己的 infra index。index 负责根据
-`APP_RUNTIME` 动态 import process/isolate 实现，并提供对称的 create/dispose
-函数。runtime capability 只把这些 infra 能力注入到请求、启动或 event 入口。
+database、bucket、queue 和 scheduler 各自还保留自己的 infra index，但 index
+只导出共享契约、类型、registry 或 runtime-neutral helper。process/isolate
+实现由 `src/app/runtime/process/capabilities.ts` 与
+`src/app/runtime/isolate/cloudflare/capabilities.ts` 显式引入并注册到
+capability registry。这样 Cloudflare entry 不会因为共享 infra barrel 间接看到
+Node-only process adapter。
 
 process 实现可以缓存长生命周期资源，例如 `pg.Pool`、bucket adapter、`pg-boss`
 producer/consumer 和 schedule worker。Cloudflare isolate 实现以 request/event
@@ -175,6 +178,8 @@ deploy:prepare -> deploy:runtime -> app:deploy
   `scripts/deploy/index.ts` 校验 `APP_RUNTIME`，然后调用 server workspace 的
   `cf:deploy` 或 `node:deploy`。
 - `app:deploy` 交给 Shopify CLI 同步 app 配置。
+
+`pnpm deploy` 不会自动执行 database migration。部署前应按当前 `APP_DATABASE_PROVIDER` 执行对应迁移命令，详见 [database.md](./database.md#development-and-deployment-lifecycle)。
 
 server workspace 拥有具体部署实现：
 

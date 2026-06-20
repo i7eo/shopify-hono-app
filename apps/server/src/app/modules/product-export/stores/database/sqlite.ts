@@ -182,6 +182,26 @@ export async function listSqliteProductExportParts(
     .orderBy(sqliteProductExportParts.seq);
 }
 
+export async function listSqliteProductExportPartsPage(
+  database: D1DatabaseClient,
+  input: Parameters<ProductExportStore["listPartsPage"]>[0],
+): Promise<ProductExportPartRecord[]> {
+  const where =
+    input.afterSeq === undefined
+      ? eq(sqliteProductExportParts.exportId, input.exportId)
+      : and(
+          eq(sqliteProductExportParts.exportId, input.exportId),
+          gt(sqliteProductExportParts.seq, input.afterSeq),
+        );
+
+  return await database.db
+    .select()
+    .from(sqliteProductExportParts)
+    .where(where)
+    .orderBy(sqliteProductExportParts.seq)
+    .limit(input.limit);
+}
+
 export async function listSqliteProductExportPartsByStatus(
   database: D1DatabaseClient,
   input: { exportId: string; statuses: ProductExportPartStatus[] },

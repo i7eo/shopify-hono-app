@@ -1,6 +1,6 @@
 # @shamt/oh-my-fetch
 
-<p><strong>中文</strong> | <a href="./README.md">English</a></p>
+<p><a href="./README.md">English</a> | <strong>中文</strong></p>
 
 `@shamt/oh-my-fetch` 是一个基于 `ky` 的通用 Fetch client。核心保持轻量、安全、运行时中立，业务行为通过显式插件按需加入。
 

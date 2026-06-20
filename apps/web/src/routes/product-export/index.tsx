@@ -1,99 +1,66 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  deleteProductExport,
-  downloadProductExportFile,
-  listProductExports,
-  type ProductExport,
-  type ProductExportStatus,
-} from "@/apis/product-exports";
+import { useState } from "react";
 import { Empty } from "@/components/empty";
+import { Offline } from "@/components/errors";
+import { Loading } from "@/components/loading";
+import {
+  productExportListQueryOptions,
+  useDeleteProductExportMutation,
+  useDownloadProductExportMutation,
+  useIsOnline,
+} from "./-queries";
+import type {
+  ProductExport,
+  ProductExportStatus,
+} from "@/apis/product-exports";
 
 export const Route = createFileRoute("/product-export/")({
   component: ProductExportIndex,
 });
 
-const PRODUCT_EXPORT_POLL_MS = 1000 * 60 * 5;
 const TERMINAL_STATUSES = new Set<ProductExportStatus>([
   "canceled",
   "failed",
   "ready",
 ]);
 
-type LoadState = "idle" | "loading" | "ready" | "error";
+const PRODUCT_EXPORT_LIST_INPUT = { limit: 20 };
+const PRODUCT_EXPORT_POLL_MS = 1000 * 60 * 5;
 
 function ProductExportIndex() {
-  const abortControllerRef = useRef<AbortController | undefined>(undefined);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [loadState, setLoadState] = useState<LoadState>("idle");
-  const [productExports, setProductExports] = useState<ProductExport[]>([]);
+  const deleteMutation = useDeleteProductExportMutation();
+  const downloadMutation = useDownloadProductExportMutation();
+  const isOnline = useIsOnline();
+  const [productExportToDelete, setProductExportToDelete] = useState<
+    ProductExport | undefined
+  >(undefined);
+  const productExportsQuery = useQuery({
+    ...productExportListQueryOptions(PRODUCT_EXPORT_LIST_INPUT),
+    refetchInterval: (query) =>
+      query.state.data?.data?.result.some(
+        (row) => !TERMINAL_STATUSES.has(row.status),
+      )
+        ? PRODUCT_EXPORT_POLL_MS
+        : false,
+  });
+  const productExports = productExportsQuery.data?.data?.result ?? [];
+  const deletingProductExportId = deleteMutation.isPending
+    ? deleteMutation.variables
+    : undefined;
+  const downloadingProductExportId = downloadMutation.isPending
+    ? downloadMutation.variables?.id
+    : undefined;
 
-  const loadExports = useCallback(
-    async (options: { silent?: boolean } = {}) => {
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      if (!options.silent) {
-        setLoadState("loading");
-        setErrorMessage("");
-      }
-
-      try {
-        const response = await listProductExports(
-          { limit: 20 },
-          controller.signal,
-        );
-        setProductExports(response.data?.result ?? []);
-        setLoadState("ready");
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setErrorMessage(getErrorMessage(error));
-          setLoadState("error");
-        }
-      } finally {
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = undefined;
-        }
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    loadExports().catch((error: unknown) => {
-      setErrorMessage(getErrorMessage(error));
-      setLoadState("error");
-    });
-
-    return () => {
-      abortControllerRef.current?.abort();
-    };
-  }, [loadExports]);
-
-  useEffect(() => {
-    if (!productExports.some((row) => !TERMINAL_STATUSES.has(row.status))) {
-      return;
-    }
-
-    const timer = globalThis.setInterval(() => {
-      loadExports({ silent: true }).catch((error: unknown) => {
-        setErrorMessage(getErrorMessage(error));
-        setLoadState("error");
-      });
-    }, PRODUCT_EXPORT_POLL_MS);
-
-    return () => {
-      globalThis.clearInterval(timer);
-    };
-  }, [loadExports, productExports]);
+  if (!isOnline) {
+    return <Offline scope="page" />;
+  }
 
   async function handleDownload(productExport: ProductExport) {
-    const controller = new AbortController();
     setLoading(true);
 
     try {
-      await downloadProductExportFile(productExport, controller.signal);
+      await downloadMutation.mutateAsync(productExport);
       showToast("Product export download started.");
     } catch (error) {
       showToast(getErrorMessage(error), { isError: true });
@@ -103,19 +70,33 @@ function ProductExportIndex() {
   }
 
   async function handleDelete(productExport: ProductExport) {
-    const controller = new AbortController();
+    if (deletingProductExportId) return;
+
     setLoading(true);
 
     try {
-      await deleteProductExport(productExport.id, controller.signal);
+      await deleteMutation.mutateAsync(productExport.id);
       showToast("Product export deleted.");
-      await loadExports({ silent: true });
+      setProductExportToDelete(undefined);
     } catch (error) {
       showToast(getErrorMessage(error), { isError: true });
     } finally {
       setLoading(false);
     }
   }
+
+  if (productExportsQuery.isLoading) {
+    return (
+      <Loading
+        heading="Product export"
+        message="Loading product export actions"
+        scope="page"
+      />
+    );
+  }
+
+  const errorMessage =
+    productExportsQuery.error && getErrorMessage(productExportsQuery.error);
 
   return (
     <s-page heading="Product export">
@@ -127,14 +108,7 @@ function ProductExportIndex() {
         Create
       </s-button>
 
-      {loadState === "loading" ? (
-        <s-section>
-          <s-spinner
-            accessibilityLabel="Loading product export actions"
-            size="base"
-          ></s-spinner>
-        </s-section>
-      ) : loadState === "error" ? (
+      {errorMessage ? (
         <s-section>
           <s-banner heading="Unable to load product exports" tone="critical">
             <s-text>{errorMessage}</s-text>
@@ -160,11 +134,16 @@ function ProductExportIndex() {
               {productExports.map((productExport) => {
                 const status = getStatusDisplay(productExport.status);
                 const canDownload = productExport.status === "ready";
+                const isDownloading =
+                  downloadingProductExportId === productExport.id;
+                const isDeleting = deletingProductExportId === productExport.id;
 
                 return (
                   <s-table-row key={productExport.id}>
                     <s-table-cell>
-                      <s-text type="strong">{productExport.name}</s-text>
+                      <s-link href={`/product-export/${productExport.id}`}>
+                        {productExport.name}
+                      </s-link>
                     </s-table-cell>
                     <s-table-cell>
                       {formatDateTime(productExport.createdAt)}
@@ -179,8 +158,9 @@ function ProductExportIndex() {
                       <s-stack direction="inline" gap="small-200">
                         <s-button
                           accessibilityLabel={`Download ${productExport.name}`}
-                          disabled={!canDownload}
+                          disabled={!canDownload || isDownloading}
                           icon="download"
+                          loading={isDownloading}
                           variant="secondary"
                           onClick={() => {
                             handleDownload(productExport).catch(
@@ -196,17 +176,15 @@ function ProductExportIndex() {
                         </s-button>
                         <s-button
                           accessibilityLabel={`Delete ${productExport.name}`}
+                          command="--show"
+                          commandFor="delete-product-export-modal"
+                          disabled={Boolean(deletingProductExportId)}
                           icon="delete"
+                          loading={isDeleting}
                           tone="critical"
                           variant="secondary"
                           onClick={() => {
-                            handleDelete(productExport).catch(
-                              (error: unknown) => {
-                                showToast(getErrorMessage(error), {
-                                  isError: true,
-                                });
-                              },
-                            );
+                            setProductExportToDelete(productExport);
                           }}
                         >
                           Delete
@@ -220,6 +198,53 @@ function ProductExportIndex() {
           </s-table>
         </s-section>
       )}
+
+      <s-modal
+        id="delete-product-export-modal"
+        heading="Delete product export?"
+      >
+        <s-stack gap="base">
+          <s-text>Are you sure you want to delete product export?</s-text>
+          <s-text tone="caution">This action cannot be undone.</s-text>
+        </s-stack>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          tone="critical"
+          commandFor="delete-product-export-modal"
+          command="--hide"
+          onClick={() => {
+            if (!productExportToDelete) return;
+
+            handleDelete(productExportToDelete).catch((error: unknown) => {
+              showToast(getErrorMessage(error), {
+                isError: true,
+              });
+            });
+          }}
+          disabled={
+            !productExportToDelete ||
+            Boolean(
+              deletingProductExportId &&
+              deletingProductExportId !== productExportToDelete.id,
+            )
+          }
+          loading={deletingProductExportId === productExportToDelete?.id}
+        >
+          Delete
+        </s-button>
+        <s-button
+          slot="secondary-actions"
+          variant="secondary"
+          commandFor="delete-product-export-modal"
+          command="--hide"
+          onClick={() => {
+            setProductExportToDelete(undefined);
+          }}
+        >
+          Cancel
+        </s-button>
+      </s-modal>
     </s-page>
   );
 }

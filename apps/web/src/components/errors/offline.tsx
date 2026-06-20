@@ -1,4 +1,4 @@
-import offlineImage from "@/assets/images/error.net-work.png";
+import offlineImage from "@/assets/images/error.net-work.png?inline";
 import { ErrorLayout, type FeedbackScope } from "./layout";
 
 interface OfflineProps {

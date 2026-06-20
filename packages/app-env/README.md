@@ -28,6 +28,8 @@ clean.
 - Shopify app fields defined in this package
 - app-level database provider fields
 - bucket provider fields
+- queue provider fields
+- scheduler provider fields
 - Cloudflare account/token fields
 - Hyperdrive binding fields
 
@@ -68,6 +70,30 @@ Bucket fields:
 
 `memory` is the Node development bucket provider. `r2` uses the S3-compatible
 API in Node and a Worker R2 binding in Cloudflare.
+
+Queue fields:
+
+| Field                               | Values / shape        |
+| ----------------------------------- | --------------------- |
+| `APP_QUEUE_PROVIDER`                | `pg-boss` or `queues` |
+| `APP_QUEUE_NAME`                    | optional string       |
+| `APP_QUEUE_BINDING`                 | optional string       |
+| `APP_QUEUE_CONSUMER_MAX_BATCH_SIZE` | coerced number        |
+| `APP_QUEUE_CONSUMER_MAX_RETRIES`    | coerced number        |
+
+Node uses `pg-boss` and requires PostgreSQL. Cloudflare uses Queues and reads
+the Worker binding named by `APP_QUEUE_BINDING`.
+
+Scheduler fields:
+
+| Field                      | Values / shape                  |
+| -------------------------- | ------------------------------- |
+| `APP_SCHEDULER_PROVIDER`   | `pg-boss` or `cron-triggers`    |
+| `APP_SCHEDULER_CRON_VALUE` | optional cron expression string |
+
+Node uses `pg-boss` schedule and requires PostgreSQL. Cloudflare uses Cron
+Triggers; the Wrangler generator reads `APP_SCHEDULER_CRON_VALUE` when
+`APP_RUNTIME=cloudflare` and `APP_SCHEDULER_PROVIDER=cron-triggers`.
 
 Cloudflare fields:
 

@@ -109,8 +109,8 @@ function sqlString(value: string): string {
 }
 
 /**
- * Executes the seed SQL against local D1 by default, or remote D1 when
- * D1_SEED_REMOTE=true is present.
+ * Executes the seed SQL against remote D1 by default. Set D1_SEED_LOCAL=true
+ * for an explicit local Wrangler D1 seed.
  */
 async function executeWranglerD1Seed(seedFilePath: string): Promise<void> {
   const { binding, remote, wranglerEnv } = requireD1SeedTarget();

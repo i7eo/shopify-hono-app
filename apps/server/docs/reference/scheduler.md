@@ -109,19 +109,21 @@ await scheduler?.start({
 3. 调用 `boss.work(task.name, handler)` 执行 task。
 4. shutdown 时调用 `boss.offWork(task.name)`。
 
-`pg-boss` 实例会缓存，`disposeRuntimeCapabilities()` 会调用 scheduler disposer，并停止实例。`infra/scheduler/index.ts` 通过 `PROCESS_SCHEDULER_MODULE = "./process"` 和 `ISOLATE_SCHEDULER_MODULE = "./isolate"` 动态分发实现。
+`pg-boss` 实例会缓存，`disposeRuntimeCapabilities()` 会调用 scheduler disposer，并停止实例。`infra/scheduler/index.ts` 只导出 registry 和共享类型；Node/Cloudflare scheduler adapter 由对应 runtime capability 显式引入。
 
 ## Cloudflare scheduler
 
 Cloudflare Worker export 增加：
 
 ```ts
-async scheduled(controller, env) {
-  const schedulerFactory = getRuntimeCapability("schedulerFactory");
-  const scheduler = await schedulerFactory?.(context.runtimeEnv);
+export default {
+  async scheduled(controller, env) {
+    const schedulerFactory = getRuntimeCapability("schedulerFactory");
+    const scheduler = await schedulerFactory?.(context.runtimeEnv);
 
-  await scheduler?.run(controller.cron, context);
-}
+    await scheduler?.run(controller.cron, context);
+  },
+};
 ```
 
 Cloudflare scheduler 会：

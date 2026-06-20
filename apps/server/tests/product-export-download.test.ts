@@ -166,13 +166,7 @@ describe("product export controller errors", () => {
       }),
     );
     vi.doMock("@/app/modules/product-export/meta", () => ({
-      createProductExportRoute: { path: "/api/product-exports" },
-      deleteProductExportRoute: { path: "/api/product-exports/{id}" },
-      downloadProductExportRoute: {
-        path: "/api/product-exports/{id}/download",
-      },
-      getProductExportRoute: { path: "/api/product-exports/{id}" },
-      listProductExportsRoute: { path: "/api/product-exports" },
+      ...createProductExportMetaMock(),
     }));
     vi.doMock(
       "@/app/modules/product-export/service",
@@ -222,13 +216,7 @@ describe("product export controller errors", () => {
       return Promise.resolve();
     });
     vi.doMock("@/app/modules/product-export/meta", () => ({
-      createProductExportRoute: { path: "/api/product-exports" },
-      deleteProductExportRoute: { path: "/api/product-exports/{id}" },
-      downloadProductExportRoute: {
-        path: "/api/product-exports/{id}/download",
-      },
-      getProductExportRoute: { path: "/api/product-exports/{id}" },
-      listProductExportsRoute: { path: "/api/product-exports" },
+      ...createProductExportMetaMock(),
     }));
     vi.doMock("@/app/modules/shopify/session", () => ({
       ensureShopifyOfflineSession,
@@ -279,13 +267,7 @@ describe("product export controller errors", () => {
       registerConfiguredShopifyWebhooks: vi.fn(),
     }));
     vi.doMock("@/app/modules/product-export/meta", () => ({
-      createProductExportRoute: { path: "/api/product-exports" },
-      deleteProductExportRoute: { path: "/api/product-exports/{id}" },
-      downloadProductExportRoute: {
-        path: "/api/product-exports/{id}/download",
-      },
-      getProductExportRoute: { path: "/api/product-exports/{id}" },
-      listProductExportsRoute: { path: "/api/product-exports" },
+      ...createProductExportMetaMock(),
     }));
     vi.doMock(
       "@/app/modules/product-export/service",
@@ -320,13 +302,7 @@ describe("product export controller errors", () => {
       }),
     );
     vi.doMock("@/app/modules/product-export/meta", () => ({
-      createProductExportRoute: { path: "/api/product-exports" },
-      deleteProductExportRoute: { path: "/api/product-exports/{id}" },
-      downloadProductExportRoute: {
-        path: "/api/product-exports/{id}/download",
-      },
-      getProductExportRoute: { path: "/api/product-exports/{id}" },
-      listProductExportsRoute: { path: "/api/product-exports" },
+      ...createProductExportMetaMock(),
     }));
     vi.doMock(
       "@/app/modules/product-export/service",
@@ -342,7 +318,7 @@ describe("product export controller errors", () => {
       await import("@/app/modules/product-export/controller");
     const app = { openapi: vi.fn() };
     registerProductExportController(app as never);
-    const handler = app.openapi.mock.calls[3][1];
+    const handler = app.openapi.mock.calls[4][1];
     const response = await handler(createDownloadRouteContext());
 
     expect(response.status).toBe(200);
@@ -355,7 +331,57 @@ describe("product export controller errors", () => {
       success: true,
     });
   });
+
+  it("returns product export templates from the module reference route", async () => {
+    vi.doMock("@/app/modules/product-export/meta", () => ({
+      ...createProductExportMetaMock(),
+    }));
+
+    const { registerProductExportController } =
+      await import("@/app/modules/product-export/controller");
+    const app = { openapi: vi.fn() };
+    registerProductExportController(app as never);
+    const handler = app.openapi.mock.calls[2][1];
+    const response = await handler(createListRouteContext());
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: [
+        {
+          code: "basic",
+          fields: [
+            "id",
+            "title",
+            "handle",
+            "status",
+            "vendor",
+            "productType",
+            "createdAt",
+            "updatedAt",
+          ],
+          label: "Basic",
+        },
+      ],
+      requestId: "req_test",
+      success: true,
+    });
+  });
 });
+
+function createProductExportMetaMock() {
+  return {
+    createProductExportRoute: { path: "/api/product-exports" },
+    deleteProductExportRoute: { path: "/api/product-exports/{id}" },
+    downloadProductExportRoute: {
+      path: "/api/product-exports/{id}/download",
+    },
+    getProductExportRoute: { path: "/api/product-exports/{id}" },
+    listProductExportTemplatesRoute: {
+      path: "/api/product-exports/reference/templates",
+    },
+    listProductExportsRoute: { path: "/api/product-exports" },
+  };
+}
 
 function createServiceContext() {
   const context = {
@@ -382,7 +408,7 @@ function createCreateRouteContext() {
     },
     req: {
       valid(type: string) {
-        if (type === "json") return { name: "All products" };
+        if (type === "json") return { name: "All products", template: "basic" };
         return {};
       },
     },
@@ -463,6 +489,7 @@ function createProductExportRecord(
     shopifyBulkOperationStatus: null,
     shopifySessionId: null,
     status: overrides.status,
+    template: "basic",
     updatedAt: now,
   };
 }

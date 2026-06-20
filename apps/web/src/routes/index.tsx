@@ -6,7 +6,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <s-page heading="Product content hub">
+    <s-page heading="Unmanual">
       <s-button slot="primary-action" variant="primary" href="/product-export">
         Export products
       </s-button>

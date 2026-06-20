@@ -98,9 +98,11 @@ normalizeEnv(rawEnv)
 当前 Cloudflare isolate schema 允许 request-bound binding 在 bootstrap 阶段缺失：
 
 ```ts
-[bindingFromAPP_DATABASE_D1_BINDING]?: D1Database
-[bindingFromAPP_HYPERDRIVER_BINDING]?: Hyperdrive
-[bindingFromAPP_BUCKET_R2_BINDING]?: R2Bucket
+type CloudflareBindings = {
+  [bindingFromAPP_DATABASE_D1_BINDING]?: D1Database;
+  [bindingFromAPP_HYPERDRIVER_BINDING]?: Hyperdrive;
+  [bindingFromAPP_BUCKET_R2_BINDING]?: R2Bucket;
+};
 ```
 
 这不是静默放宽使用要求。真正消费 binding 的 runtime capability 必须在使用点强校验。Cloudflare D1、Hyperdrive 和 R2 都通过对应的 `APP_*_BINDING` 读取 `c.env[binding]`，业务代码不写死环境名或资源名。

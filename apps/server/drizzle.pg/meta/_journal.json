@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1781543299267,
-      "tag": "0000_flippant_millenium_guard",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1781550630092,
-      "tag": "0001_latest-database-test",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1781890300000,
-      "tag": "0002_product_exports_session",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1781931421818,
-      "tag": "0003_pagination_indexes",
+      "when": 1781982602729,
+      "tag": "0000_sour_umar",
       "breakpoints": true
     }
   ]

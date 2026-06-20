@@ -1,5 +1,5 @@
 import {
-  files,
+  postgresFiles,
   postgresShopifySessions,
 } from "@shamt/database/models/postgres";
 import {
@@ -10,7 +10,7 @@ import { internalServerError } from "@/shared/exceptions";
 import type { RuntimeConfig } from "@/infra/env";
 
 export const postgresDatabaseSchema = {
-  files,
+  files: postgresFiles,
   shopifySessions: postgresShopifySessions,
 };
 

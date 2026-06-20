@@ -1,6 +1,6 @@
 # @shamt/oh-my-fetch
 
-<p><a href="./README.zh-CN.md">中文</a> | <strong>English</strong></p>
+<p><strong>English</strong> | <a href="./README.zh-CN.md">中文</a></p>
 
 `@shamt/oh-my-fetch` is a general-purpose Fetch client built on top of `ky`.
 It keeps the core small, safe, and runtime-neutral, then layers optional behavior

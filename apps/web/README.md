@@ -177,6 +177,19 @@ type ListData<T> = {
 | `/errors/500`     | `ServerError` | 服务端或未知错误     |
 | `/errors/offline` | `Offline`     | 网络不可用或请求失败 |
 
+React Query 的 `onlineManager` 用于页面级离线状态判断。`product-export` 路由在请求前发现离线时会进入 `/errors/offline`，避免在断网时继续展示依赖远端数据的页面。
+
+## Product Export Routes
+
+`src/routes/product-export` 使用 TanStack Router loader 与 React Query 共享同一个 `queryClient`：
+
+- `/product-export` 读取列表 query，并用 mutation 状态控制单行 download/delete loading。
+- `/product-export/new` 创建导出记录，成功后更新列表缓存并跳转到详情页。
+- `/product-export/$id` 通过 loader `ensureQueryData` 读取详情，请求期间显示 `Loading` 组件且 `scope="page"`。
+- 模板下拉菜单来自 `GET /api/product-exports/reference/templates`，前端只渲染 server 返回的 `code`、`label` 和 `fields`。
+
+创建和删除 mutation 会先更新当前缓存，再 invalidate product export list queries，让列表和详情页保持一致。
+
 ## 目录边界
 
 - `configs/`：Node/Vite 侧配置，只允许 Vite config、scripts、plugins 使用。

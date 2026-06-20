@@ -2,6 +2,7 @@ import { registerFileController } from "@/app/modules/file";
 import { registerHealthController } from "@/app/modules/health";
 import { registerProductController } from "@/app/modules/product";
 import { registerProductExportController } from "@/app/modules/product-export";
+import { registerReferenceController } from "@/app/modules/reference";
 import { registerShopController } from "@/app/modules/shop";
 import { registerShopifyRoutes } from "@/app/modules/shopify";
 import type { AppOpenAPI } from "./register-openapi";
@@ -16,4 +17,5 @@ export function registerRoutes(app: AppOpenAPI) {
   registerShopController(app);
   registerProductController(app);
   registerProductExportController(app);
+  registerReferenceController(app);
 }

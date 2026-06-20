@@ -1,4 +1,5 @@
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
 import { internalServerError } from "@/shared/exceptions";
 import { createDatabaseShopifySessionStorage } from "./database";
 import type { AppEnv } from "@/typings";
@@ -21,5 +22,7 @@ export async function getShopifySessionStorage(c: Context<AppEnv>) {
     );
   }
 
-  return createDatabaseShopifySessionStorage(await databaseFactory(c));
+  return createDatabaseShopifySessionStorage(
+    await databaseFactory(createRuntimeResourceContextFromHono(c)),
+  );
 }

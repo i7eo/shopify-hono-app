@@ -171,7 +171,7 @@ try {
 链路冒泡，进入：
 
 ```ts
-app.onError(async (error, c) => {
+app.onError((error, c) => {
   const appError = normalizeError(error);
   return createErrorResponse(c, appError);
 });

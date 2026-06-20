@@ -200,7 +200,8 @@ logger provider 区分 bootstrap 与 runtime 阶段：
 Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则保护 import graph：
 
 - Node-only 实现放在 process entry、process capability 或 process logger 中。
-- runtime-aware infra 使用 `const PROCESS_*_MODULE = "./process"` / `const ISOLATE_*_MODULE = "./isolate"` 后动态 import。
+- runtime-aware infra 的 `index.ts` 只导出共享契约、类型、registry 或 runtime-neutral helper。
+- process/isolate adapter 由 `src/app/runtime/process/capabilities.ts` 与 `src/app/runtime/isolate/cloudflare/capabilities.ts` 显式引入并注册。
 - 文件日志依赖用动态 import。
 - Cloudflare 共享代码不从 process util barrel 导入 Node-only 模块。
 - runtime capability 只暴露抽象函数。
@@ -209,6 +210,8 @@ Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则�
 
 - `src/app/runtime/process/utils/disk.ts`
 - `src/app/runtime/process/utils/net.ts`
+- `src/app/runtime/process/capabilities.ts`
+- `src/app/runtime/isolate/cloudflare/capabilities.ts`
 - `src/infra/logger/process.ts`
 - `src/infra/database/index.ts`
 - `src/infra/bucket/index.ts`

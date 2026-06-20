@@ -50,7 +50,6 @@ describe("main entry", () => {
         routeTree: { id: "route-tree" },
         scrollRestoration: true,
         defaultPreload: "intent",
-        defaultPreloadStaleTime: 0,
       }),
     );
     expect(await screen.findByTestId("query-client-provider")).toBeTruthy();

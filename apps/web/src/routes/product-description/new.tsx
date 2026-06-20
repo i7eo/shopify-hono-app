@@ -87,6 +87,7 @@ function NewProductExport() {
         <s-button
           slot="primary-action"
           variant="primary"
+          type="submit"
           id="save-btn"
           disabled={isSaving}
           loading={isSaving}

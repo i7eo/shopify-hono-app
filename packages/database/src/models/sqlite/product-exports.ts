@@ -8,7 +8,8 @@ import {
 import {
   PRODUCT_EXPORT_PART_STATUS_VALUES,
   PRODUCT_EXPORT_STATUS_VALUES,
-} from "../postgres/product-exports";
+  PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
+} from "../../constants";
 import { sqliteShopifySessions } from "./shopify-sessions";
 
 export const sqliteProductExports = sqliteTable(
@@ -21,6 +22,11 @@ export const sqliteProductExports = sqliteTable(
       { onDelete: "set null" },
     ),
     name: text("name").notNull(),
+    template: text("template", {
+      enum: PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
+    })
+      .notNull()
+      .default("basic"),
     status: text("status", { enum: PRODUCT_EXPORT_STATUS_VALUES }).notNull(),
     shopifyBulkOperationId: text("shopify_bulk_operation_id"),
     shopifyBulkOperationStatus: text("shopify_bulk_operation_status"),

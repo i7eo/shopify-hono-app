@@ -1,6 +1,6 @@
 # @shamt/envs
 
-<p><strong>中文</strong> | <a href="./README.md">English</a></p>
+<p><a href="./README.md">English</a> | <strong>中文</strong></p>
 
 ## 目录
 

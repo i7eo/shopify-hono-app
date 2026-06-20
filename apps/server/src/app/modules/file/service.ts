@@ -3,6 +3,7 @@ import {
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
 import { getBucketEnvConfig, type Bucket } from "@/infra/bucket";
 import {
   badRequestError,
@@ -253,7 +254,9 @@ async function getAvailableFile(
  */
 function getFilesStore(c: Context<AppEnv>): FilesStore {
   return createDatabaseFilesStoreFromPromise(
-    Promise.resolve(getFactory("databaseFactory")(c)),
+    Promise.resolve(
+      getFactory("databaseFactory")(createRuntimeResourceContextFromHono(c)),
+    ),
   );
 }
 
@@ -261,14 +264,16 @@ function getFilesStore(c: Context<AppEnv>): FilesStore {
  * Resolves the active object bucket through the shared bucket capability.
  */
 function getFileBucket(c: Context<AppEnv>): Bucket | Promise<Bucket> {
-  return getFactory("bucketFactory")(c);
+  return getFactory("bucketFactory")(createRuntimeResourceContextFromHono(c));
 }
 
 /**
  * Resolves the runtime download resolver for stream or signed URL downloads.
  */
 function getFileDownloadResolver(c: Context<AppEnv>) {
-  return getFactory("moduleFileDownloadResolverFactory")(c);
+  return getFactory("moduleFileDownloadResolverFactory")(
+    createRuntimeResourceContextFromHono(c),
+  );
 }
 
 /**

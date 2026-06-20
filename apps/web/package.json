@@ -11,8 +11,8 @@
   "scripts": {
     "dev": "node --env-file=../../.env.development --import tsx/esm ./node_modules/vite/bin/vite.js",
     "build": "node --env-file=../../.env.production --import tsx/esm ./node_modules/vite/bin/vite.js build",
-    "test": "node --env-file=../../.env.test ./node_modules/vitest/vitest.mjs run",
-    "test:coverage": "node --env-file=../../.env.test ./node_modules/vitest/vitest.mjs run --coverage",
+    "test": "node --env-file=../../.env.development ./node_modules/vitest/vitest.mjs run",
+    "test:coverage": "node --env-file=../../.env.development ./node_modules/vitest/vitest.mjs run --coverage",
     "test:coverage:view": "open coverage/index.html",
     "format": "prettier \"./**/*.{js,ts,jsx,tsx,md,json,jsonc}\" --write",
     "lint": "TIMING=1 eslint \"./**/*.{js,jsx,ts,tsx,md,json,jsonc}\" --fix",

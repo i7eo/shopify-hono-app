@@ -29,7 +29,9 @@ import {
   PRODUCT_EXPORT_CSV_CONTENT_TYPE,
   PRODUCT_EXPORT_JSONL_CHUNK_BYTES,
   PRODUCT_EXPORT_JSONL_CHUNK_OVERLAP_BYTES,
+  PRODUCT_EXPORT_MAX_MULTIPART_UPLOAD_PARTS,
   PRODUCT_EXPORT_MAX_PART_BYTES,
+  PRODUCT_EXPORT_PART_PAGE_SIZE,
   PRODUCT_EXPORT_QUEUE_JOBS,
   PRODUCT_EXPORT_RECONCILE_BATCH_SIZE,
   PRODUCT_EXPORT_RECONCILE_CRON,
@@ -268,8 +270,8 @@ async function processPartJob(
 /**
  * Assembles CSV parts into the final export file.
  *
- * Cloudflare can finalize small exports. Large exports are marked
- * `requires_node_finalize` so a Node runtime can complete the heavier assemble.
+ * Cloudflare can finalize small exports. Large exports fail with a clear
+ * runtime boundary because a Worker queue cannot switch itself to Node.
  */
 async function finalizeJob(
   payload: Record<string, unknown>,
@@ -286,31 +288,38 @@ async function finalizeJob(
 
   if (record.status === PRODUCT_EXPORT_STATUSES.READY) {
     const bucket = await createProductExportBucket(context);
-    await deleteProductExportPartObjects(
-      await store.listParts(record.id),
-      bucket,
-    );
+    await deleteProductExportPartObjectsByPage(store, record.id, bucket);
     return;
   }
 
   const stats = await store.getPartStats(record.id);
   if (stats.total === 0 || stats.done !== stats.total) return;
 
-  const parts = await store.listParts(record.id);
   if (
     isCloudflareRuntime(context.runtimeEnv) &&
-    parts.length > PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD
+    stats.total > PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD
   ) {
+    const errorMessage =
+      "Product export cannot be finalized in Cloudflare runtime because it exceeds the Cloudflare finalize part threshold and this environment cannot switch to Node.";
     await store.update({
       ...record,
-      status: PRODUCT_EXPORT_STATUSES.REQUIRES_NODE_FINALIZE,
+      errorCode: "CLOUDFLARE_FINALIZE_UNSUPPORTED",
+      errorMessage,
+      status: PRODUCT_EXPORT_STATUSES.FAILED,
       updatedAt: new Date(),
     });
-    return;
+    throw badGatewayError(errorMessage, {
+      details: {
+        exportId: record.id,
+        partThreshold: PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD,
+        totalParts: stats.total,
+      },
+      expose: true,
+    });
   }
 
   const bucket = await createProductExportBucket(context);
-  const finalObject = await finalizeParts(record, parts, bucket);
+  const finalObject = await finalizeParts(record, store, bucket);
   await store.update({
     ...record,
     bucketKey: finalObject.bucketKey,
@@ -320,7 +329,7 @@ async function finalizeJob(
     status: PRODUCT_EXPORT_STATUSES.READY,
     updatedAt: new Date(),
   });
-  await deleteProductExportPartObjects(parts, bucket);
+  await deleteProductExportPartObjectsByPage(store, record.id, bucket);
 }
 
 /**
@@ -586,6 +595,7 @@ async function processPart(
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     key,
     maxBytes: PRODUCT_EXPORT_MAX_PART_BYTES,
+    maxParts: PRODUCT_EXPORT_MAX_MULTIPART_UPLOAD_PARTS,
     originalName: `${part.seq}.csv`,
     safeName: `${part.seq}.csv`,
     shopDomain: record.shopDomain,
@@ -606,7 +616,7 @@ async function processPart(
  */
 async function finalizeParts(
   record: ProductExportRecord,
-  parts: ProductExportPartRecord[],
+  store: ProductExportStore,
   bucket: Bucket,
 ): Promise<{
   bucketKey: string;
@@ -621,11 +631,12 @@ async function finalizeParts(
     shopDomain: record.shopDomain,
   });
   const stored = await bucket.put({
-    body: createFinalCsvStream(bucket, parts),
+    body: createFinalCsvStream(bucket, store, record.id),
     contentType: PRODUCT_EXPORT_CSV_CONTENT_TYPE,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     key,
     maxBytes: Math.max(record.fileSize ?? 0, PRODUCT_EXPORT_MAX_PART_BYTES),
+    maxParts: PRODUCT_EXPORT_MAX_MULTIPART_UPLOAD_PARTS,
     originalName: "products.csv",
     safeName: "products.csv",
     shopDomain: record.shopDomain,
@@ -640,26 +651,33 @@ async function finalizeParts(
 
 function createFinalCsvStream(
   bucket: Bucket,
-  parts: ProductExportPartRecord[],
+  store: ProductExportStore,
+  exportId: string,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
-  const readableParts = parts.filter((part) => part.bucketKey);
-  let index = -1;
+  let afterSeq: number | undefined;
+  let didWriteHeader = false;
+  let page: ProductExportPartRecord[] = [];
+  let pageIndex = 0;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      if (index === -1) {
-        index = 0;
+      if (!didWriteHeader) {
+        didWriteHeader = true;
         controller.enqueue(encoder.encode(CSV_HEADER));
         return;
       }
 
-      while (index < readableParts.length) {
+      while (true) {
         if (!reader) {
-          const part = readableParts[index];
+          const part = await nextPart();
+          if (!part) {
+            controller.close();
+            return;
+          }
+
           if (!part?.bucketKey) {
-            index += 1;
             continue;
           }
           const object = await bucket.open({ key: part.bucketKey });
@@ -669,20 +687,36 @@ function createFinalCsvStream(
         const { done, value } = await reader.read();
         if (done) {
           reader = undefined;
-          index += 1;
           continue;
         }
 
         controller.enqueue(value);
         return;
       }
-
-      controller.close();
     },
     async cancel(reason) {
       await reader?.cancel(reason).catch(() => undefined);
     },
   });
+
+  async function nextPart(): Promise<ProductExportPartRecord | undefined> {
+    while (pageIndex >= page.length) {
+      page = await store.listPartsPage({
+        afterSeq,
+        exportId,
+        limit: PRODUCT_EXPORT_PART_PAGE_SIZE,
+      });
+      pageIndex = 0;
+
+      if (page.length === 0) return undefined;
+
+      afterSeq = page.at(-1)!.seq;
+    }
+
+    const part = page[pageIndex];
+    pageIndex += 1;
+    return part;
+  }
 }
 
 /**
@@ -724,6 +758,27 @@ export async function deleteProductExportPartObjects(
         })),
       },
     });
+  }
+}
+
+async function deleteProductExportPartObjectsByPage(
+  store: ProductExportStore,
+  exportId: string,
+  bucket: Bucket,
+): Promise<void> {
+  let afterSeq: number | undefined;
+
+  while (true) {
+    const parts = await store.listPartsPage({
+      afterSeq,
+      exportId,
+      limit: PRODUCT_EXPORT_PART_PAGE_SIZE,
+    });
+
+    if (parts.length === 0) return;
+
+    await deleteProductExportPartObjects(parts, bucket);
+    afterSeq = parts.at(-1)!.seq;
   }
 }
 

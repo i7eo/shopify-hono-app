@@ -185,7 +185,8 @@ await getShopInfo(c.var.shopifyAdminClient);
 
 - process runtime 才 import Node disk/network utils。
 - process logger 动态 import file sink。
-- database/bucket/queue/scheduler 通过 infra index 动态 import process/isolate adapter。
+- database/bucket/queue/scheduler 的 infra index 只导出共享契约、类型或 registry。
+- process/isolate adapter 由 runtime capability 注册处显式引入，避免 Cloudflare 入口经过共享 barrel 看到 Node-only 依赖。
 - Cloudflare entry 不静态 import `node:*`。
 - runtime capability 暴露抽象能力。
 

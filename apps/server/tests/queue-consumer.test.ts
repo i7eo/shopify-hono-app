@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createQueueConsumer,
   registerQueueJob,
   type QueueJobContext,
   type QueueMessage,
 } from "@/infra/queue";
 import { consumeQueueBatch } from "@/infra/queue/consumer";
-import { CloudflareQueueProducer } from "@/infra/queue/isolate";
+import {
+  CloudflareQueueProducer,
+  createIsolateQueueConsumer,
+} from "@/infra/queue/isolate";
 import { resetQueueJobs } from "@/infra/queue/registry";
 import { getQueueEnvConfig, getQueueJobName } from "@/infra/queue/shared";
 
@@ -245,7 +247,7 @@ describe("queue batch consumer", () => {
       name: "test:single",
     });
 
-    const consumer = await createQueueConsumer({
+    const consumer = await createIsolateQueueConsumer({
       APP_RUNTIME: "cloudflare",
     } as any);
     await consumer.consume(

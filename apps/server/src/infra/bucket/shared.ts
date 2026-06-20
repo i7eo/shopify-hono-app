@@ -16,6 +16,7 @@ export type BucketPutInput = {
   expiresAt: Date;
   key: string;
   maxBytes: number;
+  maxParts?: number;
   originalName: string;
   safeName: string;
   shopDomain: string;
@@ -65,6 +66,11 @@ export type MultipartUploadPart = {
   partNumber: number;
 };
 
+export type MultipartUploadReadOptions = {
+  maxBytes: number;
+  maxParts?: number;
+};
+
 /**
  * Normalizes multipart upload part size.
  *
@@ -84,7 +90,7 @@ export function normalizeMultipartUploadPartSize(
 export async function* readMultipartUploadParts(
   stream: ReadableStream<Uint8Array>,
   partSizeBytes: number,
-  maxBytes: number,
+  options: MultipartUploadReadOptions,
 ): AsyncGenerator<MultipartUploadPart> {
   const reader = stream.getReader();
   let buffered = new Uint8Array(partSizeBytes);
@@ -98,8 +104,8 @@ export async function* readMultipartUploadParts(
       if (done) break;
 
       byteSize += value.byteLength;
-      if (byteSize > maxBytes) {
-        throw createMultipartUploadTooLargeError(maxBytes);
+      if (byteSize > options.maxBytes) {
+        throw createMultipartUploadTooLargeError(options.maxBytes);
       }
 
       let offset = 0;
@@ -116,6 +122,7 @@ export async function* readMultipartUploadParts(
         offset += writableBytes;
 
         if (bufferedLength === partSizeBytes) {
+          assertMultipartUploadPartWithinLimit(partNumber, options.maxParts);
           yield {
             bytes: buffered,
             partNumber,
@@ -128,6 +135,7 @@ export async function* readMultipartUploadParts(
     }
 
     if (bufferedLength > 0 || partNumber === 1) {
+      assertMultipartUploadPartWithinLimit(partNumber, options.maxParts);
       yield {
         bytes: buffered.subarray(0, bufferedLength),
         partNumber,
@@ -139,10 +147,27 @@ export async function* readMultipartUploadParts(
   }
 }
 
+function assertMultipartUploadPartWithinLimit(
+  partNumber: number,
+  maxParts: number | undefined,
+) {
+  if (maxParts === undefined || partNumber <= maxParts) return;
+
+  throw createMultipartUploadTooManyPartsError(maxParts);
+}
+
 export function createMultipartUploadTooLargeError(maxBytes: number) {
   return payloadTooLargeError("Upload request body overflow maxsize", {
     details: {
       maxSize: maxBytes,
+    },
+  });
+}
+
+export function createMultipartUploadTooManyPartsError(maxParts: number) {
+  return payloadTooLargeError("Upload request body overflow max parts", {
+    details: {
+      maxParts,
     },
   });
 }

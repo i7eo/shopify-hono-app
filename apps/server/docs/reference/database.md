@@ -63,10 +63,7 @@ apps/server/src/infra/database/process.d1-http.ts
 
 这个实现把 D1 HTTP API 包装成兼容 `drizzle-orm/d1` 的 `D1Database` 形状，因此上层仍然可以使用 SQLite schema。
 
-`infra/database/index.ts` 使用 `PROCESS_DATABASE_MODULE = "./process"` 和
-`ISOLATE_DATABASE_MODULE = "./isolate"` 动态 import runtime 实现，并暴露
-`disposeDatabase(...)`。process PostgreSQL/D1 HTTP 可以缓存连接或 client；
-isolate D1/Hyperdrive 当前以 request binding 为边界，disposer 是 no-op。
+`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database factory；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database factory。process PostgreSQL/D1 HTTP 可以缓存连接或 client；isolate D1/Hyperdrive 当前以 request binding 为边界，disposer 是 no-op。
 
 ### Cloudflare + PostgreSQL
 
@@ -152,6 +149,21 @@ packages/database/src/models/postgres/product-exports.ts
 packages/database/src/models/sqlite/product-exports.ts
 ```
 
+`product_exports` 记录包含 `template` 字段，默认值为 `basic`。template code 的允许值由 `@shamt/database/constants` 暴露的 `PRODUCT_EXPORT_TEMPLATE_CODE_VALUES` 统一维护，业务层不要在 app 内另写一份枚举。
+
+reference store 使用：
+
+```text
+apps/server/src/app/modules/reference/stores/database/index.ts
+apps/server/src/app/modules/reference/stores/database/postgres.ts
+apps/server/src/app/modules/reference/stores/database/sqlite.ts
+apps/server/src/app/modules/reference/stores/database/shared.ts
+packages/database/src/models/postgres/references.ts
+packages/database/src/models/sqlite/references.ts
+```
+
+`references` 表字段为 `id`、`shop_domain`、`namespace`、`code`、`label`、`enabled`、`system`、`sort_order`、`created_at`、`updated_at`、`deleted_at`。唯一索引 `references_shop_namespace_code_idx` 约束同一 shop 和 namespace 下的 code 唯一；`references_shop_namespace_sort_idx` 支持按 `enabled`、`sort_order`、`code` 的稳定分页排序。
+
 模块 store 约定：
 
 - `index.ts` 只负责根据 Drizzle database kind 选择 dialect store。
@@ -170,40 +182,109 @@ packages/database/src/models/sqlite/shopify-sessions.ts
 
 数据库相关命令定义在 `apps/server/package.json`：
 
-| Command                 | 作用                                                                     |
-| ----------------------- | ------------------------------------------------------------------------ |
-| `db:pg:push`            | 使用 `.env.development` 和 `drizzle.pg.config.ts` push PostgreSQL schema |
-| `db:d1:push`            | 使用 `.env.development` 和 `drizzle.d1.config.ts` push D1 schema         |
-| `db:pg:generate`        | 根据 PostgreSQL schema 生成 migration 到 `drizzle.pg`                    |
-| `db:d1:generate`        | 根据 SQLite/D1 schema 生成 migration 到 `drizzle.d1`                     |
-| `db:pg:migrate`         | 使用 `.env.production` 执行 PostgreSQL migration                         |
-| `db:d1:migrate`         | 使用 Wrangler 对远端 D1 执行 migration                                   |
-| `db:pg:seed:dev`        | 使用 `.env.development` 写入 development PostgreSQL seed 数据            |
-| `db:pg:seed:prod`       | 使用 `.env.production` 写入 production PostgreSQL seed 数据              |
-| `db:d1:seed:dev`        | 使用 `.env.development` 调用 Wrangler 写入 development 本地 D1 seed      |
-| `db:d1:seed:dev:remote` | 使用 `.env.development` 调用 Wrangler 写入 development 远端 D1 seed      |
-| `db:d1:seed:prod`       | 使用 `.env.production` 调用 Wrangler 写入 production 远端 D1 seed        |
+| Command           | 作用                                                                     |
+| ----------------- | ------------------------------------------------------------------------ |
+| `db:push:pg`      | 使用 `.env.development` 和 `drizzle.pg.config.ts` push PostgreSQL schema |
+| `db:push:d1`      | 使用 `.env.development` 和 `drizzle.d1.config.ts` push D1 schema         |
+| `db:generate:pg`  | 根据 PostgreSQL schema 生成 migration 到 `drizzle.pg`                    |
+| `db:generate:d1`  | 根据 SQLite/D1 schema 生成 migration 到 `drizzle.d1`                     |
+| `db:migrate:pg`   | 使用 `.env.production` 执行 PostgreSQL migration                         |
+| `db:migrate:d1`   | 使用 Wrangler 对远端 D1 执行 migration                                   |
+| `db:seed:dev:pg`  | 使用 `.env.development` 写入 development PostgreSQL seed 数据            |
+| `db:seed:prod:pg` | 使用 `.env.production` 写入 production PostgreSQL seed 数据              |
+| `db:seed:dev:d1`  | 使用 `.env.development` 调用 Wrangler 写入 development 远端 D1 seed      |
+| `db:seed:prod:d1` | 使用 `.env.production` 调用 Wrangler 写入 production 远端 D1 seed        |
 
 常用命令：
 
 ```bash
-pnpm --dir apps/server run db:pg:generate
-pnpm --dir apps/server run db:d1:generate
-pnpm --dir apps/server run db:pg:migrate
-pnpm --dir apps/server run db:d1:migrate
-pnpm --dir apps/server run db:pg:seed:dev
-pnpm --dir apps/server run db:d1:seed:dev
+pnpm --dir apps/server run db:push:pg
+pnpm --dir apps/server run db:push:d1
+pnpm --dir apps/server run db:generate:pg
+pnpm --dir apps/server run db:generate:d1
+pnpm --dir apps/server run db:migrate:pg
+pnpm --dir apps/server run db:migrate:d1
+pnpm --dir apps/server run db:seed:dev:pg
+pnpm --dir apps/server run db:seed:dev:d1
+```
+
+## Development and deployment lifecycle
+
+根目录的 `pnpm dev:tunnel` 和 `pnpm deploy` 不会自动执行数据库命令。它们只负责生成平台配置、启动 Shopify 开发流程或分发 runtime 部署；schema push、migration 和 seed 需要按当前 `APP_DATABASE_PROVIDER` 手动执行。
+
+### Before `pnpm dev:tunnel`
+
+开发环境使用 `.env.development`。首次启动、切换 provider，或 `@shamt/database` schema 变更后，先同步对应 provider 的 schema：
+
+| Runtime      | Provider   | 启动前推荐命令                                                               |
+| ------------ | ---------- | ---------------------------------------------------------------------------- |
+| `node`       | `postgres` | `pnpm --dir apps/server run db:push:pg`，需要样例数据时再跑 `db:seed:dev:pg` |
+| `node`       | `d1`       | `pnpm --dir apps/server run db:push:d1`，需要样例数据时再跑 `db:seed:dev:d1` |
+| `cloudflare` | `postgres` | 通过 Hyperdrive/PostgreSQL 访问数据库，schema 同步仍使用 `db:push:pg`        |
+| `cloudflare` | `d1`       | development binding 使用远端 dev D1，schema 同步使用 `db:push:d1`            |
+
+Cloudflare + D1 的默认开发路径是远端 development D1。决策背景、常规步骤和 local D1 调试方式见 [D1 开发工作流](../guides/d1-development.md)。
+
+本地 D1 只用于临时隔离调试。需要调试本地 D1 seed 时，不新增 package script，直接临时设置 `D1_SEED_LOCAL=true`：
+
+```bash
+D1_SEED_LOCAL=true pnpm --dir apps/server run db:seed:dev:d1
+```
+
+如果 development binding 名称变更，以 `apps/server/wrangler.json` 中 `env.development.d1_databases[].binding` 或 `.env.development` 的 `APP_DATABASE_D1_BINDING` 为准。
+
+启动开发：
+
+```bash
+pnpm dev:tunnel
+```
+
+`pnpm dev:tunnel` 会先执行 `dev:prepare`，根据 `.env.development` 生成 Shopify TOML 和 `apps/server/wrangler.json`，然后启动固定 tunnel 与 Shopify app dev。它不会创建表、更新 schema 或写 seed 数据。
+
+### After `pnpm dev:tunnel`
+
+开发服务启动后通常不需要再跑数据库命令。只有这些情况需要补跑：
+
+- schema 发生变化：按 provider 跑 `db:push:pg` 或 `db:push:d1`。
+- 显式使用本地 `.wrangler` D1 且缺表：跑 `wrangler d1 migrations apply <binding> --env development --local`。
+- 需要补 development seed 数据：按 provider 跑 `db:seed:dev:pg` 或 `db:seed:dev:d1`。
+- 需要写 development 本地 D1：临时设置 `D1_SEED_LOCAL=true` 后跑 `db:seed:dev:d1`，不要和默认远端 D1 seed 混用。
+
+### Before `pnpm deploy`
+
+生产环境使用 `.env.production`。部署前应先确认 migration 已生成并在目标数据库执行：
+
+| Runtime      | Provider   | 部署前推荐命令                                                           |
+| ------------ | ---------- | ------------------------------------------------------------------------ |
+| `node`       | `postgres` | 开发变更时生成 `db:generate:pg`；部署前执行 `db:migrate:pg`              |
+| `node`       | `d1`       | 开发变更时生成 `db:generate:d1`；部署前执行 `db:migrate:d1`              |
+| `cloudflare` | `postgres` | Cloudflare 通过 Hyperdrive 连接 PostgreSQL；部署前仍执行 `db:migrate:pg` |
+| `cloudflare` | `d1`       | Cloudflare 通过远端 D1 binding 访问数据库；部署前执行 `db:migrate:d1`    |
+
+部署：
+
+```bash
+pnpm deploy
+```
+
+`pnpm deploy` 的顺序是 `deploy:prepare -> deploy:runtime -> app:deploy`。`deploy:runtime` 只按 `APP_RUNTIME` 调用 server workspace 的 `cf:deploy` 或 `node:deploy`，不会自动执行 database migration。
+
+Production seed 不是常规部署步骤，只在初始化环境或明确需要补基础数据时执行：
+
+```bash
+pnpm --dir apps/server run db:seed:prod:pg
+pnpm --dir apps/server run db:seed:prod:d1
 ```
 
 ### Seed 参数
 
 Seed 脚本会复用 `apps/server/scripts/database/env.ts` 的校验逻辑：
 
-| 参数                | 作用                                                      |
-| ------------------- | --------------------------------------------------------- |
-| `CONFIRM_PROD_SEED` | production seed 的显式确认开关，值必须为 `true`           |
-| `D1_SEED_REMOTE`    | D1 seed 是否传 `--remote` 给 Wrangler，值为 `true` 时启用 |
-| `D1_WRANGLER_ENV`   | D1 seed 传给 Wrangler 的 `--env` 值，例如 `production`    |
+| 参数                | 作用                                                     |
+| ------------------- | -------------------------------------------------------- |
+| `CONFIRM_PROD_SEED` | production seed 的显式确认开关，值必须为 `true`          |
+| `D1_SEED_LOCAL`     | D1 seed 是否传 `--local` 给 Wrangler，值为 `true` 时启用 |
+| `D1_WRANGLER_ENV`   | D1 seed 传给 Wrangler 的 `--env` 值，例如 `production`   |
 
 `CONFIRM_PROD_SEED` 只保护 seed，不保护 generate/migrate。原因是 seed 会写入业务数据，而 production seed 当前会写入固定的测试/初始化记录，例如 `seed-shop.myshopify.com`。production seed 必须通过命令显式传入：
 
@@ -213,35 +294,34 @@ CONFIRM_PROD_SEED=true
 
 如果没有这个确认，`.env.production` 下执行 `seed.pg.ts` 或 `seed.d1.ts` 会直接失败。
 
-D1 seed 默认写本地 D1：
+D1 seed 默认写远端 D1。development 使用 `.env.development` 指向的远端 dev D1：
 
 ```bash
-pnpm --dir apps/server run db:d1:seed:dev
+pnpm --dir apps/server run db:seed:dev:d1
 ```
 
-写 development 远端 D1 时使用：
+显式写 development 本地 Wrangler D1 时使用：
 
 ```bash
-pnpm --dir apps/server run db:d1:seed:dev:remote
+D1_SEED_LOCAL=true pnpm --dir apps/server run db:seed:dev:d1
 ```
 
 这个命令会设置：
 
 ```bash
-D1_SEED_REMOTE=true
+D1_SEED_LOCAL=true
 ```
 
 写 production 远端 D1 时使用：
 
 ```bash
-pnpm --dir apps/server run db:d1:seed:prod
+pnpm --dir apps/server run db:seed:prod:d1
 ```
 
 这个命令会同时设置：
 
 ```bash
 CONFIRM_PROD_SEED=true
-D1_SEED_REMOTE=true
 D1_WRANGLER_ENV=production
 ```
 
@@ -256,7 +336,7 @@ D1_WRANGLER_ENV=production
 | `cloudflare` | `postgres` | 生成 `hyperdrive`   |
 | `cloudflare` | `d1`       | 生成 `d1_databases` |
 
-Node + D1 虽然需要 `APP_DATABASE_D1_ID` 和 Cloudflare token，但它不需要 Worker D1 binding。Cloudflare + D1 需要 `APP_DATABASE_D1_ID` 生成 `d1_databases`。
+Node + D1 虽然需要 `APP_DATABASE_D1_ID` 和 Cloudflare token，但它不需要 Worker D1 binding。Cloudflare + D1 需要 `APP_DATABASE_D1_ID` 生成 `d1_databases`。非 production D1 binding 会带上 `remote: true`，让本地 Worker 开发默认连接远端 dev D1。R2 binding 也使用同样的非 production 远端开发策略，避免数据库记录指向远端 R2 URL 但对象实际写入本地 R2 模拟。
 
 ## 使用边界
 

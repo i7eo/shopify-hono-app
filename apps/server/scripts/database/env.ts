@@ -46,8 +46,8 @@ export function requireD1SeedTarget() {
 
   return {
     binding: env.APP_DATABASE_D1_BINDING,
-    remote: process.env.D1_SEED_REMOTE === "true",
-    wranglerEnv: process.env.D1_WRANGLER_ENV,
+    remote: process.env.D1_SEED_LOCAL !== "true",
+    wranglerEnv: process.env.D1_WRANGLER_ENV ?? env.APP_ENV,
   };
 }
 

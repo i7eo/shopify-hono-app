@@ -65,18 +65,22 @@ explicit subpath entrypoints.
 Cloudflare Workers bindings, LogTape logging, and Shopify app routes. It has two
 runtime entries:
 
-| Method | Path                               | Auth                           | Description                           |
-| ------ | ---------------------------------- | ------------------------------ | ------------------------------------- |
-| `GET`  | `/auth`                            | None                           | Starts OAuth install flow             |
-| `GET`  | `/auth/callback`                   | HMAC-verified                  | Completes OAuth, stores offline token |
-| `GET`  | `/app`                             | `ensureInstalled`              | Serves embedded app HTML shell        |
-| `GET`  | `/api/shop`                        | Session token + token exchange | Returns shop name, email, domain      |
-| `GET`  | `/api/products`                    | Session token + token exchange | Lists first 5 products                |
-| `POST` | `/webhooks/app/uninstalled`        | Webhook HMAC                   | Cleans up session on uninstall        |
-| `POST` | `/webhooks/customers/data-request` | Webhook HMAC                   | GDPR customer data request            |
-| `POST` | `/webhooks/customers/redact`       | Webhook HMAC                   | GDPR customer data deletion           |
-| `POST` | `/webhooks/shop/redact`            | Webhook HMAC                   | GDPR shop data deletion               |
-| `GET`  | `/health`                          | None                           | Health check                          |
+| Method | Path                                       | Auth                  | Description                           |
+| ------ | ------------------------------------------ | --------------------- | ------------------------------------- |
+| `GET`  | `/auth`                                    | None                  | Starts OAuth install flow             |
+| `GET`  | `/auth/callback`                           | HMAC-verified         | Completes OAuth, stores offline token |
+| `GET`  | `/app`                                     | `ensureInstalled`     | Serves embedded app HTML shell        |
+| `GET`  | `/api/shop`                                | Shopify Admin session | Returns shop name, email, domain      |
+| `GET`  | `/api/product`                             | Shopify Admin session | Lists products from Admin GraphQL     |
+| `GET`  | `/api/files`                               | Shopify Admin session | Lists uploaded file metadata          |
+| `GET`  | `/api/product-exports`                     | Shopify Admin session | Lists product export jobs             |
+| `GET`  | `/api/product-exports/reference/templates` | Shopify Admin session | Lists product export templates        |
+| `GET`  | `/api/reference/gender`                    | Shopify Admin session | Lists gender reference data           |
+| `POST` | `/webhooks/app/uninstalled`                | Webhook HMAC          | Cleans up session on uninstall        |
+| `POST` | `/webhooks/customers/data-request`         | Webhook HMAC          | GDPR customer data request            |
+| `POST` | `/webhooks/customers/redact`               | Webhook HMAC          | GDPR customer data deletion           |
+| `POST` | `/webhooks/shop/redact`                    | Webhook HMAC          | GDPR shop data deletion               |
+| `GET`  | `/health`                                  | None                  | Health check                          |
 
 ## App Runtime
 
@@ -203,22 +207,18 @@ debugging generated output.
 
 ### 4. Configure environment variables
 
-Copy the example file and fill in your values:
+Edit `.env.development` with the development values shown above. The important
+Shopify fields are:
 
-```bash
-cp .dev.vars.example .dev.vars
-```
-
-Edit `.dev.vars`:
-
-```
-SHOPIFY_API_KEY=your_app_client_id
-SHOPIFY_API_SECRET=your_app_client_secret
-SHOPIFY_APP_URL=https://your-tunnel-url.trycloudflare.com
+```dotenv
+SHOPIFY_APP_KEY=your_app_client_id
+SHOPIFY_APP_SECRET=your_app_client_secret
+SHOPIFY_APP_URL=https://your-development-url.example.com
 SCOPES=read_products,write_products,read_orders
 ```
 
-> **Note:** When using `shopify app dev` (recommended), the `SHOPIFY_APP_URL` in `.dev.vars` gets overridden automatically — Shopify CLI injects the tunnel URL as the `APP_URL` environment variable. You still need the other three values.
+`pnpm dev:prepare` reads `.env.development` and regenerates Shopify and
+Wrangler config before local development starts.
 
 ### 5. Update shopify.app.toml
 
@@ -226,37 +226,42 @@ Edit [shopify.app.toml](shopify.app.toml) with your app's `client_id`. The `appl
 
 ## Development
 
-### How Shopify CLI and Wrangler work together
+### How Shopify CLI starts the runtime
 
-This project uses **two tools** during local development, and understanding their roles is key:
+Local development starts from generated Shopify web role files. The server web
+role is always written to `apps/server/shopify.web.toml`; when
+`SHOPIFY_APP_FRONTEND_TARGET=frontend`, a frontend web role is also written to
+`apps/web/shopify.web.toml`.
 
-| Tool            | Role                                                                                                                                                                         |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Wrangler**    | Runs the Cloudflare Worker locally (your actual app code), simulates local D1 and Hyperdrive bindings, reads `.dev.vars` for secrets                                         |
-| **Shopify CLI** | Creates an HTTPS tunnel, updates your app's URLs in the Partner Dashboard, injects env vars (`SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `APP_URL`, etc.), opens your dev store |
+The server command in `apps/server/shopify.web.toml` is selected from
+`APP_RUNTIME`:
 
-You do **not** run them separately. Shopify CLI starts Wrangler for you.
+| `APP_RUNTIME` | Generated dev command |
+| ------------- | --------------------- |
+| `cloudflare`  | `pnpm cf:dev`         |
+| `node`        | `pnpm node:dev`       |
 
-### How it works
-
-The [shopify.web.toml](shopify.web.toml) file tells Shopify CLI how to start your app:
+For example, Cloudflare runtime generates:
 
 ```toml
 roles = ["backend"]
+port = 10001
 
 [commands]
-dev = "npx wrangler dev --port $PORT"
-build = "npx wrangler deploy"
+dev = "pnpm cf:dev"
+build = "pnpm cf:deploy"
 ```
 
-When you run `shopify app dev`, Shopify CLI:
+When you run `pnpm dev`, the root script regenerates config and then starts
+Shopify CLI:
 
-1. Reads `shopify.web.toml` and finds the `dev` command
-2. Picks a port and sets `$PORT` (along with `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `APP_URL`, `SCOPES`, etc. as env vars)
-3. Executes `npx wrangler dev --port $PORT` — starting your Worker on that port
-4. Opens a Cloudflare Quick Tunnel (HTTPS) pointing to that port
-5. Updates your app's URLs in the Shopify Partner Dashboard to match the tunnel
-6. Opens the app in your development store
+1. `pnpm dev:prepare` reads `.env.development` and rewrites generated TOML.
+2. Shopify CLI reads the generated web role files.
+3. Shopify CLI injects runtime values such as `BACKEND_PORT`, `APP_URL`, and
+   `HOST`.
+4. The generated server command starts either `cf:dev` or `node:dev`.
+5. The server command maps Shopify CLI values into the app env expected by the
+   selected runtime.
 
 ### Development Tunnel
 
@@ -300,7 +305,7 @@ child processes when a duplicate port is detected.
 Start the fixed-hostname flow with:
 
 ```bash
-shopify app dev
+pnpm dev:tunnel
 ```
 
 The relevant root scripts are:
@@ -323,18 +328,18 @@ child processes when the parent process exits.
 Do not configure the tunnel service as `https://127.0.0.1:10101`; the Shopify
 CLI proxy is plain HTTP.
 
-| Variable                | Source                                                   |
-| ----------------------- | -------------------------------------------------------- |
-| `SHOPIFY_API_KEY`       | From your app's Partner Dashboard config                 |
-| `SHOPIFY_API_SECRET`    | From your app's Partner Dashboard config                 |
-| `APP_URL` / `HOST`      | The tunnel URL (e.g. `https://abc123.trycloudflare.com`) |
-| `SCOPES`                | From `shopify.app.toml`                                  |
-| `BACKEND_PORT` / `PORT` | The port Wrangler should listen on                       |
+| Variable             | Source                                                   |
+| -------------------- | -------------------------------------------------------- |
+| `SHOPIFY_APP_KEY`    | `.env.development`                                       |
+| `SHOPIFY_APP_SECRET` | `.env.development`                                       |
+| `APP_URL` / `HOST`   | The tunnel URL (e.g. `https://abc123.trycloudflare.com`) |
+| `SCOPES`             | `.env.development`, written into `shopify.app.toml`      |
+| `BACKEND_PORT`       | The server web role port injected by Shopify CLI         |
 
-However, **Wrangler reads secrets from `.dev.vars`**, not from shell env vars. So you still need your `.dev.vars` file with `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, and `SCOPES`. The `SHOPIFY_APP_URL` in `.dev.vars` should be kept up to date — if the tunnel URL changes each session, you can either:
-
-- Update `.dev.vars` each time with the new tunnel URL, or
-- Use `--use-localhost` mode (see below) for a stable URL
+`cf:dev` reads `.env.development`, passes `BACKEND_PORT` to Wrangler's
+`--port`, and forwards the current tunnel URL as `SHOPIFY_APP_URL`.
+`node:dev` reads `.env.development`, maps `BACKEND_PORT` to
+`APP__SERVER_PORT`, and maps `APP_URL` / `HOST` to `SHOPIFY_APP_URL`.
 
 ### Alternative: Localhost mode (stable URL)
 
@@ -396,17 +401,15 @@ Run server tests:
 pnpm -F @shamt/server test
 ```
 
-Build a shared package:
+Start the server runtime directly when you need to bypass Shopify CLI:
 
 ```bash
-npm run dev
+pnpm -F @shamt/server node:dev
+pnpm -F @shamt/server cf:dev
 ```
 
-This runs `wrangler dev` on `http://localhost:8787`. You'll need to:
-
-- Set up your own tunnel (e.g. `cloudflared tunnel`, ngrok)
-- Manually update `SHOPIFY_APP_URL` in `.dev.vars` with the tunnel URL
-- Manually update `application_url` and `redirect_urls` in `shopify.app.toml`
+Normal Shopify development should still use `pnpm dev` or `pnpm dev:tunnel`
+from the repository root so generated Shopify and Wrangler config stay current.
 
 ### Type checking
 
@@ -419,6 +422,133 @@ Clean workspace outputs:
 ```bash
 pnpm clean
 ```
+
+## Troubleshooting
+
+### `pnpm dev:tunnel` fails because port `10002` is not available
+
+When `SHOPIFY_APP_FRONTEND_TARGET=frontend`, `dev:prepare` generates a
+frontend Shopify web role at `apps/web/shopify.web.toml` with the hard-coded
+port from `APP__WEB_PORT`. If another process is already listening on that
+port, Shopify CLI stops before starting the app:
+
+```text
+Hard-coded port 10002 is not available, please choose a different one.
+```
+
+Check what is using the port:
+
+```bash
+lsof -nP -iTCP:10002 -sTCP:LISTEN
+```
+
+Then either stop that process or choose a different frontend port in
+`.env.development`:
+
+```dotenv
+APP__WEB_PORT=10003
+```
+
+Run the tunnel flow again after changing the env file:
+
+```bash
+pnpm dev:tunnel
+```
+
+If the tunnel script then reports `wrangler tunnel exited with signal SIGTERM`,
+that is usually cleanup after Shopify CLI exits; the unavailable web role port
+is the failure to fix first.
+
+### `db:push:d1` fails with `[ELIFECYCLE] Command failed with exit code 1`
+
+`pnpm --dir apps/server run db:push:d1` uses Drizzle Kit's D1 HTTP driver and
+must reach the Cloudflare API with a valid account, database id, and token. The
+generic lifecycle error often hides the underlying Cloudflare or network
+failure.
+
+First confirm the D1 database id in `.env.development` matches the database
+name:
+
+```bash
+pnpm --dir apps/server exec wrangler d1 list
+```
+
+The `uuid` for `APP_DATABASE_D1_NAME` must match `APP_DATABASE_D1_ID`.
+
+Then run the push again:
+
+```bash
+pnpm --dir apps/server run db:push:d1
+```
+
+If Drizzle Kit still only prints `Pulling schema from database...` and exits,
+test direct Cloudflare connectivity from the same shell:
+
+```bash
+curl -I https://api.cloudflare.com/client/v4
+```
+
+Common causes are:
+
+| Symptom                                          | Cause                                                    | Fix                                                         |
+| ------------------------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------- |
+| `database ... could not be found` or code `7404` | `APP_DATABASE_D1_ID` points at an old or wrong database. | Copy the current D1 `uuid` into `APP_DATABASE_D1_ID`.       |
+| `getaddrinfo ENOTFOUND api.cloudflare.com`       | The shell cannot resolve or reach Cloudflare API.        | Fix DNS/network access, then rerun `db:push:d1`.            |
+| Authorization or permission errors               | `APP_CLOUDFLARE_USER_TOKEN` cannot access that D1 DB.    | Use a token with D1 read/write access for the same account. |
+
+### Cloudflare D1 reports `no such table: shopify_sessions`
+
+Development is configured to use the remote development D1 database; see
+[`apps/server/docs/guides/d1-development.md`](./apps/server/docs/guides/d1-development.md)
+for the decision and local D1 debugging path.
+
+If a development request fails with:
+
+```text
+D1_ERROR: no such table: shopify_sessions: SQLITE_ERROR
+```
+
+sync the remote development D1 schema first:
+
+```bash
+pnpm --dir apps/server run db:push:d1
+```
+
+If you intentionally remove `remote: true` for isolated local D1 debugging,
+then apply migrations to the local development binding instead:
+
+```bash
+pnpm dev:prepare
+pnpm --dir apps/server exec wrangler d1 migrations apply i7eo_shopify_app_dev_d1 --env development --local
+```
+
+Then restart `pnpm dev:tunnel` and retry the request. Use
+`apps/server/wrangler.json` or `APP_DATABASE_D1_BINDING` in `.env.development`
+if the development binding name changes.
+
+### Product export download redirects to R2 `NoSuchKey`
+
+If `/api/product-exports/{id}/download` returns successfully but the redirected
+R2 signed URL shows:
+
+```text
+NoSuchKey The specified key does not exist.
+```
+
+the database record likely points at the remote R2 key while the object was
+written to Wrangler's local R2 simulation. Development config should keep D1
+and R2 on the same remote storage plane:
+
+```bash
+pnpm dev:prepare
+```
+
+Then confirm `apps/server/wrangler.json` includes `remote: true` on both
+`env.development.r2_buckets[]` and `env.development.d1_databases[]`.
+
+Restart `pnpm dev:tunnel` after regenerating config. Exports created before the
+R2 binding was remote will still be missing from the remote bucket, so recreate
+that export or copy the object into the remote development R2 bucket.
 
 ## Deployment
 
@@ -490,10 +620,10 @@ To use a custom domain instead of `*.workers.dev`, add a Custom Domain in the Cl
 
 ## Environment Variables
 
-| Variable              | Description                                                     |
-| --------------------- | --------------------------------------------------------------- |
-| `SHOPIFY_API_KEY`     | App client ID from the Shopify Partner Dashboard                |
-| `SHOPIFY_API_SECRET`  | App client secret                                               |
-| `SHOPIFY_APP_URL`     | Public URL of this Worker (no trailing slash)                   |
-| `SCOPES`              | Comma-separated Shopify access scopes                           |
-| `SHOPIFY_API_VERSION` | Shopify API version (set in `wrangler.toml`, default `2025-10`) |
+| Variable              | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `SHOPIFY_APP_KEY`     | App client ID from the Shopify Partner Dashboard |
+| `SHOPIFY_APP_SECRET`  | App client secret                                |
+| `SHOPIFY_APP_URL`     | Public app URL with no trailing slash            |
+| `SCOPES`              | Comma-separated Shopify access scopes            |
+| `SHOPIFY_API_VERSION` | Shopify API version from the active env file     |

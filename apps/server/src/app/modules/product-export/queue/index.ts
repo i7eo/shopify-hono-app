@@ -1,4 +1,5 @@
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
 import { badGatewayError } from "@/shared/exceptions";
 import type { PRODUCT_EXPORT_QUEUE_JOBS } from "./constants";
 import type { QueueJobContext, QueueMessage } from "@/infra/queue";
@@ -49,7 +50,9 @@ export async function enqueueProductExportJob(
     );
   }
 
-  const producer = await queueProducerFactory(c);
+  const producer = await queueProducerFactory(
+    createRuntimeResourceContextFromHono(c),
+  );
   await producer.enqueue(
     createProductExportQueueMessage(name, payload, c.get("requestId")),
     {
@@ -110,14 +113,7 @@ function createQueueProducerFromContext(context: QueueJobContext) {
     );
   }
 
-  return factory({
-    env: context.bindings ?? {},
-    get(key: string) {
-      if (key === "runtimeEnv") return context.runtimeEnv;
-      if (key === "runtimeLogger") return context.logger;
-      return;
-    },
-  } as Context<AppEnv>);
+  return factory(context);
 }
 
 /**

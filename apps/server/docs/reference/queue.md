@@ -120,7 +120,7 @@ type QueueEnqueueOptions = {
 
 ## Producer
 
-业务代码不要直接 import `pg-boss` 或 Cloudflare Queue binding，而是从 `queueProducerFactory` capability 或 `createQueueProducer` 获取 producer。
+业务代码不要直接 import `pg-boss` 或 Cloudflare Queue binding，而是通过 `queueProducerFactory` capability 获取 producer。
 
 接口：
 
@@ -144,7 +144,7 @@ interface QueueProducer {
 | `node`       | `PgBossQueueProducer`     |
 | `cloudflare` | `CloudflareQueueProducer` |
 
-`pg-boss` 在 Node adapter 内动态加载，避免 Cloudflare bundle 静态引入 Node-only queue 依赖。`infra/queue/index.ts` 通过 `PROCESS_QUEUE_MODULE = "./process"` 和 `ISOLATE_QUEUE_MODULE = "./isolate"` 分发实现，并暴露 `disposeQueueProducer(...)`。
+`pg-boss` 在 Node adapter `infra/queue/process.ts` 内动态加载，避免 Cloudflare bundle 静态引入 Node-only queue 依赖。`infra/queue/index.ts` 只导出 registry、consumer 和共享类型；Node/Cloudflare adapter 由对应 runtime capability 显式引入。
 
 ## Job 注册
 
@@ -253,12 +253,14 @@ queue producer 和 consumer 都有 dispose 入口。process 侧会停止/释放�
 Cloudflare Worker export 增加：
 
 ```ts
-async queue(batch, env) {
-  const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
-  const queueConsumer = await queueConsumerFactory?.(context.runtimeEnv);
+export default {
+  async queue(batch, env) {
+    const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
+    const queueConsumer = await queueConsumerFactory?.(context.runtimeEnv);
 
-  await queueConsumer?.consume(batch, context);
-}
+    await queueConsumer?.consume(batch, context);
+  },
+};
 ```
 
 Cloudflare consumer 会：

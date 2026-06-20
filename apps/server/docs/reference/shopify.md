@@ -89,13 +89,13 @@ OAuth 路由：
 `/auth` 会校验 `shop` 参数必须是合法 `*.myshopify.com` 域名，然后调用：
 
 ```ts
-shopify.auth.begin(...)
+shopify.auth.begin({ ...options });
 ```
 
 `/auth/callback` 调用：
 
 ```ts
-shopify.auth.callback(...)
+shopify.auth.callback({ ...options });
 ```
 
 回调得到的 Shopify session 会写入当前 runtime 的 session storage，然后交给 mode capability 处理 redirect。
@@ -244,9 +244,11 @@ Node D1 通过 Cloudflare D1 HTTP API 访问，需要 `APP_DATABASE_D1_NAME`、`
 数据库 schema 来自 `@shamt/database` 的 PostgreSQL / SQLite models，与 file module 共享同一个 `databaseFactory`。本地验证可使用：
 
 ```bash
-pnpm --dir apps/server run db:pg:seed:dev
-pnpm --dir apps/server run db:d1:seed:dev
+pnpm --dir apps/server run db:seed:dev:pg
+pnpm --dir apps/server run db:seed:dev:d1
 ```
+
+默认的 D1 development seed 写入远端 dev D1；显式本地 Wrangler D1 调试时可临时设置 `D1_SEED_LOCAL=true` 后复用 `db:seed:dev:d1`。
 
 ## Resource API
 
@@ -280,7 +282,7 @@ Webhook 路由统一挂载：
 所有 webhook 请求先经过 Shopify 官方验签：
 
 ```ts
-shopify.webhooks.validate(...)
+shopify.webhooks.validate({ ...options });
 ```
 
 验签前会通过 `readLimitedBody()` 读取 raw body，并按 `DEFAULT_WEBHOOK_MAX_SIZE` 做硬限制。这样既保留 Shopify HMAC 校验需要的原始 body，也避免不受控地把超大 webhook payload 读入内存。

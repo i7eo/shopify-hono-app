@@ -6,7 +6,6 @@ import {
 import { getRuntimeConfig } from "@/infra/env";
 import { runtimeConfig } from "./shopify/test-utils";
 import type { FileRecord } from "@/app/modules/file/types";
-import type { Context } from "hono";
 
 const cloudflareTokenVerifyRequest = vi.fn(() =>
   Promise.resolve(
@@ -45,14 +44,12 @@ describe("file download runtime capability", () => {
       APP_RUNTIME: "cloudflare",
     });
     const r2 = createR2Binding();
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const context = {
-      env: {
-        APP_RUNTIME: "cloudflare",
+      bindings: {
         test_r2: r2,
       },
-      get: (key: string) => (key === "runtimeEnv" ? runtimeEnv : undefined),
-    } as Context;
+      runtimeEnv,
+    };
     const file: FileRecord = {
       bucketKey: "shop/file.csv",
       bucketProvider: "r2",

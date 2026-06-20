@@ -14,6 +14,7 @@ import { Route as SettingsIndexRouteImport } from "./routes/settings/index";
 import { Route as ProductExportIndexRouteImport } from "./routes/product-export/index";
 import { Route as ProductDescriptionIndexRouteImport } from "./routes/product-description/index";
 import { Route as ProductExportNewRouteImport } from "./routes/product-export/new";
+import { Route as ProductExportIdRouteImport } from "./routes/product-export/$id";
 import { Route as ProductDescriptionNewRouteImport } from "./routes/product-description/new";
 import { Route as ErrorsOfflineRouteImport } from "./routes/errors/offline";
 import { Route as Errors500RouteImport } from "./routes/errors/500";
@@ -43,6 +44,11 @@ const ProductDescriptionIndexRoute = ProductDescriptionIndexRouteImport.update({
 const ProductExportNewRoute = ProductExportNewRouteImport.update({
   id: "/product-export/new",
   path: "/product-export/new",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ProductExportIdRoute = ProductExportIdRouteImport.update({
+  id: "/product-export/$id",
+  path: "/product-export/$id",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ProductDescriptionNewRoute = ProductDescriptionNewRouteImport.update({
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   "/errors/500": typeof Errors500Route;
   "/errors/offline": typeof ErrorsOfflineRoute;
   "/product-description/new": typeof ProductDescriptionNewRoute;
+  "/product-export/$id": typeof ProductExportIdRoute;
   "/product-export/new": typeof ProductExportNewRoute;
   "/product-description/": typeof ProductDescriptionIndexRoute;
   "/product-export/": typeof ProductExportIndexRoute;
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   "/errors/500": typeof Errors500Route;
   "/errors/offline": typeof ErrorsOfflineRoute;
   "/product-description/new": typeof ProductDescriptionNewRoute;
+  "/product-export/$id": typeof ProductExportIdRoute;
   "/product-export/new": typeof ProductExportNewRoute;
   "/product-description": typeof ProductDescriptionIndexRoute;
   "/product-export": typeof ProductExportIndexRoute;
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   "/errors/500": typeof Errors500Route;
   "/errors/offline": typeof ErrorsOfflineRoute;
   "/product-description/new": typeof ProductDescriptionNewRoute;
+  "/product-export/$id": typeof ProductExportIdRoute;
   "/product-export/new": typeof ProductExportNewRoute;
   "/product-description/": typeof ProductDescriptionIndexRoute;
   "/product-export/": typeof ProductExportIndexRoute;
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | "/errors/500"
     | "/errors/offline"
     | "/product-description/new"
+    | "/product-export/$id"
     | "/product-export/new"
     | "/product-description/"
     | "/product-export/"
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | "/errors/500"
     | "/errors/offline"
     | "/product-description/new"
+    | "/product-export/$id"
     | "/product-export/new"
     | "/product-description"
     | "/product-export"
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | "/errors/500"
     | "/errors/offline"
     | "/product-description/new"
+    | "/product-export/$id"
     | "/product-export/new"
     | "/product-description/"
     | "/product-export/"
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   Errors500Route: typeof Errors500Route;
   ErrorsOfflineRoute: typeof ErrorsOfflineRoute;
   ProductDescriptionNewRoute: typeof ProductDescriptionNewRoute;
+  ProductExportIdRoute: typeof ProductExportIdRoute;
   ProductExportNewRoute: typeof ProductExportNewRoute;
   ProductDescriptionIndexRoute: typeof ProductDescriptionIndexRoute;
   ProductExportIndexRoute: typeof ProductExportIndexRoute;
@@ -195,6 +208,13 @@ declare module "@tanstack/react-router" {
       path: "/product-export/new";
       fullPath: "/product-export/new";
       preLoaderRoute: typeof ProductExportNewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/product-export/$id": {
+      id: "/product-export/$id";
+      path: "/product-export/$id";
+      fullPath: "/product-export/$id";
+      preLoaderRoute: typeof ProductExportIdRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/product-description/new": {
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   Errors500Route: Errors500Route,
   ErrorsOfflineRoute: ErrorsOfflineRoute,
   ProductDescriptionNewRoute: ProductDescriptionNewRoute,
+  ProductExportIdRoute: ProductExportIdRoute,
   ProductExportNewRoute: ProductExportNewRoute,
   ProductDescriptionIndexRoute: ProductDescriptionIndexRoute,
   ProductExportIndexRoute: ProductExportIndexRoute,

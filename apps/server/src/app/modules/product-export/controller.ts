@@ -8,6 +8,7 @@ import {
   downloadProductExportRoute,
   getProductExportRoute,
   listProductExportsRoute,
+  listProductExportTemplatesRoute,
 } from "./meta";
 import {
   createProductExport,
@@ -15,6 +16,7 @@ import {
   downloadProductExport,
   getProductExport,
   listProductExports,
+  listProductExportTemplates,
 } from "./service";
 import type { ProductExportStatus } from "./types";
 import type { AppOpenAPI } from "@/app/bootstrap/register-openapi";
@@ -31,6 +33,7 @@ export function registerProductExportController(app: AppOpenAPI) {
             name: body.name,
             runtimeEnv: c.get("runtimeEnv"),
             shopDomain: c.get("shopDomain"),
+            template: body.template,
           }),
           requestId: c.get("requestId"),
         }),
@@ -70,6 +73,16 @@ export function registerProductExportController(app: AppOpenAPI) {
       200,
     );
   });
+
+  app.openapi(listProductExportTemplatesRoute, (c) =>
+    c.json(
+      createResponse({
+        data: listProductExportTemplates(),
+        requestId: c.get("requestId"),
+      }),
+      200,
+    ),
+  );
 
   app.openapi(getProductExportRoute, async (c) =>
     c.json(

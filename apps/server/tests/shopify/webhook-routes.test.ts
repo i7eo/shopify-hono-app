@@ -352,6 +352,7 @@ function createProductExportRecord(
     shopifyBulkOperationStatus: null,
     shopifySessionId: null,
     status: "queued",
+    template: "basic",
     updatedAt: now,
     ...overrides,
   };

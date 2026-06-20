@@ -1,6 +1,6 @@
 # Bucket
 
-`apps/server/src/infra/bucket` 是 file module 使用的 runtime-aware object bucket 层。它暴露一个很小的 `Bucket` 接口，并通过 `createBucket(config)` 隐藏 provider 细节。
+`apps/server/src/infra/bucket` 是 file、product-export 等模块使用的 runtime-aware object bucket 层。它暴露一个很小的 `Bucket` 接口、provider strategy parser 和 R2 signed URL helper。具体 Node/Cloudflare adapter 由 runtime capability 注册处显式选择。
 
 ## 接口
 
@@ -78,10 +78,9 @@ apps/server/src/infra/bucket/process.ts
 apps/server/src/infra/bucket/isolate.ts
 ```
 
-`infra/bucket/index.ts` 使用 `PROCESS_BUCKET_MODULE = "./process"` 和
-`ISOLATE_BUCKET_MODULE = "./isolate"` 动态 import runtime 实现，并提供
-`disposeBucket(...)`。process bucket 可以缓存 adapter；isolate bucket 当前是
-request-bound，disposer 是 no-op。
+R2 adapter 使用 multipart upload 写入对象。`BucketPutInput.maxBytes` 控制对象最大字节数，`maxParts` 可选控制 multipart metadata 数组最大长度；超过任一上限都会 abort 当前 multipart upload 并返回 payload-too-large。这个边界用于防止最终 `complete` 需要保存的 parts metadata 在大文件场景下无界增长。product export 当前传入 `PRODUCT_EXPORT_MAX_MULTIPART_UPLOAD_PARTS = 10000`。
+
+`infra/bucket/index.ts` 只导出共享契约和 `createBucketDownloadSigner(...)`。Node runtime capability 从 `infra/bucket/process.ts` 引入 `getProcessBucket(...)`；Cloudflare runtime capability 从 `infra/bucket/isolate.ts` 引入 `createIsolateBucket(...)`。process bucket 可以缓存 adapter；isolate bucket 当前是 request-bound，disposer 是 no-op。
 
 Node + R2 必需 env：
 
@@ -111,7 +110,7 @@ endpoint: https://<account-id>.r2.cloudflarestorage.com
 bucketName: <bucket-name>
 ```
 
-Cloudflare + R2 不读取这些 S3 credential，而是在 runtime capability 使用点强校验 `APP_BUCKET_R2_BINDING` 指向的 Worker binding。这样 Worker 内部上传、读取和删除都通过平台内置 binding 完成，不经过 Cloudflare REST API 或 S3 HTTP endpoint。
+Cloudflare + R2 不读取这些 S3 credential，而是在 runtime capability 使用点强校验 `APP_BUCKET_R2_BINDING` 指向的 Worker binding。这样 Worker 内部上传、读取和删除都通过平台内置 binding 完成，不经过 Cloudflare REST API 或 S3 HTTP endpoint。非 production R2 binding 会生成 `remote: true`，让本地 `wrangler dev` 写入远端 development R2；否则本地 R2 模拟里的对象不会出现在 signed URL 指向的远端 R2 bucket 中。
 
 ## R2 下载
 
@@ -146,7 +145,7 @@ bucket 会接收一个 runtime-specific upload body adapter：
 
 - Node + R2 与 Cloudflare + R2 当前都返回 S3-compatible endpoint 的短期签名 URL。
 - R2 custom domain signed download 尚未实现；当前签名 URL 使用 `APP_BUCKET_R2_URL` 解析出的 endpoint 与 bucket path。
-- bucket adapter 生命周期由 `disposeBucket(...)` 管理；业务对象生命周期清理不在这里实现，后续 pg-boss 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
+- bucket adapter 生命周期由 runtime capability disposer 管理；业务对象生命周期清理不在这里实现，pg-boss 或 Cloudflare Queue consumer 应调用 `bucket.delete(...)`。
 
 ## 测试
 

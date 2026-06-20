@@ -122,7 +122,10 @@ export class S3CompatibleBucket implements Bucket {
       for await (const part of readMultipartUploadParts(
         input.body,
         this.partSizeBytes,
-        input.maxBytes,
+        {
+          maxBytes: input.maxBytes,
+          maxParts: input.maxParts,
+        },
       )) {
         byteSize += part.bytes.byteLength;
 

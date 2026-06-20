@@ -9,6 +9,7 @@ import {
   getPostgresProductExportPartStats,
   listPostgresProductExportParts,
   listPostgresProductExportPartsByStatus,
+  listPostgresProductExportPartsPage,
   listPostgresProductExports,
   listPostgresRecoverableProductExports,
   markPostgresProductExportPartDone,
@@ -25,6 +26,7 @@ import {
   getSqliteProductExportPartStats,
   listSqliteProductExportParts,
   listSqliteProductExportPartsByStatus,
+  listSqliteProductExportPartsPage,
   listSqliteProductExports,
   listSqliteRecoverableProductExports,
   markSqliteProductExportPartDone,
@@ -148,6 +150,16 @@ export function createDatabaseProductExportsStoreFromPromise(
       }
 
       return listPostgresProductExportParts(database, exportId);
+    },
+
+    async listPartsPage(input): Promise<ProductExportPartRecord[]> {
+      const database = await dbPromise;
+
+      if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        return listSqliteProductExportPartsPage(database, input);
+      }
+
+      return listPostgresProductExportPartsPage(database, input);
     },
 
     async listPartsByStatus(input): Promise<ProductExportPartRecord[]> {

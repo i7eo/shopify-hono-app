@@ -1,6 +1,6 @@
 # @shamt/utils
 
-<p><a href="./README.zh-CN.md">中文</a> | <strong>English</strong></p>
+<p><strong>English</strong> | <a href="./README.zh-CN.md">中文</a></p>
 
 ## Table of Contents
 

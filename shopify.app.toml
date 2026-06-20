@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "fe68b5e4a88eab465983b36b0ddd33a5"
-name = "unmanual"
+name = "Unmanual"
 application_url = "https://i7eo-shopify-app-dev.i7eo.com"
 embedded = true
 

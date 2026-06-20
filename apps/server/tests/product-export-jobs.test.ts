@@ -1,9 +1,33 @@
-import { describe, expect, it, vi } from "vitest";
-import { deleteProductExportPartObjects } from "@/app/modules/product-export/queue/jobs";
-import type { ProductExportPartRecord } from "@/app/modules/product-export/types";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD,
+  PRODUCT_EXPORT_QUEUE_JOBS,
+} from "@/app/modules/product-export/queue/constants";
+import {
+  deleteProductExportPartObjects,
+  registerModuleProductExportJobs,
+} from "@/app/modules/product-export/queue/jobs";
+import {
+  disposeRuntimeCapabilities,
+  setRuntimeCapability,
+} from "@/app/runtime/capabilities";
+import { consumeQueueBatch } from "@/infra/queue/consumer";
+import { resetQueueJobs } from "@/infra/queue/registry";
+import type {
+  ProductExportPartRecord,
+  ProductExportRecord,
+} from "@/app/modules/product-export/types";
 import type { Bucket } from "@/infra/bucket";
+import type { Database } from "@/infra/database";
+import type { QueueJobContext } from "@/infra/queue";
 
 describe("product export queue jobs", () => {
+  afterEach(async () => {
+    resetQueueJobs();
+    await disposeRuntimeCapabilities();
+    vi.restoreAllMocks();
+  });
+
   it("deletes intermediate part objects and skips parts without bucket keys", async () => {
     const bucket = createBucket();
 
@@ -84,6 +108,54 @@ describe("product export queue jobs", () => {
     expect(bucket.delete).toHaveBeenCalledTimes(25);
     expect(maxActiveDeletes).toBeLessThanOrEqual(10);
   });
+
+  it("fails Cloudflare finalize jobs over the part threshold without Node handoff", async () => {
+    const update = vi.fn();
+    const database = createDatabase(update);
+    setRuntimeCapability("databaseFactory", () => database);
+    setRuntimeCapability("bucketFactory", () => createBucket());
+    registerModuleProductExportJobs();
+
+    const result = await consumeQueueBatch(
+      {
+        messages: [
+          {
+            attempts: 1,
+            body: {
+              name: PRODUCT_EXPORT_QUEUE_JOBS.FINALIZE,
+              payload: {
+                exportId: "export-1",
+                shopDomain: "test-shop.myshopify.com",
+              },
+              version: 1,
+            },
+            id: "message-1",
+          },
+        ],
+      },
+      createCloudflareQueueContext(),
+    );
+
+    expect(result.results[0]).toMatchObject({
+      action: "retry",
+      id: "message-1",
+    });
+    expect(result.results[0]).toMatchObject({
+      error: {
+        message:
+          "Product export cannot be finalized in Cloudflare runtime because it exceeds the Cloudflare finalize part threshold and this environment cannot switch to Node.",
+        status: 502,
+      },
+    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: "CLOUDFLARE_FINALIZE_UNSUPPORTED",
+        errorMessage:
+          "Product export cannot be finalized in Cloudflare runtime because it exceeds the Cloudflare finalize part threshold and this environment cannot switch to Node.",
+        status: "failed",
+      }),
+    );
+  });
 });
 
 function createBucket(overrides: Partial<Bucket> = {}): Bucket {
@@ -91,6 +163,90 @@ function createBucket(overrides: Partial<Bucket> = {}): Bucket {
     delete: vi.fn(() => Promise.resolve()),
     open: vi.fn(),
     put: vi.fn(),
+    ...overrides,
+  };
+}
+
+function createCloudflareQueueContext(): QueueJobContext {
+  return {
+    logger: {
+      debug: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    },
+    runtimeEnv: {
+      APP_QUEUE_CONSUMER_MAX_RETRIES: 3,
+      APP_RUNTIME: "cloudflare",
+    },
+  } as unknown as QueueJobContext;
+}
+
+function createDatabase(update: ReturnType<typeof vi.fn>): Database {
+  return {
+    db: {
+      select(fields?: Record<string, unknown>) {
+        if (fields) {
+          return {
+            from: () => ({
+              where: () => ({
+                groupBy: () =>
+                  Promise.resolve([
+                    {
+                      status: "done",
+                      total:
+                        PRODUCT_EXPORT_CLOUDFLARE_FINALIZE_PART_THRESHOLD + 1,
+                    },
+                  ]),
+              }),
+            }),
+          };
+        }
+
+        return {
+          from: () => ({
+            where: () => ({
+              limit: () => Promise.resolve([createProductExportRecord()]),
+            }),
+          }),
+        };
+      },
+      update: vi.fn(() => ({
+        set: update.mockImplementation(() => ({
+          where: () => Promise.resolve(),
+        })),
+      })),
+    },
+    provider: "d1",
+  } as unknown as Database;
+}
+
+function createProductExportRecord(
+  overrides: Partial<ProductExportRecord> = {},
+): ProductExportRecord {
+  const now = new Date("2026-06-20T00:00:00.000Z");
+
+  return {
+    bucketKey: null,
+    bucketProvider: null,
+    completedAt: null,
+    createdAt: now,
+    deletedAt: null,
+    errorCode: null,
+    errorMessage: null,
+    fileSize: 1024,
+    id: "export-1",
+    name: "products",
+    objectCount: null,
+    partialDataUrl: null,
+    resultUrl: "https://example.com/products.jsonl",
+    shopDomain: "test-shop.myshopify.com",
+    shopifyBulkOperationId: "gid://shopify/BulkOperation/1",
+    shopifyBulkOperationStatus: "COMPLETED",
+    shopifySessionId: "offline_test-shop.myshopify.com",
+    status: "generating_csv",
+    template: "basic",
+    updatedAt: now,
     ...overrides,
   };
 }

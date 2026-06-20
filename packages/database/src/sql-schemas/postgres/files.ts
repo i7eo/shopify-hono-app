@@ -1,8 +1,8 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { files } from "../../models/postgres";
+import { postgresFiles } from "../../models/postgres";
 
-export const insertFileSchema = createInsertSchema(files);
-export const selectFileSchema = createSelectSchema(files);
+export const insertPostgresFileSchema = createInsertSchema(postgresFiles);
+export const selectPostgresFileSchema = createSelectSchema(postgresFiles);
 
-export type InsertFile = typeof files.$inferInsert;
-export type SelectFile = typeof files.$inferSelect;
+export type InsertFile = typeof postgresFiles.$inferInsert;
+export type SelectFile = typeof postgresFiles.$inferSelect;

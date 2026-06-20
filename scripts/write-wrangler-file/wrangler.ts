@@ -3,6 +3,7 @@ import {
   DEFAULT_APP_DATABASE_PROVIDERS,
   DEFAULT_APP_QUEUE_PROVIDERS,
   DEFAULT_APP_SCHEDULER_PROVIDERS,
+  DEFAULT_ENVS,
   DEFAULT_RUNTIMES,
 } from "@shamt/app-env";
 import { throwError } from "../utils";
@@ -30,6 +31,7 @@ interface WranglerEnvironmentConfig {
 interface R2BucketBinding {
   binding: string;
   bucket_name: string;
+  remote?: boolean;
 }
 
 interface D1DatabaseBinding {
@@ -37,6 +39,7 @@ interface D1DatabaseBinding {
   database_name: string;
   database_id: string;
   migrations_dir: string;
+  remote?: boolean;
 }
 
 interface HyperdriveBinding {
@@ -165,7 +168,7 @@ function getSchedulerProvider(config: WranglerFileConfig) {
 }
 
 function getR2BucketBinding(config: WranglerFileConfig): R2BucketBinding {
-  return {
+  const binding: R2BucketBinding = {
     binding: requireConfigValue(
       config.APP_BUCKET_R2_BINDING,
       "APP_BUCKET_R2_BINDING",
@@ -175,10 +178,16 @@ function getR2BucketBinding(config: WranglerFileConfig): R2BucketBinding {
       "APP_BUCKET_R2_NAME",
     ),
   };
+
+  if (config.APP_ENV !== DEFAULT_ENVS.PRODUCTION) {
+    binding.remote = true;
+  }
+
+  return binding;
 }
 
 function getD1DatabaseBinding(config: WranglerFileConfig): D1DatabaseBinding {
-  return {
+  const binding: D1DatabaseBinding = {
     binding: requireConfigValue(
       config.APP_DATABASE_D1_BINDING,
       "APP_DATABASE_D1_BINDING",
@@ -193,6 +202,12 @@ function getD1DatabaseBinding(config: WranglerFileConfig): D1DatabaseBinding {
     ),
     migrations_dir: "drizzle.d1",
   };
+
+  if (config.APP_ENV !== DEFAULT_ENVS.PRODUCTION) {
+    binding.remote = true;
+  }
+
+  return binding;
 }
 
 function getHyperdriveBinding(config: WranglerFileConfig): HyperdriveBinding {

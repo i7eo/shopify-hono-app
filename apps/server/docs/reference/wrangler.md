@@ -79,8 +79,10 @@ i7eo-shopify-app
 | `env.<APP_ENV>.name`           | Worker 服务名                              |
 | `r2_buckets[].binding`         | Worker 代码中访问 R2 的 `env` 变量名       |
 | `r2_buckets[].bucket_name`     | Cloudflare R2 bucket 的真实资源名          |
+| `r2_buckets[].remote`          | 本地 `wrangler dev` 是否访问远端 R2        |
 | `d1_databases[].binding`       | Worker 代码中访问 D1 的 `env` 变量名       |
 | `d1_databases[].database_name` | Cloudflare D1 database 的真实资源名        |
+| `d1_databases[].remote`        | 本地 `wrangler dev` 是否访问远端 D1        |
 | `hyperdrive[].binding`         | Worker 代码中访问 Hyperdrive 的变量名      |
 | `hyperdrive[].id`              | Cloudflare Hyperdrive config 的真实资源 ID |
 | `queues.producers[].binding`   | Worker 代码中访问 Queue producer 的变量名  |
@@ -115,6 +117,8 @@ APP_QUEUE_NAME=i7eo-shopify-app-dev-queue
 | `cloudflare` | `d1`                  | `r2`                | `r2_buckets`、`d1_databases`、Queue/Cron |
 
 Node + D1 走 Cloudflare D1 HTTP API，不需要 Worker D1 binding。Node + PostgreSQL 走 `pg`，不需要 Hyperdrive binding。
+
+非 production 的 Cloudflare + D1/R2 会生成 `remote: true`，让 `wrangler dev` 默认访问远端 development D1/R2。production 部署本来就在 Cloudflare 上访问远端资源，因此不需要写这个本地开发开关。
 
 Cloudflare + memory bucket 当前不支持。`APP_BUCKET_PROVIDER=memory` 与 `APP_RUNTIME=cloudflare` 会在 runtime bucket strategy 中失败。
 

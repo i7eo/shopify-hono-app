@@ -1,25 +1,25 @@
 import { z } from "@hono/zod-openapi";
-import { selectFileSchema } from "@shamt/database/sql-schemas/postgres";
+import { selectPostgresFileSchema } from "@shamt/database/sql-schemas/postgres";
 import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 
-export const FileStatusSchema = selectFileSchema.shape.status;
+export const FileStatusSchema = selectPostgresFileSchema.shape.status;
 
-export const FileSchema = selectFileSchema
+export const FileSchema = selectPostgresFileSchema
   .extend({
-    bucketKey: selectFileSchema.shape.bucketKey.openapi({
+    bucketKey: selectPostgresFileSchema.shape.bucketKey.openapi({
       description: "Bucket object key.",
       example:
         "test-shop.myshopify.com/2026/06/8f07a37b-b7dc-41f0-a9d5-3f9c28e12f2a/invoice.pdf",
     }),
-    bucketProvider: selectFileSchema.shape.bucketProvider.openapi({
+    bucketProvider: selectPostgresFileSchema.shape.bucketProvider.openapi({
       description: "Bucket provider used to store the file.",
       example: "memory",
     }),
-    byteSize: selectFileSchema.shape.byteSize.nonnegative().openapi({
+    byteSize: selectPostgresFileSchema.shape.byteSize.nonnegative().openapi({
       description: "Uploaded file size in bytes.",
       example: 1024,
     }),
-    contentType: selectFileSchema.shape.contentType.openapi({
+    contentType: selectPostgresFileSchema.shape.contentType.openapi({
       description: "Uploaded file MIME type.",
       example: "application/pdf",
     }),
@@ -35,19 +35,19 @@ export const FileSchema = selectFileSchema
       description: "File expiration timestamp.",
       example: "2026-06-14T12:00:00.000Z",
     }),
-    id: selectFileSchema.shape.id.openapi({
+    id: selectPostgresFileSchema.shape.id.openapi({
       description: "File resource ID.",
       example: "8f07a37b-b7dc-41f0-a9d5-3f9c28e12f2a",
     }),
-    originalName: selectFileSchema.shape.originalName.openapi({
+    originalName: selectPostgresFileSchema.shape.originalName.openapi({
       description: "Original uploaded filename.",
       example: "invoice.pdf",
     }),
-    safeName: selectFileSchema.shape.safeName.openapi({
+    safeName: selectPostgresFileSchema.shape.safeName.openapi({
       description: "Sanitized filename used for storage path suffix.",
       example: "invoice.pdf",
     }),
-    shopDomain: selectFileSchema.shape.shopDomain.openapi({
+    shopDomain: selectPostgresFileSchema.shape.shopDomain.openapi({
       description: "Shopify shop domain that owns the file.",
       example: "test-shop.myshopify.com",
     }),

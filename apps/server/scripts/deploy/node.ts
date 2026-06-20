@@ -10,8 +10,8 @@ import { executeCommand } from "./utils";
 async function main() {
   const context = await getDeployContext();
 
-  await executeCommand("pnpm", ["-F", "@shamt/web", "build"]);
-  await executeCommand("pnpm", ["-F", "@shamt/server", "node:build"]);
+  await executeCommand("pnpm", ["--dir", "apps/web", "run", "build"]);
+  await executeCommand("pnpm", ["--dir", "apps/server", "run", "node:build"]);
 
   await Promise.all([writeDockerCompose(context), writeNginxConfig(context)]);
 
@@ -45,7 +45,7 @@ async function writeDockerCompose({ config, deploymentName }: DeployContext) {
     `services:
   server:
     build:
-      context: ../..
+      context: ../../..
       dockerfile: apps/server/Dockerfile
     image: ${deploymentName}
     container_name: ${deploymentName}

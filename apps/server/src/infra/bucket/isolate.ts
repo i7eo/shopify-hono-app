@@ -84,7 +84,10 @@ export class CloudflareR2Bucket implements Bucket {
       for await (const part of readMultipartUploadParts(
         input.body,
         this.partSizeBytes,
-        input.maxBytes,
+        {
+          maxBytes: input.maxBytes,
+          maxParts: input.maxParts,
+        },
       )) {
         byteSize += part.bytes.byteLength;
         parts.push(await upload.uploadPart(part.partNumber, part.bytes));

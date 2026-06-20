@@ -1,6 +1,6 @@
 import {
-  productExportParts,
-  productExports,
+  postgresProductExportParts,
+  postgresProductExports,
 } from "@shamt/database/models/postgres";
 import {
   and,
@@ -47,10 +47,13 @@ export async function createPostgresProductExportParts(
   if (parts.length === 0) return;
 
   await database.db
-    .insert(productExportParts)
+    .insert(postgresProductExportParts)
     .values(parts)
     .onConflictDoNothing({
-      target: [productExportParts.exportId, productExportParts.seq],
+      target: [
+        postgresProductExportParts.exportId,
+        postgresProductExportParts.seq,
+      ],
     });
 }
 
@@ -58,10 +61,13 @@ export async function createPostgresProductExport(
   database: PostgresDatabase,
   record: ProductExportRecord,
 ): Promise<void> {
-  await database.db.insert(productExports).values(record).onConflictDoUpdate({
-    target: productExports.id,
-    set: record,
-  });
+  await database.db
+    .insert(postgresProductExports)
+    .values(record)
+    .onConflictDoUpdate({
+      target: postgresProductExports.id,
+      set: record,
+    });
 }
 
 export async function updatePostgresProductExport(
@@ -69,12 +75,12 @@ export async function updatePostgresProductExport(
   record: ProductExportRecord,
 ): Promise<void> {
   await database.db
-    .update(productExports)
+    .update(postgresProductExports)
     .set(record)
     .where(
       and(
-        eq(productExports.id, record.id),
-        eq(productExports.shopDomain, record.shopDomain),
+        eq(postgresProductExports.id, record.id),
+        eq(postgresProductExports.shopDomain, record.shopDomain),
       ),
     );
 }
@@ -85,12 +91,12 @@ export async function findPostgresProductExportById(
 ): Promise<ProductExportRecord | null> {
   const [record] = await database.db
     .select()
-    .from(productExports)
+    .from(postgresProductExports)
     .where(
       and(
-        eq(productExports.id, input.id),
-        eq(productExports.shopDomain, input.shopDomain),
-        isNull(productExports.deletedAt),
+        eq(postgresProductExports.id, input.id),
+        eq(postgresProductExports.shopDomain, input.shopDomain),
+        isNull(postgresProductExports.deletedAt),
       ),
     )
     .limit(1);
@@ -104,8 +110,8 @@ export async function findPostgresProductExportByBulkOperationId(
 ): Promise<ProductExportRecord | null> {
   const [record] = await database.db
     .select()
-    .from(productExports)
-    .where(eq(productExports.shopifyBulkOperationId, bulkOperationId))
+    .from(postgresProductExports)
+    .where(eq(postgresProductExports.shopifyBulkOperationId, bulkOperationId))
     .limit(1);
 
   return record ?? null;
@@ -117,9 +123,9 @@ export async function claimPostgresProductExportPart(
 ): Promise<ProductExportPartRecord | null> {
   const now = new Date();
   const [record] = await database.db
-    .update(productExportParts)
+    .update(postgresProductExportParts)
     .set({
-      attempts: sql`${productExportParts.attempts} + 1`,
+      attempts: sql`${postgresProductExportParts.attempts} + 1`,
       errorCode: null,
       errorMessage: null,
       lockedAt: now,
@@ -128,9 +134,9 @@ export async function claimPostgresProductExportPart(
     })
     .where(
       and(
-        eq(productExportParts.exportId, input.exportId),
-        eq(productExportParts.seq, input.seq),
-        inArray(productExportParts.status, [
+        eq(postgresProductExportParts.exportId, input.exportId),
+        eq(postgresProductExportParts.seq, input.seq),
+        inArray(postgresProductExportParts.status, [
           ...PRODUCT_EXPORT_RETRYABLE_PART_STATUSES,
         ]),
       ),
@@ -148,9 +154,12 @@ export async function listPostgresProductExports(
   const where = getPostgresListWhere(input, cursor);
   const query = database.db
     .select()
-    .from(productExports)
+    .from(postgresProductExports)
     .where(where)
-    .orderBy(desc(productExports.createdAt), desc(productExports.id))
+    .orderBy(
+      desc(postgresProductExports.createdAt),
+      desc(postgresProductExports.id),
+    )
     .limit(input.pagination.limit + 1);
 
   const rows =
@@ -171,9 +180,29 @@ export async function listPostgresProductExportParts(
 ): Promise<ProductExportPartRecord[]> {
   return await database.db
     .select()
-    .from(productExportParts)
-    .where(eq(productExportParts.exportId, exportId))
-    .orderBy(productExportParts.seq);
+    .from(postgresProductExportParts)
+    .where(eq(postgresProductExportParts.exportId, exportId))
+    .orderBy(postgresProductExportParts.seq);
+}
+
+export async function listPostgresProductExportPartsPage(
+  database: PostgresDatabase,
+  input: Parameters<ProductExportStore["listPartsPage"]>[0],
+): Promise<ProductExportPartRecord[]> {
+  const where =
+    input.afterSeq === undefined
+      ? eq(postgresProductExportParts.exportId, input.exportId)
+      : and(
+          eq(postgresProductExportParts.exportId, input.exportId),
+          gt(postgresProductExportParts.seq, input.afterSeq),
+        );
+
+  return await database.db
+    .select()
+    .from(postgresProductExportParts)
+    .where(where)
+    .orderBy(postgresProductExportParts.seq)
+    .limit(input.limit);
 }
 
 export async function listPostgresProductExportPartsByStatus(
@@ -184,14 +213,14 @@ export async function listPostgresProductExportPartsByStatus(
 
   return await database.db
     .select()
-    .from(productExportParts)
+    .from(postgresProductExportParts)
     .where(
       and(
-        eq(productExportParts.exportId, input.exportId),
-        inArray(productExportParts.status, input.statuses),
+        eq(postgresProductExportParts.exportId, input.exportId),
+        inArray(postgresProductExportParts.status, input.statuses),
       ),
     )
-    .orderBy(productExportParts.seq);
+    .orderBy(postgresProductExportParts.seq);
 }
 
 export async function listPostgresRecoverableProductExports(
@@ -200,9 +229,12 @@ export async function listPostgresRecoverableProductExports(
 ): Promise<ProductExportRecord[]> {
   return await database.db
     .select()
-    .from(productExports)
+    .from(postgresProductExports)
     .where(getPostgresRecoverableWhere(input))
-    .orderBy(asc(productExports.updatedAt), asc(productExports.id))
+    .orderBy(
+      asc(postgresProductExports.updatedAt),
+      asc(postgresProductExports.id),
+    )
     .limit(input.limit);
 }
 
@@ -212,12 +244,12 @@ export async function getPostgresProductExportPartStats(
 ): Promise<ProductExportPartStats> {
   const rows = await database.db
     .select({
-      status: productExportParts.status,
+      status: postgresProductExportParts.status,
       total: sql<number>`count(*)`,
     })
-    .from(productExportParts)
-    .where(eq(productExportParts.exportId, exportId))
-    .groupBy(productExportParts.status);
+    .from(postgresProductExportParts)
+    .where(eq(postgresProductExportParts.exportId, exportId))
+    .groupBy(postgresProductExportParts.status);
 
   return toPartStats(rows);
 }
@@ -233,7 +265,7 @@ export async function markPostgresProductExportPartDone(
 ): Promise<void> {
   const now = new Date();
   await database.db
-    .update(productExportParts)
+    .update(postgresProductExportParts)
     .set({
       bucketKey: input.bucketKey,
       bucketProvider: input.bucketProvider,
@@ -247,8 +279,8 @@ export async function markPostgresProductExportPartDone(
     })
     .where(
       and(
-        eq(productExportParts.exportId, input.exportId),
-        eq(productExportParts.seq, input.seq),
+        eq(postgresProductExportParts.exportId, input.exportId),
+        eq(postgresProductExportParts.seq, input.seq),
       ),
     );
 }
@@ -262,7 +294,7 @@ export async function markPostgresProductExportPartFailed(
 ): Promise<void> {
   const now = new Date();
   await database.db
-    .update(productExportParts)
+    .update(postgresProductExportParts)
     .set({
       errorCode: input.errorCode,
       errorMessage: input.errorMessage,
@@ -271,8 +303,8 @@ export async function markPostgresProductExportPartFailed(
     })
     .where(
       and(
-        eq(productExportParts.exportId, input.exportId),
-        eq(productExportParts.seq, input.seq),
+        eq(postgresProductExportParts.exportId, input.exportId),
+        eq(postgresProductExportParts.seq, input.seq),
       ),
     );
 }
@@ -284,7 +316,7 @@ export async function deletePostgresProductExport(
   const now = new Date();
 
   await database.db
-    .update(productExports)
+    .update(postgresProductExports)
     .set({
       deletedAt: now,
       status: PRODUCT_EXPORT_STATUSES.CANCELED,
@@ -292,8 +324,8 @@ export async function deletePostgresProductExport(
     })
     .where(
       and(
-        eq(productExports.id, input.id),
-        eq(productExports.shopDomain, input.shopDomain),
+        eq(postgresProductExports.id, input.id),
+        eq(postgresProductExports.shopDomain, input.shopDomain),
       ),
     );
 }
@@ -303,21 +335,21 @@ function getPostgresListWhere(
   cursor: SeekCursor | null,
 ) {
   const conditions = [
-    eq(productExports.shopDomain, input.shopDomain),
-    isNull(productExports.deletedAt),
+    eq(postgresProductExports.shopDomain, input.shopDomain),
+    isNull(postgresProductExports.deletedAt),
   ];
 
   if (input.status) {
-    conditions.push(eq(productExports.status, input.status));
+    conditions.push(eq(postgresProductExports.status, input.status));
   }
 
   if (cursor) {
     conditions.push(
       or(
-        lt(productExports.createdAt, cursor.createdAt),
+        lt(postgresProductExports.createdAt, cursor.createdAt),
         and(
-          eq(productExports.createdAt, cursor.createdAt),
-          lt(productExports.id, cursor.id),
+          eq(postgresProductExports.createdAt, cursor.createdAt),
+          lt(postgresProductExports.id, cursor.id),
         ),
       )!,
     );
@@ -330,28 +362,34 @@ function getPostgresRecoverableWhere(
   input: Parameters<ProductExportStore["listRecoverableExports"]>[0],
 ) {
   const conditions = [
-    isNull(productExports.deletedAt),
-    ne(productExports.status, PRODUCT_EXPORT_STATUSES.READY),
-    ne(productExports.status, PRODUCT_EXPORT_STATUSES.CANCELED),
+    isNull(postgresProductExports.deletedAt),
+    ne(postgresProductExports.status, PRODUCT_EXPORT_STATUSES.READY),
+    ne(postgresProductExports.status, PRODUCT_EXPORT_STATUSES.CANCELED),
     or(
-      lt(productExports.updatedAt, input.olderThan),
-      eq(productExports.status, PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING),
+      lt(postgresProductExports.updatedAt, input.olderThan),
       eq(
-        productExports.status,
+        postgresProductExports.status,
+        PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING,
+      ),
+      eq(
+        postgresProductExports.status,
         PRODUCT_EXPORT_STATUSES.BULK_OPERATION_COMPLETED,
       ),
-      eq(productExports.status, PRODUCT_EXPORT_STATUSES.GENERATING_CSV),
-      eq(productExports.status, PRODUCT_EXPORT_STATUSES.REQUIRES_NODE_FINALIZE),
+      eq(postgresProductExports.status, PRODUCT_EXPORT_STATUSES.GENERATING_CSV),
+      eq(
+        postgresProductExports.status,
+        PRODUCT_EXPORT_STATUSES.REQUIRES_NODE_FINALIZE,
+      ),
     )!,
   ];
 
   if (input.cursor) {
     conditions.push(
       or(
-        gt(productExports.updatedAt, input.cursor.updatedAt),
+        gt(postgresProductExports.updatedAt, input.cursor.updatedAt),
         and(
-          eq(productExports.updatedAt, input.cursor.updatedAt),
-          gt(productExports.id, input.cursor.id),
+          eq(postgresProductExports.updatedAt, input.cursor.updatedAt),
+          gt(postgresProductExports.id, input.cursor.id),
         ),
       )!,
     );
@@ -366,7 +404,7 @@ async function countPostgresProductExports(
 ): Promise<number> {
   const [row] = await database.db
     .select({ total: sql<number>`count(*)` })
-    .from(productExports)
+    .from(postgresProductExports)
     .where(where);
 
   return Number(row?.total ?? 0);
