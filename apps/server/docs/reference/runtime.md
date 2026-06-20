@@ -36,7 +36,6 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 - `queueConsumerFactory`
 - `schedulerFactory`
 - `moduleFileDownloadResolverFactory`
-- `moduleFileTaskDispatcherFactory`
 
 对应文件：
 

@@ -9,12 +9,46 @@
 | 方法   | 路径                       | 响应                               |
 | ------ | -------------------------- | ---------------------------------- |
 | POST   | `/api/files`               | `201` JSON file 或 files list      |
-| GET    | `/api/files`               | `200` JSON list，包含 `nextCursor` |
+| GET    | `/api/files`               | `200` JSON list，包含 `pagination` |
 | GET    | `/api/files/{id}`          | `200` JSON file metadata           |
 | GET    | `/api/files/{id}/download` | `200` stream 或 `302` redirect     |
 | DELETE | `/api/files/{id}`          | `204` empty response               |
 
 `GET /api/files/{id}/download` 会直接下载文件。模块不提供独立的“获取下载链接”接口。
+
+## 列表分页
+
+`GET /api/files` 支持 cursor 和 page 两种分页模式，但同一次请求不能同时传 `cursor` 与 `page`。`limit` 默认使用服务端列表默认页大小，最大值为 `100`；超过 `100` 会在 query validation 阶段返回 `400`。Page 模式只允许浅页导航，当前 `page` 最大为 `50`，有效 offset 上限为 `5000`；更深的翻页会返回 `400`，调用方应改用服务端返回的 `nextCursor`。
+
+Cursor 模式适合“加载更多”：
+
+```text
+GET /api/files?limit=20&cursor=<nextCursor>
+```
+
+Page 模式适合后台表格的浅页跳转：
+
+```text
+GET /api/files?limit=20&page=2
+```
+
+响应把资源集合统一放在 `data.result`，把分页信息放在 `data.pagination`。Cursor 是服务端生成的 opaque seek cursor，客户端只应原样传回，不应自行拼接：
+
+```json
+{
+  "data": {
+    "result": [],
+    "pagination": {
+      "mode": "cursor",
+      "limit": 20,
+      "nextCursor": "8f07a37b-b7dc-41f0-a9d5-3f9c28e12f2a",
+      "hasNext": true
+    }
+  }
+}
+```
+
+Page 模式会额外返回 `total`，表示当前 query 条件下的资源总数。
 
 ## 上传模式
 
@@ -87,10 +121,15 @@ Multipart 解析当前由 `apps/server/src/app/modules/file/upload-stream-parser
 文件元数据通过 Drizzle-backed files store 存储：
 
 ```text
-apps/server/src/app/modules/file/stores/database.ts
+apps/server/src/app/modules/file/stores/database/index.ts
+apps/server/src/app/modules/file/stores/database/postgres.ts
+apps/server/src/app/modules/file/stores/database/sqlite.ts
+apps/server/src/app/modules/file/stores/database/shared.ts
 packages/database/src/models/postgres/files.ts
 packages/database/src/models/sqlite/files.ts
 ```
+
+`index.ts` 按 Drizzle database kind 分发 PostgreSQL 或 SQLite/D1 store；`postgres.ts` 与 `sqlite.ts` 放置 dialect-specific 查询；`shared.ts` 放置分页转换、cursor 读取和 page offset 等跨 dialect 逻辑。列表查询会多取一条记录判断 `hasNext`；page 模式额外执行 `count` 返回 `total`，cursor 模式不计算总数以避免深翻页带来的额外扫描。
 
 当前 provider 规则：
 
@@ -127,11 +166,10 @@ file module 使用这些 runtime capabilities：
 | `databaseFactory`                   | 创建通用 Drizzle database    |
 | `bucketFactory`                     | 创建通用 object bucket       |
 | `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
-| `moduleFileTaskDispatcherFactory`   | 预留后台 file task 投递能力  |
 
-file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver 和 noop task dispatcher。
+file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver。
 
-Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。task dispatcher 在 Cloudflare Queue 路线完成前保持显式 unsupported placeholder；通用 queue/scheduler infra 已可用于 product-export 等模块，但 file module 的后台任务尚未迁移到它。
+Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。file module 当前没有模块专属后台 dispatcher；后续过期清理、对象删除重试等后台工作应注册到通用 queue/scheduler infra。
 
 ## 下载与删除
 

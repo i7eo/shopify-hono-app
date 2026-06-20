@@ -1,4 +1,9 @@
 import { createResponse } from "@/shared/models";
+import {
+  parseNullableDate,
+  readNullableNumber,
+  readNullableString,
+} from "@/utils";
 import { enqueueProductExportJob } from "../queue";
 import { PRODUCT_EXPORT_QUEUE_JOBS } from "../queue/constants";
 import { completeProductExportBulkOperation } from "../service";
@@ -44,7 +49,7 @@ export async function handleProductExportBulkOperationFinishWebhook(
 
   const record = await completeProductExportBulkOperation(c, {
     bulkOperationId: payload.admin_graphql_api_id,
-    completedAt: parseDate(payload.completed_at),
+    completedAt: parseNullableDate(payload.completed_at),
     errorCode: readNullableString(payload.error_code),
     fileSize: readNullableNumber(payload.file_size),
     objectCount: readNullableNumber(payload.object_count),
@@ -98,32 +103,4 @@ function parseBulkOperationFinishWebhookPayload(value: unknown):
     admin_graphql_api_id: payload.admin_graphql_api_id,
     status: payload.status,
   };
-}
-
-/**
- * Parses Shopify webhook timestamps defensively.
- */
-function parseDate(value: unknown): Date | null {
-  if (typeof value !== "string") return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-/**
- * Reads nullable numeric webhook fields.
- */
-function readNullableNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string" || value.length === 0) return null;
-
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
-}
-
-/**
- * Reads nullable string webhook fields.
- */
-function readNullableString(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null;
 }

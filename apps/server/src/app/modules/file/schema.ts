@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { selectFileSchema } from "@shamt/database/sql-schemas/postgres";
+import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 
 export const FileStatusSchema = selectFileSchema.shape.status;
 
@@ -64,8 +65,8 @@ export const FileSchema = selectFileSchema
   });
 
 export const FileListSchema = z.object({
-  files: z.array(FileSchema),
-  nextCursor: z.string().optional(),
+  pagination: PaginationSchema,
+  result: z.array(FileSchema),
 });
 
 export const FileUploadListSchema = z.object({
@@ -79,12 +80,4 @@ export const FileIdParamsSchema = z.object({
   }),
 });
 
-export const FileListQuerySchema = z.object({
-  cursor: z.string().optional().openapi({
-    description: "Cursor returned by a previous file list response.",
-  }),
-  limit: z.coerce.number().int().min(1).max(100).optional().openapi({
-    description: "Maximum number of files to return.",
-    example: 20,
-  }),
-});
+export const FileListQuerySchema = PaginationQuerySchema;

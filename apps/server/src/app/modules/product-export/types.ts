@@ -1,4 +1,5 @@
 import type { RuntimeConfig } from "@/infra/env";
+import type { PaginatedPage, PaginationInput } from "@/shared/models";
 import type {
   SelectProductExport,
   SelectProductExportPart,
@@ -9,14 +10,20 @@ export type ProductExportPartRecord = SelectProductExportPart;
 export type ProductExportStatus = ProductExportRecord["status"];
 export type ProductExportPartStatus = ProductExportPartRecord["status"];
 
-export type ProductExportsPage = {
-  nextCursor?: string;
+export type ProductExportsPage = PaginatedPage & {
   productExports: ProductExportRecord[];
 };
 
 export type ProductExportListInput = {
+  pagination: PaginationInput;
+  shopDomain: string;
+  status?: ProductExportStatus;
+};
+
+export type ListProductExportsInput = {
   cursor?: string;
-  limit: number;
+  limit?: number;
+  page?: number;
   shopDomain: string;
   status?: ProductExportStatus;
 };
@@ -64,6 +71,11 @@ export type ProductExportStore = {
     statuses: ProductExportPartStatus[];
   }) => Promise<ProductExportPartRecord[]>;
   listRecoverableExports: (input: {
+    cursor?: {
+      id: string;
+      updatedAt: Date;
+    };
+    limit: number;
     olderThan: Date;
   }) => Promise<ProductExportRecord[]>;
   markPartDone: (

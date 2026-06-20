@@ -9,4 +9,3 @@ export const DEFAULT_APP_ACCOUNT_SESSION_COOKIE = `${appName}:shopify_session_id
 export const DEFAULT_APP_ACCOUNT_SESSION_EXPIRE = 60 * 60 * 24 * 30;
 export const DEFAULT_WEBHOOK_MAX_SIZE = 1024 * 1024; // limit webhook body size to 1mb
 export const DEFAULT_SIGNED_DOWNLOAD_URL_EXPIRE = 10 * 60 * 1000;
-export const DEFAULT_PAGE_SIZE = 50; // [30, 50, 100]

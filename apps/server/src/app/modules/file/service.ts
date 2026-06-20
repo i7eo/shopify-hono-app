@@ -3,7 +3,6 @@ import {
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
-import { DEFAULT_PAGE_SIZE } from "@/constants";
 import { getBucketEnvConfig, type Bucket } from "@/infra/bucket";
 import {
   badRequestError,
@@ -11,6 +10,7 @@ import {
   internalServerError,
   notFoundError,
 } from "@/shared/exceptions";
+import { PAGINATION_LIMIT_MAX, toPaginationInput } from "@/shared/models";
 import { createDatabaseFilesStoreFromPromise } from "./stores/database";
 import { getFileUploadStreamParser } from "./upload-stream-parser";
 import {
@@ -25,6 +25,7 @@ import type {
   CreateFilesInput,
   FileDownload,
   FileRecord,
+  FilesPage,
   FilesStore,
   ListFilesInput,
   PublicFile,
@@ -159,16 +160,22 @@ export async function createFiles(
 export async function listFiles(
   c: Context<AppEnv>,
   input: ListFilesInput,
-): Promise<{ files: PublicFile[]; nextCursor?: string }> {
+): Promise<{ files: PublicFile[]; pagination: FilesPage["pagination"] }> {
   const page = await getFilesStore(c).list({
-    cursor: input.cursor,
-    limit: input.limit ?? DEFAULT_PAGE_SIZE,
+    pagination: toPaginationInput(
+      {
+        cursor: input.cursor,
+        limit: input.limit,
+        page: input.page,
+      },
+      PAGINATION_LIMIT_MAX,
+    ),
     shopDomain: input.shopDomain,
   });
 
   return {
     files: page.files.map(toPublicFile),
-    nextCursor: page.nextCursor,
+    pagination: page.pagination,
   };
 }
 

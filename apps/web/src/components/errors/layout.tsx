@@ -1,27 +1,31 @@
-import notFoundImage from "@/assets/images/error.404.png";
+import type { ReactNode } from "react";
 
 type FeedbackScope = "inline" | "page";
 
-interface NotFoundDisplayProps {
-  heading?: string;
-  message?: string;
+interface ErrorLayoutProps {
+  action?: ReactNode;
+  alt: string;
+  heading: string;
+  image: string;
+  message: string;
   scope?: FeedbackScope;
 }
 
-type NotFoundProps = NotFoundDisplayProps & Record<string, unknown>;
-
-export function NotFound({
-  heading = "Page not found",
-  message = "Oops! Page Not Found.",
+export function ErrorLayout({
+  action = <s-link href="/">Go to app home</s-link>,
+  alt,
+  heading,
+  image,
+  message,
   scope = "page",
-}: NotFoundProps) {
+}: ErrorLayoutProps) {
   const content = (
     <s-section heading={scope === "inline" ? heading : undefined}>
       <s-stack alignItems="center">
         <s-box inlineSize="400px">
           <s-image
-            src={notFoundImage}
-            alt="Page not found"
+            src={image}
+            alt={alt}
             aspectRatio="1/1"
             objectFit="contain"
             inlineSize="fill"
@@ -30,7 +34,7 @@ export function NotFound({
         </s-box>
       </s-stack>
       <s-text color="subdued">{message}</s-text>
-      <s-link href="/">Go to app home</s-link>
+      {action}
     </s-section>
   );
 
@@ -44,3 +48,5 @@ export function NotFound({
 
   return content;
 }
+
+export type { FeedbackScope };

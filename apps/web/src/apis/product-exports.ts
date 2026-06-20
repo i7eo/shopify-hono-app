@@ -13,14 +13,32 @@ export type ProductExport = JsonSerializedDates<
   "completedAt" | "createdAt" | "deletedAt" | "updatedAt"
 >;
 
-export interface ProductExportsPage {
-  nextCursor?: string;
-  productExports: ProductExport[];
+export type Pagination =
+  | {
+      hasNext: boolean;
+      limit: number;
+      mode: "cursor";
+      nextCursor?: string;
+    }
+  | {
+      hasNext: boolean;
+      limit: number;
+      mode: "page";
+      page: number;
+      total: number;
+    };
+
+export interface ListData<T> {
+  pagination: Pagination;
+  result: T[];
 }
+
+export type ProductExportsListResponse = ApiResponse<ListData<ProductExport>>;
 
 export interface ProductExportListInput {
   cursor?: string;
   limit?: number;
+  page?: number;
   status?: ProductExportStatus;
 }
 
@@ -43,7 +61,7 @@ export function listProductExports(
   input: ProductExportListInput = {},
   signal?: AbortSignal,
 ) {
-  return shopifyClient.get<ApiResponse<ProductExportsPage>>("product-exports", {
+  return shopifyClient.get<ProductExportsListResponse>("product-exports", {
     query: toProductExportListQuery(input),
     signal,
   });
@@ -140,11 +158,20 @@ export async function downloadProductExportFile(
 function toProductExportListQuery(
   input: ProductExportListInput,
 ): HttpRequestConfig["query"] {
-  return {
+  return compactQuery({
     cursor: input.cursor,
     limit: input.limit,
+    page: input.page,
     status: input.status,
-  };
+  });
+}
+
+function compactQuery(
+  query: Record<string, string | number | undefined>,
+): HttpRequestConfig["query"] {
+  return Object.fromEntries(
+    Object.entries(query).filter(([, value]) => value !== undefined),
+  );
 }
 
 function triggerBrowserDownload(url: string, filename: string) {

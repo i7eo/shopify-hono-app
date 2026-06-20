@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { PRODUCT_EXPORT_STATUS_VALUES } from "@shamt/database/models/postgres";
 import { selectProductExportSchema } from "@shamt/database/sql-schemas/postgres";
+import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 import { PRODUCT_EXPORT_STATUSES } from "./utils";
 
 export const ProductExportStatusSchema = z.enum(PRODUCT_EXPORT_STATUS_VALUES);
@@ -70,8 +71,8 @@ export const CreateProductExportBodySchema = z.object({
 });
 
 export const ProductExportListSchema = z.object({
-  nextCursor: z.string().optional(),
-  productExports: z.array(ProductExportSchema),
+  pagination: PaginationSchema,
+  result: z.array(ProductExportSchema),
 });
 
 export const ProductExportDownloadTargetSchema = z.object({
@@ -93,14 +94,7 @@ export const ProductExportIdParamsSchema = z.object({
   }),
 });
 
-export const ProductExportListQuerySchema = z.object({
-  cursor: z.string().optional().openapi({
-    description: "Cursor returned by a previous product export list response.",
-  }),
-  limit: z.coerce.number().int().min(1).max(100).optional().openapi({
-    description: "Maximum number of product exports to return.",
-    example: 20,
-  }),
+export const ProductExportListQuerySchema = PaginationQuerySchema.extend({
   status: ProductExportStatusSchema.optional().openapi({
     description: "Filter by export status.",
     example: PRODUCT_EXPORT_STATUSES.READY,

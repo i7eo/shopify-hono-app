@@ -49,19 +49,25 @@ export function registerFileController(app: AppOpenAPI) {
     );
   });
 
-  app.openapi(listFilesRoute, async (c) =>
-    c.json(
+  app.openapi(listFilesRoute, async (c) => {
+    const { files, pagination } = await listFiles(c, {
+      cursor: c.req.valid("query").cursor,
+      limit: c.req.valid("query").limit,
+      page: c.req.valid("query").page,
+      shopDomain: c.get("shopDomain"),
+    });
+
+    return c.json(
       createResponse({
-        data: await listFiles(c, {
-          cursor: c.req.query("cursor"),
-          limit: parseLimit(c.req.query("limit")),
-          shopDomain: c.get("shopDomain"),
-        }),
+        data: {
+          pagination,
+          result: files,
+        },
         requestId: c.get("requestId"),
       }),
       200,
-    ),
-  );
+    );
+  });
 
   app.openapi(getFileRoute, async (c) =>
     c.json(
@@ -100,12 +106,6 @@ export function registerFileController(app: AppOpenAPI) {
     await deleteFile(c, c.get("shopDomain"), c.req.param("id"));
     return c.body(null, 204);
   });
-}
-
-function parseLimit(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const limit = Number(value);
-  return Number.isFinite(limit) ? limit : undefined;
 }
 
 function isMultipartRequest(contentType: string | undefined): boolean {

@@ -1,7 +1,6 @@
 import { DEFAULT_RUNTIMES } from "@shamt/app-env";
 import { checkProcessDiskAccess } from "@shamt/node-utils/disk";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
-import { NoopFileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
 import {
   setRuntimeCapability,
   type ModuleHealthDiskCheckResult,
@@ -23,8 +22,6 @@ import { createScheduler, disposeScheduler } from "@/infra/scheduler";
 import { runtimeNotSupported } from "@/utils/runtime";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
-
-const fileTaskDispatcher = new NoopFileTaskDispatcher();
 
 /**
  * Registers Node process implementations for runtime and module capabilities.
@@ -75,10 +72,6 @@ export function registerProcessRuntimeCapabilities() {
         await getBucket(c),
         await createBucketDownloadSigner(c.get("runtimeEnv")),
       ),
-  );
-  setRuntimeCapability(
-    "moduleFileTaskDispatcherFactory",
-    () => fileTaskDispatcher,
   );
 }
 

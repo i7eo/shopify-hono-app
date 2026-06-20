@@ -15,6 +15,10 @@ import { Route as ProductExportIndexRouteImport } from "./routes/product-export/
 import { Route as ProductDescriptionIndexRouteImport } from "./routes/product-description/index";
 import { Route as ProductExportNewRouteImport } from "./routes/product-export/new";
 import { Route as ProductDescriptionNewRouteImport } from "./routes/product-description/new";
+import { Route as ErrorsOfflineRouteImport } from "./routes/errors/offline";
+import { Route as Errors500RouteImport } from "./routes/errors/500";
+import { Route as Errors404RouteImport } from "./routes/errors/404";
+import { Route as Errors403RouteImport } from "./routes/errors/403";
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
@@ -46,9 +50,33 @@ const ProductDescriptionNewRoute = ProductDescriptionNewRouteImport.update({
   path: "/product-description/new",
   getParentRoute: () => rootRouteImport,
 } as any);
+const ErrorsOfflineRoute = ErrorsOfflineRouteImport.update({
+  id: "/errors/offline",
+  path: "/errors/offline",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const Errors500Route = Errors500RouteImport.update({
+  id: "/errors/500",
+  path: "/errors/500",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const Errors404Route = Errors404RouteImport.update({
+  id: "/errors/404",
+  path: "/errors/404",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const Errors403Route = Errors403RouteImport.update({
+  id: "/errors/403",
+  path: "/errors/403",
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/errors/403": typeof Errors403Route;
+  "/errors/404": typeof Errors404Route;
+  "/errors/500": typeof Errors500Route;
+  "/errors/offline": typeof ErrorsOfflineRoute;
   "/product-description/new": typeof ProductDescriptionNewRoute;
   "/product-export/new": typeof ProductExportNewRoute;
   "/product-description/": typeof ProductDescriptionIndexRoute;
@@ -57,6 +85,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/errors/403": typeof Errors403Route;
+  "/errors/404": typeof Errors404Route;
+  "/errors/500": typeof Errors500Route;
+  "/errors/offline": typeof ErrorsOfflineRoute;
   "/product-description/new": typeof ProductDescriptionNewRoute;
   "/product-export/new": typeof ProductExportNewRoute;
   "/product-description": typeof ProductDescriptionIndexRoute;
@@ -66,6 +98,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/errors/403": typeof Errors403Route;
+  "/errors/404": typeof Errors404Route;
+  "/errors/500": typeof Errors500Route;
+  "/errors/offline": typeof ErrorsOfflineRoute;
   "/product-description/new": typeof ProductDescriptionNewRoute;
   "/product-export/new": typeof ProductExportNewRoute;
   "/product-description/": typeof ProductDescriptionIndexRoute;
@@ -76,6 +112,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/errors/403"
+    | "/errors/404"
+    | "/errors/500"
+    | "/errors/offline"
     | "/product-description/new"
     | "/product-export/new"
     | "/product-description/"
@@ -84,6 +124,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/errors/403"
+    | "/errors/404"
+    | "/errors/500"
+    | "/errors/offline"
     | "/product-description/new"
     | "/product-export/new"
     | "/product-description"
@@ -92,6 +136,10 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/"
+    | "/errors/403"
+    | "/errors/404"
+    | "/errors/500"
+    | "/errors/offline"
     | "/product-description/new"
     | "/product-export/new"
     | "/product-description/"
@@ -101,6 +149,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  Errors403Route: typeof Errors403Route;
+  Errors404Route: typeof Errors404Route;
+  Errors500Route: typeof Errors500Route;
+  ErrorsOfflineRoute: typeof ErrorsOfflineRoute;
   ProductDescriptionNewRoute: typeof ProductDescriptionNewRoute;
   ProductExportNewRoute: typeof ProductExportNewRoute;
   ProductDescriptionIndexRoute: typeof ProductDescriptionIndexRoute;
@@ -152,11 +204,43 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ProductDescriptionNewRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/errors/offline": {
+      id: "/errors/offline";
+      path: "/errors/offline";
+      fullPath: "/errors/offline";
+      preLoaderRoute: typeof ErrorsOfflineRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/errors/500": {
+      id: "/errors/500";
+      path: "/errors/500";
+      fullPath: "/errors/500";
+      preLoaderRoute: typeof Errors500RouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/errors/404": {
+      id: "/errors/404";
+      path: "/errors/404";
+      fullPath: "/errors/404";
+      preLoaderRoute: typeof Errors404RouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/errors/403": {
+      id: "/errors/403";
+      path: "/errors/403";
+      fullPath: "/errors/403";
+      preLoaderRoute: typeof Errors403RouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  Errors403Route: Errors403Route,
+  Errors404Route: Errors404Route,
+  Errors500Route: Errors500Route,
+  ErrorsOfflineRoute: ErrorsOfflineRoute,
   ProductDescriptionNewRoute: ProductDescriptionNewRoute,
   ProductExportNewRoute: ProductExportNewRoute,
   ProductDescriptionIndexRoute: ProductDescriptionIndexRoute,

@@ -23,6 +23,19 @@
 - Before adding server-local schema, enum, or type definitions, check whether the concept belongs to `packages/database`, `packages/app-env`, or another semantic `packages/*` owner.
 - Server-local definitions are acceptable for HTTP transport, OpenAPI presentation, serialized response types, runtime capability contracts, or module-specific behavior that is not owned by a package.
 
+## API Pagination Rules
+
+- List endpoints that expose pagination must use the shared pagination schemas and helpers from `src/shared/models/pagination.ts`.
+- Support `limit + cursor` and `limit + page` for paginated list endpoints. `cursor` and `page` are mutually exclusive.
+- Keep `limit` capped at `100`; requests above the cap must fail validation instead of being silently clamped.
+- Only allow page pagination for shallow navigation. Deep pagination must fail with a 400 response and require cursor pagination.
+- Cursor pagination responses must include `mode: "cursor"`, `limit`, `hasNext`, and optional `nextCursor`.
+- Page pagination responses must include `mode: "page"`, `limit`, `page`, `hasNext`, and `total`.
+- List response bodies must put the resource array in `data.result` and pagination metadata in `data.pagination`.
+- Do not expose resource-specific list keys such as `files` or `productExports` in public list responses; normalize arrays to `result` at the HTTP boundary.
+- Only page pagination should calculate `total`; cursor pagination should avoid count queries unless a future endpoint explicitly requires it.
+- Cursor-backed stores should use stable ordering and opaque seek cursors instead of offset emulation.
+
 ## Error Handling
 
 - Route handlers and lifecycle hooks must use the shared error normalization pipeline instead of branching around individual SDK error classes.

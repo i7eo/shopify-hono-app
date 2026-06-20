@@ -77,10 +77,6 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
         await createBucketDownloadSigner(c.get("runtimeEnv")),
       ),
   );
-  setRuntimeCapability(
-    "moduleFileTaskDispatcherFactory",
-    fileModuleNotSupported,
-  );
 }
 
 /**
@@ -198,19 +194,6 @@ function disposeQueueConsumerCapability() {
  */
 function disposeSchedulerCapability() {
   return disposeScheduler({ APP_RUNTIME: DEFAULT_RUNTIMES.CLOUDFLARE });
-}
-
-/**
- * Throws until the Cloudflare file background task dispatcher is backed by
- * Cloudflare Queues or another isolate-safe task transport.
- */
-function fileModuleNotSupported(c: Context<AppEnv>): never {
-  return runtimeNotSupported({
-    mode: "throw",
-    runtime: c.get("runtimeEnv").APP_RUNTIME,
-    message:
-      "File background task dispatcher is not implemented for Cloudflare runtime yet",
-  });
 }
 
 /**

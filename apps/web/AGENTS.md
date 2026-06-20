@@ -52,6 +52,12 @@ Common components:
 - API schemas, types, enums, and status values that mirror database-backed records must come from `@shamt/database` when available.
 - API files may define browser-safe serialized response types, transport wrappers, or JSON-date adaptations locally when package types are not directly browser-safe.
 - Before adding local API schema/type/enum definitions, check `@shamt/database`, `@shamt/app-env`, and other semantic `packages/*` exports first.
+- Paginated API client responses should expect list arrays at `response.data?.result` and pagination metadata at `response.data?.pagination`.
+- Do not read resource-specific list keys such as `productExports` or `files` from API list responses.
+- API client list inputs may pass either `cursor` or `page` with `limit`, never both.
+- Use page pagination only for shallow table navigation. Use the server-returned `nextCursor` for deep pagination or infinite/loading-more flows.
+- Keep pagination query builders from sending `undefined` values.
+- Page-mode UI may use `pagination.total`; cursor-mode UI should rely on `hasNext` and `nextCursor`.
 
 ## File Organization
 

@@ -12,21 +12,18 @@ import {
   internalServerError,
   notFoundError,
 } from "@/shared/exceptions";
+import { toPaginationInput } from "@/shared/models";
+import { parseNullableDate, readNullableNumber } from "@/utils";
 import { enqueueProductExportJob } from "./queue";
 import {
   PRODUCT_EXPORT_CSV_CONTENT_TYPE,
   PRODUCT_EXPORT_QUEUE_JOBS,
 } from "./queue/constants";
 import { createDatabaseProductExportsStoreFromPromise } from "./stores/database";
-import {
-  mapBulkOperationStatus,
-  parseNullableDate,
-  parseNullableNumber,
-  PRODUCT_EXPORT_STATUSES,
-} from "./utils";
+import { mapBulkOperationStatus, PRODUCT_EXPORT_STATUSES } from "./utils";
 import type {
+  ListProductExportsInput,
   ProductExportCreateInput,
-  ProductExportListInput,
   ProductExportLookup,
   ProductExportRecord,
   ProductExportsPage,
@@ -125,9 +122,20 @@ export async function createProductExport(
  */
 export async function listProductExports(
   c: Context<AppEnv>,
-  input: ProductExportListInput,
+  input: ListProductExportsInput,
 ): Promise<ProductExportsPage> {
-  return await getProductExportsStore(c).list(input);
+  return await getProductExportsStore(c).list({
+    pagination: toPaginationInput(
+      {
+        cursor: input.cursor,
+        limit: input.limit,
+        page: input.page,
+      },
+      20,
+    ),
+    shopDomain: input.shopDomain,
+    status: input.status,
+  });
 }
 
 /**
@@ -347,8 +355,8 @@ export async function fetchProductExportBulkOperation(
   return {
     completedAt: parseNullableDate(node.completedAt),
     errorCode: node.errorCode,
-    fileSize: parseNullableNumber(node.fileSize),
-    objectCount: parseNullableNumber(node.objectCount),
+    fileSize: readNullableNumber(node.fileSize),
+    objectCount: readNullableNumber(node.objectCount),
     partialDataUrl: node.partialDataUrl,
     resultUrl: node.url,
     status: node.status,

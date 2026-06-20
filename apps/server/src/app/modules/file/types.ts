@@ -1,4 +1,5 @@
 import type { RuntimeConfig } from "@/infra/env";
+import type { PaginatedPage, PaginationInput } from "@/shared/models";
 import type { SelectFile } from "@shamt/database/sql-schemas/postgres";
 import type { Context } from "hono";
 
@@ -22,14 +23,12 @@ export type FileLookup = {
 };
 
 export type FileListInput = {
-  cursor?: string;
-  limit: number;
+  pagination: PaginationInput;
   shopDomain: string;
 };
 
-export type FilesPage = {
+export type FilesPage = PaginatedPage & {
   files: FileRecord[];
-  nextCursor?: string;
 };
 
 export type FileStatusUpdate = FileLookup & {
@@ -74,6 +73,7 @@ export type CreateFilesInput = {
 export type ListFilesInput = {
   cursor?: string;
   limit?: number;
+  page?: number;
   shopDomain: string;
 };
 

@@ -50,22 +50,26 @@ export function registerProductExportController(app: AppOpenAPI) {
     }
   });
 
-  app.openapi(listProductExportsRoute, async (c) =>
-    c.json(
+  app.openapi(listProductExportsRoute, async (c) => {
+    const { pagination, productExports } = await listProductExports(c, {
+      cursor: c.req.valid("query").cursor,
+      limit: c.req.valid("query").limit,
+      page: c.req.valid("query").page,
+      shopDomain: c.get("shopDomain"),
+      status: c.req.valid("query").status as ProductExportStatus | undefined,
+    });
+
+    return c.json(
       createResponse({
-        data: await listProductExports(c, {
-          cursor: c.req.query("cursor"),
-          limit: parseLimit(c.req.query("limit")),
-          shopDomain: c.get("shopDomain"),
-          status: c.req.valid("query").status as
-            | ProductExportStatus
-            | undefined,
-        }),
+        data: {
+          pagination,
+          result: productExports,
+        },
         requestId: c.get("requestId"),
       }),
       200,
-    ),
-  );
+    );
+  });
 
   app.openapi(getProductExportRoute, async (c) =>
     c.json(
@@ -137,13 +141,6 @@ export function registerProductExportController(app: AppOpenAPI) {
 
     return c.body(null, 204);
   });
-}
-
-function parseLimit(value: string | undefined): number {
-  if (!value) return 20;
-
-  const limit = Number(value);
-  return Number.isFinite(limit) ? limit : 20;
 }
 
 function getErrorMessage(error: unknown): string {

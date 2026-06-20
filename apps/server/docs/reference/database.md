@@ -133,10 +133,31 @@ PostgreSQL 和 D1 使用不同 schema 输出，但业务 store 保持同一接�
 file metadata store 使用：
 
 ```text
-apps/server/src/app/modules/file/stores/database.ts
+apps/server/src/app/modules/file/stores/database/index.ts
+apps/server/src/app/modules/file/stores/database/postgres.ts
+apps/server/src/app/modules/file/stores/database/sqlite.ts
+apps/server/src/app/modules/file/stores/database/shared.ts
 packages/database/src/models/postgres/files.ts
 packages/database/src/models/sqlite/files.ts
 ```
+
+product export store 使用：
+
+```text
+apps/server/src/app/modules/product-export/stores/database/index.ts
+apps/server/src/app/modules/product-export/stores/database/postgres.ts
+apps/server/src/app/modules/product-export/stores/database/sqlite.ts
+apps/server/src/app/modules/product-export/stores/database/shared.ts
+packages/database/src/models/postgres/product-exports.ts
+packages/database/src/models/sqlite/product-exports.ts
+```
+
+模块 store 约定：
+
+- `index.ts` 只负责根据 Drizzle database kind 选择 dialect store。
+- `postgres.ts` 和 `sqlite.ts` 放置 SQL dialect-specific 查询、排序、聚合和事务逻辑。
+- `shared.ts` 放置分页转换、cursor 解析、page offset、状态统计转换等跨 dialect 逻辑。
+- Cursor 列表使用 `created_at + id` seek cursor，多取一条记录判断 `hasNext`；page 列表只允许浅页导航，并额外计算 `total`。
 
 Shopify session storage 使用：
 

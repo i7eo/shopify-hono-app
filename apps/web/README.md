@@ -1,5 +1,3 @@
-<!-- eslint-disable unicorn/filename-case -->
-
 # `@shamt/web`
 
 `apps/web` 是 Shopify app 的前端工作区，使用 Vite、React、TanStack Router、TanStack Query 和 Tailwind CSS v4。Admin UI 以 Shopify Polaris web components 为主，浏览器侧通过构建期注入的 public env 感知 runtime、mode 和 frontend target，不直接读取 Node/Vite 侧完整 env。
@@ -142,13 +140,50 @@ shopifyClient.get<ApiResponse<ProductsData>>("product", { signal });
 
 页面层使用这些业务函数，不直接拼认证 header 或处理 OAuth recovery。
 
+## 列表 API 响应
+
+浏览器侧列表 API 统一消费后端的 `data.result` 和 `data.pagination` 结构。`pagination.mode` 可能是 `cursor` 或 `page`：
+
+```ts
+type ListData<T> = {
+  result: T[];
+  pagination:
+    | {
+        mode: "cursor";
+        limit: number;
+        nextCursor?: string;
+        hasNext: boolean;
+      }
+    | {
+        mode: "page";
+        limit: number;
+        page: number;
+        total: number;
+        hasNext: boolean;
+      };
+};
+```
+
+业务列表函数可以传 `limit + cursor` 或 `limit + page`，但两种模式不能混用。`limit` 最大为 `100`；page 模式只用于浅页跳转，深翻页需要沿用服务端返回的 `nextCursor`。
+
+## Error Routes
+
+错误页组件集中在 [`src/components/errors`](./src/components/errors)，路由统一放在 `/errors` 路径下：
+
+| Route             | Component     | Purpose              |
+| ----------------- | ------------- | -------------------- |
+| `/errors/403`     | `Forbidden`   | 权限不足或拒绝访问   |
+| `/errors/404`     | `NotFound`    | 页面不存在或已移动   |
+| `/errors/500`     | `ServerError` | 服务端或未知错误     |
+| `/errors/offline` | `Offline`     | 网络不可用或请求失败 |
+
 ## 目录边界
 
 - `configs/`：Node/Vite 侧配置，只允许 Vite config、scripts、plugins 使用。
 - `constants/`：web package 层常量，主要给 Vite plugins 使用。
 - `scripts/vite/`：Vite plugin 与构建期逻辑。
 - `src/apis/`：业务 API 类型与端点函数，只调用领域 client，不承载通用请求策略。
-- `src/components/`：跨路由复用的 UI 状态组件，例如 loading 与 not found。
+- `src/components/`：跨路由复用的 UI 状态组件，例如 loading 与 errors。
 - `src/utils/public-env.ts`：浏览器侧 public env 唯一入口。
 - `src/utils/client.shopify.ts`：Shopify app 后端 API 的领域 HTTP client。
 - `src/utils/client.query.ts`：React Query client 工厂，避免组件重复创建缓存实例。

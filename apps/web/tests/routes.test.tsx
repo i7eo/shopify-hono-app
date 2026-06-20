@@ -120,22 +120,20 @@ describe("route components", () => {
     downloadProductExportFileMock.mockReset();
     downloadProductExportFileMock.mockResolvedValue(undefined);
     listProductExportsMock.mockReset();
-    listProductExportsMock.mockResolvedValue({
-      data: {
-        productExports: [
-          createProductExportRecord({
-            id: "ready-export",
-            name: "Summer catalog",
-            status: "ready",
-          }),
-          createProductExportRecord({
-            id: "processing-export",
-            name: "Price review",
-            status: "bulk_operation_running",
-          }),
-        ],
-      },
-    });
+    listProductExportsMock.mockResolvedValue(
+      createListResponse([
+        createProductExportRecord({
+          id: "ready-export",
+          name: "Summer catalog",
+          status: "ready",
+        }),
+        createProductExportRecord({
+          id: "processing-export",
+          name: "Price review",
+          status: "bulk_operation_running",
+        }),
+      ]),
+    );
     globalThis.shopify = {
       loading: vi.fn(),
       toast: { show: vi.fn() },
@@ -152,7 +150,7 @@ describe("route components", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the root shell, app nav, devtools fallback, and not-found component", async () => {
+  it("renders the root shell, app nav, devtools fallback, and 404 component", async () => {
     const { Route } = await import("../src/routes/__root");
     const Component = Route.options.component as React.ComponentType;
     const NotFound = Route.options.notFoundComponent as React.ComponentType;
@@ -185,8 +183,54 @@ describe("route components", () => {
     expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
       "Page not found",
     );
-    expect(screen.getByText("Oops! Page Not Found.")).toBeTruthy();
+    expect(
+      screen.getByText("The page does not exist or has moved."),
+    ).toBeTruthy();
     expect(screen.getByText("Go to app home")).toBeTruthy();
+  });
+
+  it("renders dedicated error routes under /errors", async () => {
+    const routeModules = [
+      {
+        expectedPath: "/errors/404",
+        heading: "Page not found",
+        importRoute: () => import("../src/routes/errors/404"),
+        message: "The page does not exist or has moved.",
+      },
+      {
+        expectedPath: "/errors/403",
+        heading: "Access denied",
+        importRoute: () => import("../src/routes/errors/403"),
+        message: "Your account does not have access to this page.",
+      },
+      {
+        expectedPath: "/errors/500",
+        heading: "Something went wrong",
+        importRoute: () => import("../src/routes/errors/500"),
+        message: "The server could not complete the request.",
+      },
+      {
+        expectedPath: "/errors/offline",
+        heading: "Connection unavailable",
+        importRoute: () => import("../src/routes/errors/offline"),
+        message: "Check your connection and try again.",
+      },
+    ];
+
+    for (const routeModule of routeModules) {
+      const { Route } = await routeModule.importRoute();
+      const Component = Route.options.component as React.ComponentType;
+
+      cleanup();
+      render(<Component />);
+
+      expect(Route.path).toBe(routeModule.expectedPath);
+      expect(document.querySelector("s-page")?.getAttribute("heading")).toBe(
+        routeModule.heading,
+      );
+      expect(screen.getByText(routeModule.message)).toBeTruthy();
+      expect(screen.getByText("Go to app home")).toBeTruthy();
+    }
   });
 
   it("renders the homepage dashboard", async () => {
@@ -250,9 +294,7 @@ describe("route components", () => {
   });
 
   it("renders product export empty and error states", async () => {
-    listProductExportsMock.mockResolvedValueOnce({
-      data: { productExports: [] },
-    });
+    listProductExportsMock.mockResolvedValueOnce(createListResponse([]));
     const { Route } = await import("../src/routes/product-export");
     const Component = Route.options.component as React.ComponentType;
 
@@ -316,28 +358,24 @@ describe("route components", () => {
 
   it("polls product exports while rows are not terminal", async () => {
     listProductExportsMock
-      .mockResolvedValueOnce({
-        data: {
-          productExports: [
-            createProductExportRecord({
-              id: "processing-export",
-              name: "Price review",
-              status: "bulk_operation_running",
-            }),
-          ],
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          productExports: [
-            createProductExportRecord({
-              id: "processing-export",
-              name: "Price review",
-              status: "ready",
-            }),
-          ],
-        },
-      });
+      .mockResolvedValueOnce(
+        createListResponse([
+          createProductExportRecord({
+            id: "processing-export",
+            name: "Price review",
+            status: "bulk_operation_running",
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        createListResponse([
+          createProductExportRecord({
+            id: "processing-export",
+            name: "Price review",
+            status: "ready",
+          }),
+        ]),
+      );
     const nativeSetInterval = globalThis.setInterval;
     let pollHandler: TimerHandler | undefined;
     vi.spyOn(globalThis, "setInterval").mockImplementation(
@@ -474,6 +512,21 @@ function findElementByAttribute(
   return Array.from(document.querySelectorAll(selector)).find(
     (element) => element.getAttribute(attribute) === value,
   );
+}
+
+function createListResponse(
+  result: ReturnType<typeof createProductExportRecord>[],
+) {
+  return {
+    data: {
+      pagination: {
+        hasNext: false,
+        limit: 20,
+        mode: "cursor",
+      },
+      result,
+    },
+  };
 }
 
 function createProductExportRecord(overrides: {

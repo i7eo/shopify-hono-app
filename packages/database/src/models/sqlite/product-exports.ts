@@ -38,11 +38,22 @@ export const sqliteProductExports = sqliteTable(
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
   (table) => [
-    index("product_exports_shop_created_at_idx").on(
+    index("product_exports_shop_created_id_idx").on(
       table.shopDomain,
       table.createdAt,
+      table.id,
     ),
-    index("product_exports_shop_status_idx").on(table.shopDomain, table.status),
+    index("product_exports_shop_status_created_id_idx").on(
+      table.shopDomain,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
+    index("product_exports_status_updated_id_idx").on(
+      table.status,
+      table.updatedAt,
+      table.id,
+    ),
     index("product_exports_bulk_operation_idx").on(
       table.shopifyBulkOperationId,
     ),

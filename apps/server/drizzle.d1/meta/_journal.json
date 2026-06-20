@@ -15,6 +15,13 @@
       "when": 1781890300000,
       "tag": "0001_product_exports_session",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781931421818,
+      "tag": "0002_big_bill_hollister",
+      "breakpoints": true
     }
   ]
 }

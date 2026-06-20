@@ -1,3 +1,5 @@
+import { isString } from "@shamt/utils";
+
 export function now(options: { type: "date" | "time"; timeZone: string }) {
   const { type, timeZone = "Asia/Shanghai" } = options;
   // avoid server utc date shift
@@ -9,4 +11,14 @@ export function now(options: { type: "date" | "time"; timeZone: string }) {
   }
 
   return now.getTime();
+}
+
+/**
+ * Parses nullable date values without throwing on malformed payloads.
+ */
+export function parseNullableDate(value: unknown): Date | null {
+  if (!isString(value) || value.length === 0) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }

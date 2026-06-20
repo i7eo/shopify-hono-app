@@ -1,7 +1,5 @@
 # @shamt/node-utils
 
-<!-- eslint-disable unicorn/filename-case, baseline-js/use-baseline -->
-
 <p><strong>中文</strong> | <a href="./README.md">English</a></p>
 
 ## 介绍

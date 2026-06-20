@@ -7,6 +7,7 @@ import {
   deleteFile,
   downloadFile,
   getFile,
+  listFiles,
 } from "@/app/modules/file/service";
 import { createDatabaseFilesStore } from "@/app/modules/file/stores/database";
 import {
@@ -14,6 +15,7 @@ import {
   setRuntimeCapability,
 } from "@/app/runtime/capabilities";
 import { DEFAULT_SIGNED_DOWNLOAD_URL_EXPIRE } from "@/constants";
+import { createSeekCursor } from "@/shared/models";
 import { runtimeConfig } from "./shopify/test-utils";
 import type {
   FileDownloadResolver,
@@ -235,7 +237,7 @@ describe("file service", () => {
     ).rejects.toThrow("write failed");
 
     const page = await store.list({
-      limit: 10,
+      pagination: { limit: 10, mode: "cursor" },
       shopDomain: "test-shop.myshopify.com",
     });
     expect(page.files).toEqual([]);
@@ -265,7 +267,7 @@ describe("file service", () => {
     );
 
     const page = await store.list({
-      limit: 10,
+      pagination: { limit: 10, mode: "cursor" },
       shopDomain: "test-shop.myshopify.com",
     });
     const directories = new Set(
@@ -274,6 +276,82 @@ describe("file service", () => {
       ),
     );
     expect(directories.size).toBe(1);
+  });
+
+  it("lists files with page pagination metadata", async () => {
+    const store = createMemoryMetadataStore();
+    const c = createServiceContext({ store });
+
+    for (let index = 0; index < 25; index += 1) {
+      await store.create(
+        createFileRecord({
+          id: `file_${index.toString().padStart(2, "0")}`,
+          createdAt: new Date(Date.UTC(2026, 5, 20, 0, index)),
+          originalName: `file-${index}.txt`,
+        }),
+      );
+    }
+
+    const result = await listFiles(c, {
+      limit: 20,
+      page: 2,
+      shopDomain: "test-shop.myshopify.com",
+    });
+
+    expect(result.files).toHaveLength(5);
+    expect(result.files[0]?.id).toBe("file_04");
+    expect(result.pagination).toEqual({
+      hasNext: false,
+      limit: 20,
+      mode: "page",
+      page: 2,
+      total: 25,
+    });
+  });
+
+  it("continues file lists after the cursor resource", async () => {
+    const store = createMemoryMetadataStore();
+    const c = createServiceContext({ store });
+
+    for (let index = 0; index < 5; index += 1) {
+      await store.create(
+        createFileRecord({
+          id: `file_${index}`,
+          createdAt: new Date(Date.UTC(2026, 5, 20, 0, index)),
+        }),
+      );
+    }
+
+    const firstPage = await listFiles(c, {
+      limit: 2,
+      shopDomain: "test-shop.myshopify.com",
+    });
+    const secondPage = await listFiles(c, {
+      cursor:
+        firstPage.pagination.mode === "cursor"
+          ? firstPage.pagination.nextCursor
+          : undefined,
+      limit: 2,
+      shopDomain: "test-shop.myshopify.com",
+    });
+
+    expect(firstPage.files.map((file) => file.id)).toEqual([
+      "file_4",
+      "file_3",
+    ]);
+    expect(firstPage.pagination).toEqual({
+      hasNext: true,
+      limit: 2,
+      mode: "cursor",
+      nextCursor: createSeekCursor({
+        createdAt: new Date(Date.UTC(2026, 5, 20, 0, 3)),
+        id: "file_3",
+      }),
+    });
+    expect(secondPage.files.map((file) => file.id)).toEqual([
+      "file_2",
+      "file_1",
+    ]);
   });
 
   it("rejects empty multi-file uploads", async () => {
@@ -317,9 +395,6 @@ function createServiceContext(options: {
   setRuntimeCapability("databaseFactory", () => database);
   setRuntimeCapability("bucketFactory", () => bucket);
   setRuntimeCapability("moduleFileDownloadResolverFactory", () => resolver);
-  setRuntimeCapability("moduleFileTaskDispatcherFactory", () => ({
-    dispatch: vi.fn(() => Promise.resolve()),
-  }));
 
   const context: Pick<Parameters<typeof createFile>[0], "get"> = {
     get: (key: string) => {
@@ -359,26 +434,42 @@ function createMemoryFilesDatabase(
         },
       }),
     }),
-    select: () => ({
+    select: (shape?: Record<string, unknown>) => ({
       from: () => ({
         where: (condition: unknown) => {
           const predicates = collectSqlPredicates(condition);
-          const selectRows = (ordered: boolean, limit: number) => {
+          const selectRows = (ordered: boolean, limit: number, offset = 0) => {
             const files = [...rows.values()]
               .filter((file) => matchesSqlPredicates(file, predicates))
-              .toSorted((a, b) =>
-                ordered ? b.createdAt.getTime() - a.createdAt.getTime() : 0,
-              )
-              .slice(0, limit)
+              .toSorted((a, b) => {
+                if (!ordered) return 0;
+                const createdAtOrder =
+                  b.createdAt.getTime() - a.createdAt.getTime();
+                return createdAtOrder || b.id.localeCompare(a.id);
+              })
+              .slice(offset, offset + limit)
               .map(cloneFile);
 
             return Promise.resolve(files);
           };
+          const selectCount = () =>
+            Promise.resolve([
+              {
+                total: [...rows.values()].filter((file) =>
+                  matchesSqlPredicates(file, predicates),
+                ).length,
+              },
+            ]);
+
+          if (isCountSelectShape(shape)) return selectCount();
 
           return {
             limit: (limit: number) => selectRows(false, limit),
             orderBy: () => ({
-              limit: (limit: number) => selectRows(true, limit),
+              limit: (limit: number) =>
+                withOffset(selectRows(true, limit), {
+                  offset: (offset: number) => selectRows(true, limit, offset),
+                }),
             }),
           };
         },
@@ -424,6 +515,27 @@ function cloneFile(file: FileRecord): FileRecord {
     deletedAt: file.deletedAt ? new Date(file.deletedAt) : null,
     expiresAt: new Date(file.expiresAt),
     updatedAt: new Date(file.updatedAt),
+  };
+}
+
+function createFileRecord(overrides: Partial<FileRecord>): FileRecord {
+  const now = new Date(Date.UTC(2026, 5, 20));
+
+  return {
+    id: "file_test",
+    shopDomain: "test-shop.myshopify.com",
+    originalName: "file.txt",
+    safeName: "file.txt",
+    contentType: "text/plain",
+    byteSize: 1,
+    bucketProvider: "memory",
+    bucketKey: "test-shop.myshopify.com/file.txt",
+    status: "available",
+    expiresAt: new Date(Date.UTC(2026, 5, 21)),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    ...overrides,
   };
 }
 
@@ -490,7 +602,7 @@ function createRequestContext(entries: [string, File][]) {
 type SqlPredicate =
   | {
       field: keyof FileRecord;
-      operator: "=" | "<>";
+      operator: "=" | "<" | "<>";
       value: unknown;
     }
   | {
@@ -529,7 +641,14 @@ function matchesSqlPredicates(
   file: FileRecord,
   predicates: SqlPredicate[],
 ): boolean {
-  return predicates.every((predicate) => {
+  const seek = toCursorSeek(predicates);
+  const normalPredicates = seek
+    ? predicates.filter((predicate) => !seek.predicates.includes(predicate))
+    : predicates;
+
+  if (seek && !matchesCursorSeek(file, seek)) return false;
+
+  return normalPredicates.every((predicate) => {
     if (predicate.operator === "is null") {
       return (
         file[predicate.field] === null || file[predicate.field] === undefined
@@ -537,7 +656,11 @@ function matchesSqlPredicates(
     }
 
     if (predicate.operator === "=") {
-      return file[predicate.field] === predicate.value;
+      return areSqlValuesEqual(file[predicate.field], predicate.value);
+    }
+
+    if (predicate.operator === "<") {
+      return compareSqlValues(file[predicate.field], predicate.value) < 0;
     }
 
     return file[predicate.field] !== predicate.value;
@@ -570,8 +693,76 @@ function toSqlOperator(value: unknown): SqlPredicate["operator"] | undefined {
   if (!isStringChunkLike(value)) return undefined;
 
   const text = value.value.join("").trim().toLowerCase();
-  if (text === "=" || text === "<>" || text === "is null") return text;
+  if (text === "=" || text === "<" || text === "<>" || text === "is null") {
+    return text;
+  }
   return undefined;
+}
+
+function toCursorSeek(predicates: SqlPredicate[]) {
+  const createdAtBefore = predicates.find(
+    (predicate) =>
+      predicate.field === "createdAt" && predicate.operator === "<",
+  );
+  const createdAtEqual = predicates.find(
+    (predicate) =>
+      predicate.field === "createdAt" && predicate.operator === "=",
+  );
+  const idBefore = predicates.find(
+    (predicate) => predicate.field === "id" && predicate.operator === "<",
+  );
+
+  if (!createdAtBefore || !createdAtEqual || !idBefore) return;
+
+  return {
+    createdAtBefore,
+    createdAtEqual,
+    idBefore,
+    predicates: [createdAtBefore, createdAtEqual, idBefore],
+  };
+}
+
+function matchesCursorSeek(
+  file: FileRecord,
+  seek: NonNullable<ReturnType<typeof toCursorSeek>>,
+): boolean {
+  return (
+    compareSqlValues(file.createdAt, seek.createdAtBefore.value) < 0 ||
+    (areSqlValuesEqual(file.createdAt, seek.createdAtEqual.value) &&
+      compareSqlValues(file.id, seek.idBefore.value) < 0)
+  );
+}
+
+function areSqlValuesEqual(left: unknown, right: unknown): boolean {
+  if (left instanceof Date && right instanceof Date) {
+    return left.getTime() === right.getTime();
+  }
+
+  return left === right;
+}
+
+function compareSqlValues(left: unknown, right: unknown): number {
+  const leftValue = left instanceof Date ? left.getTime() : left;
+  const rightValue = right instanceof Date ? right.getTime() : right;
+
+  if (typeof leftValue === "number" && typeof rightValue === "number") {
+    return leftValue - rightValue;
+  }
+
+  if (typeof leftValue === "string" && typeof rightValue === "string") {
+    return leftValue.localeCompare(rightValue);
+  }
+
+  return 0;
+}
+
+function withOffset<T>(
+  promise: Promise<T>,
+  extension: {
+    offset: (offset: number) => Promise<T>;
+  },
+): Promise<T> & typeof extension {
+  return Object.assign(promise, extension);
 }
 
 function isSqlLike(value: unknown): value is { queryChunks: unknown[] } {
@@ -603,6 +794,10 @@ function isStringChunkLike(value: unknown): value is { value: string[] } {
 
 function isSqlParam(value: unknown): value is { value: unknown } {
   return typeof value === "object" && value !== null && "value" in value;
+}
+
+function isCountSelectShape(value: unknown): value is { total: unknown } {
+  return typeof value === "object" && value !== null && "total" in value;
 }
 
 async function readAllBytes(stream: ReadableStream<Uint8Array>) {

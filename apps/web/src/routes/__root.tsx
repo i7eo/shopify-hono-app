@@ -1,7 +1,7 @@
 import { createRootRouteWithContext } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
+import { NotFound } from "@/components/errors";
 import { Loading } from "@/components/loading";
-import { NotFound } from "@/components/not-found";
 import { EmbeddedLayout } from "@/layouts/embedded";
 import { StandaloneLayout } from "@/layouts/standalone";
 import {

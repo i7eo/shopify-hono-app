@@ -1,4 +1,3 @@
-import type { FileTaskDispatcher } from "@/app/modules/file/tasks/noop-file-task-dispatcher";
 import type { FileDownloadResolver } from "@/app/modules/file/types";
 import type { Bucket } from "@/infra/bucket";
 import type { Database } from "@/infra/database";
@@ -42,9 +41,6 @@ export type SchedulerFactory = (
 export type ModuleFileDownloadResolverFactory = (
   context: Context<AppEnv>,
 ) => FileDownloadResolver | Promise<FileDownloadResolver>;
-export type ModuleFileTaskDispatcherFactory = (
-  context: Context<AppEnv>,
-) => FileTaskDispatcher;
 
 export interface RuntimeCapabilityInstances {
   runtimeLoggerSetup: RuntimeLoggerSetup;
@@ -77,10 +73,6 @@ export interface RuntimeCapabilityInstances {
    * Module File: resolves a file download into a stream or redirect.
    */
   moduleFileDownloadResolverFactory: ModuleFileDownloadResolverFactory;
-  /**
-   * Module File: dispatches background file tasks to the runtime queue.
-   */
-  moduleFileTaskDispatcherFactory: ModuleFileTaskDispatcherFactory;
 }
 
 export type RuntimeCapabilityName = keyof RuntimeCapabilityInstances;

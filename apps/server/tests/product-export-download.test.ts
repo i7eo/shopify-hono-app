@@ -150,6 +150,61 @@ describe("product export controller errors", () => {
     vi.doUnmock("@/app/modules/shopify/webhook");
   });
 
+  it("wraps list responses as data result with nested pagination", async () => {
+    const listProductExports = vi.fn(() =>
+      Promise.resolve({
+        pagination: {
+          hasNext: false,
+          limit: 20,
+          mode: "page" as const,
+          page: 2,
+          total: 1,
+        },
+        productExports: [
+          createProductExportRecord({ bucketKey: null, status: "queued" }),
+        ],
+      }),
+    );
+    vi.doMock("@/app/modules/product-export/meta", () => ({
+      createProductExportRoute: { path: "/api/product-exports" },
+      deleteProductExportRoute: { path: "/api/product-exports/{id}" },
+      downloadProductExportRoute: {
+        path: "/api/product-exports/{id}/download",
+      },
+      getProductExportRoute: { path: "/api/product-exports/{id}" },
+      listProductExportsRoute: { path: "/api/product-exports" },
+    }));
+    vi.doMock(
+      "@/app/modules/product-export/service",
+      async (importOriginal) => ({
+        ...(await importOriginal<
+          typeof import("@/app/modules/product-export/service")
+        >()),
+        listProductExports,
+      }),
+    );
+
+    const { registerProductExportController } =
+      await import("@/app/modules/product-export/controller");
+    const app = { openapi: vi.fn() };
+    registerProductExportController(app as never);
+    const handler = app.openapi.mock.calls[1][1];
+    const response = await handler(createListRouteContext());
+
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        pagination: {
+          hasNext: false,
+          limit: 20,
+          mode: "page",
+          page: 2,
+          total: 1,
+        },
+        result: [expect.objectContaining({ id: "export-1" })],
+      },
+    });
+  });
+
   it("ensures and registers offline Shopify webhooks before creating product exports", async () => {
     const calls: string[] = [];
     const createProductExport = vi.fn(() => {
@@ -328,6 +383,25 @@ function createCreateRouteContext() {
     req: {
       valid(type: string) {
         if (type === "json") return { name: "All products" };
+        return {};
+      },
+    },
+  };
+}
+
+function createListRouteContext() {
+  return {
+    get(key: string) {
+      if (key === "requestId") return "req_test";
+      if (key === "shopDomain") return "test-shop.myshopify.com";
+      return;
+    },
+    json(value: unknown, status: number) {
+      return Response.json(value, { status });
+    },
+    req: {
+      valid(type: string) {
+        if (type === "query") return { limit: 20, page: 2 };
         return {};
       },
     },

@@ -261,7 +261,15 @@ describe("product export api", () => {
     const { listProductExports } = await import("../src/apis/product-exports");
     const signal = new AbortController().signal;
     getMock.mockResolvedValueOnce({
-      data: { productExports: [], nextCursor: "next" },
+      data: {
+        pagination: {
+          hasNext: true,
+          limit: 20,
+          mode: "cursor",
+          nextCursor: "next",
+        },
+        result: [],
+      },
     });
 
     await expect(
@@ -270,7 +278,15 @@ describe("product export api", () => {
         signal,
       ),
     ).resolves.toEqual({
-      data: { productExports: [], nextCursor: "next" },
+      data: {
+        pagination: {
+          hasNext: true,
+          limit: 20,
+          mode: "cursor",
+          nextCursor: "next",
+        },
+        result: [],
+      },
     });
     expect(getMock).toHaveBeenCalledWith("product-exports", {
       query: { cursor: "cursor", limit: 20, status: "ready" },

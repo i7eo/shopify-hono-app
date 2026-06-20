@@ -41,7 +41,11 @@ export const files = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
-    index("files_shop_created_at_idx").on(table.shopDomain, table.createdAt),
+    index("files_shop_created_id_idx").on(
+      table.shopDomain,
+      table.createdAt,
+      table.id,
+    ),
     index("files_shop_status_idx").on(table.shopDomain, table.status),
     index("files_expires_at_idx").on(table.expiresAt),
   ],

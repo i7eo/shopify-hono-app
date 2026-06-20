@@ -63,29 +63,6 @@ export function mapBulkOperationStatus(status: string): ProductExportStatus {
 }
 
 /**
- * Parses optional Shopify timestamps without throwing on malformed payloads.
- */
-export function parseNullableDate(value: string | null): Date | null {
-  if (!value) return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-/**
- * Parses Shopify numeric fields that can arrive as strings or numbers.
- */
-export function parseNullableNumber(
-  value: string | number | null,
-): number | null {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (!value) return null;
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
  * Validates the minimal queue payload shared by all product-export jobs.
  *
  * Example: `{ exportId: "exp_1", shopDomain: "shop.myshopify.com", seq: 3 }`.

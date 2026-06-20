@@ -31,6 +31,7 @@ import {
   PRODUCT_EXPORT_JSONL_CHUNK_OVERLAP_BYTES,
   PRODUCT_EXPORT_MAX_PART_BYTES,
   PRODUCT_EXPORT_QUEUE_JOBS,
+  PRODUCT_EXPORT_RECONCILE_BATCH_SIZE,
   PRODUCT_EXPORT_RECONCILE_CRON,
 } from "./constants";
 import {
@@ -333,58 +334,84 @@ async function reconcileJob(
 ): Promise<void> {
   const store = await createStore(context);
   const olderThan = new Date(Date.now() - 15 * 60 * 1000);
-  const records = await store.listRecoverableExports({ olderThan });
+  let cursor: { id: string; updatedAt: Date } | undefined;
 
-  for (const record of records) {
-    if (record.status === PRODUCT_EXPORT_STATUSES.QUEUED) {
-      await enqueueProductExportJobFromContext(
-        context,
-        PRODUCT_EXPORT_QUEUE_JOBS.START_BULK,
-        { exportId: record.id, shopDomain: record.shopDomain },
-      );
-      continue;
-    }
-
-    if (record.status === PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING) {
-      await enqueueProductExportJobFromContext(
-        context,
-        PRODUCT_EXPORT_QUEUE_JOBS.BULK_FINISHED,
-        { exportId: record.id, shopDomain: record.shopDomain },
-      );
-      continue;
-    }
-
-    if (record.status === PRODUCT_EXPORT_STATUSES.BULK_OPERATION_COMPLETED) {
-      await enqueueProductExportJobFromContext(
-        context,
-        PRODUCT_EXPORT_QUEUE_JOBS.PLAN_PARTS,
-        { exportId: record.id, shopDomain: record.shopDomain },
-      );
-      continue;
-    }
-
-    const retryParts = await store.listPartsByStatus({
-      exportId: record.id,
-      statuses: [...PRODUCT_EXPORT_RETRYABLE_PART_STATUSES],
+  while (true) {
+    const records = await store.listRecoverableExports({
+      cursor,
+      limit: PRODUCT_EXPORT_RECONCILE_BATCH_SIZE,
+      olderThan,
     });
-    await enqueueProductExportJobsFromContext(
-      context,
-      PRODUCT_EXPORT_QUEUE_JOBS.PROCESS_PART,
-      retryParts.map((part) => ({
-        exportId: record.id,
-        seq: part.seq,
-        shopDomain: record.shopDomain,
-      })),
-    );
 
-    const stats = await store.getPartStats(record.id);
-    if (stats.total > 0 && stats.done === stats.total) {
-      await enqueueProductExportJobFromContext(
-        context,
-        PRODUCT_EXPORT_QUEUE_JOBS.FINALIZE,
-        { exportId: record.id, shopDomain: record.shopDomain },
-      );
+    if (records.length === 0) return;
+
+    for (const record of records) {
+      await reconcileRecord(context, store, record);
     }
+
+    const lastRecord = records.at(-1)!;
+    cursor = {
+      id: lastRecord.id,
+      updatedAt: lastRecord.updatedAt,
+    };
+
+    if (records.length < PRODUCT_EXPORT_RECONCILE_BATCH_SIZE) return;
+  }
+}
+
+async function reconcileRecord(
+  context: QueueJobContext,
+  store: ProductExportStore,
+  record: ProductExportRecord,
+): Promise<void> {
+  if (record.status === PRODUCT_EXPORT_STATUSES.QUEUED) {
+    await enqueueProductExportJobFromContext(
+      context,
+      PRODUCT_EXPORT_QUEUE_JOBS.START_BULK,
+      { exportId: record.id, shopDomain: record.shopDomain },
+    );
+    return;
+  }
+
+  if (record.status === PRODUCT_EXPORT_STATUSES.BULK_OPERATION_RUNNING) {
+    await enqueueProductExportJobFromContext(
+      context,
+      PRODUCT_EXPORT_QUEUE_JOBS.BULK_FINISHED,
+      { exportId: record.id, shopDomain: record.shopDomain },
+    );
+    return;
+  }
+
+  if (record.status === PRODUCT_EXPORT_STATUSES.BULK_OPERATION_COMPLETED) {
+    await enqueueProductExportJobFromContext(
+      context,
+      PRODUCT_EXPORT_QUEUE_JOBS.PLAN_PARTS,
+      { exportId: record.id, shopDomain: record.shopDomain },
+    );
+    return;
+  }
+
+  const retryParts = await store.listPartsByStatus({
+    exportId: record.id,
+    statuses: [...PRODUCT_EXPORT_RETRYABLE_PART_STATUSES],
+  });
+  await enqueueProductExportJobsFromContext(
+    context,
+    PRODUCT_EXPORT_QUEUE_JOBS.PROCESS_PART,
+    retryParts.map((part) => ({
+      exportId: record.id,
+      seq: part.seq,
+      shopDomain: record.shopDomain,
+    })),
+  );
+
+  const stats = await store.getPartStats(record.id);
+  if (stats.total > 0 && stats.done === stats.total) {
+    await enqueueProductExportJobFromContext(
+      context,
+      PRODUCT_EXPORT_QUEUE_JOBS.FINALIZE,
+      { exportId: record.id, shopDomain: record.shopDomain },
+    );
   }
 }
 

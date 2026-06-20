@@ -44,7 +44,7 @@ function ProductExportIndex() {
           { limit: 20 },
           controller.signal,
         );
-        setProductExports(response.data?.productExports ?? []);
+        setProductExports(response.data?.result ?? []);
         setLoadState("ready");
       } catch (error) {
         if (!controller.signal.aborted) {

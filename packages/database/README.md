@@ -61,6 +61,10 @@ File indexes:
 - `files_shop_status_idx` on `shop_domain`, `status`
 - `files_expires_at_idx` on `expires_at`
 
+The app-side file store uses `shop_domain`, `created_at`, and `id` for seek
+pagination, and keeps page-number pagination shallow. Cursor requests avoid a
+total-count query; page requests return `total` for the current filter.
+
 `sqliteFiles`
 
 SQLite/D1 file metadata table. It mirrors `files` with SQLite-compatible
@@ -100,6 +104,24 @@ SQLite/D1 Shopify session table for
 The columns mirror `postgresShopifySessions`, using SQLite-compatible column
 types: boolean values are stored as integer booleans, `expires` values as text,
 and `userId` as a bigint blob.
+
+`productExports`
+
+Product export job metadata table. PostgreSQL and SQLite/D1 variants mirror the
+same logical shape and keep dialect-specific date/status storage inside their
+own model files.
+
+Key query indexes:
+
+- `product_exports_shop_created_at_idx` on `shop_domain`, `created_at`
+- `product_exports_shop_status_idx` on `shop_domain`, `status`
+- `product_exports_shop_status_created_at_idx` on `shop_domain`, `status`, `created_at`
+
+`productExportParts`
+
+Product export part rows used by the export worker. The server store aggregates
+part status counts in the database rather than loading every part into
+application memory.
 
 ## Zod Schemas
 
