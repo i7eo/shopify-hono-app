@@ -1,3 +1,4 @@
+import type { ResourceScope } from "@/app/runtime/resources";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 import type { ShopifyClient } from "@/infra/provider";
@@ -14,6 +15,8 @@ export interface Variables {
   requestId: string;
   runtimeEnv: RuntimeConfig;
   runtimeLogger: Logger;
+  // Set by resource-scope middleware; disposed when the request ends.
+  resources: ResourceScope;
 
   // Set by verify-session-token middleware
   shopifySessionToken: JwtPayload;

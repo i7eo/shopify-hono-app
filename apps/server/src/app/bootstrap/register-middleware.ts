@@ -6,6 +6,7 @@ import {
   emojiFaviconMiddleware,
   loggerMiddleware,
   requestMiddleware,
+  resourceScopeMiddleware,
   runtimeEnvMiddleware,
   runtimeLoggerMiddleware,
 } from "@/shared/middlewares";
@@ -25,6 +26,8 @@ export function registerMiddleware(app: Hono<AppEnv>) {
   app.use("*", requestId());
   app.use("*", runtimeEnvMiddleware());
   app.use("*", runtimeLoggerMiddleware());
+  /** after runtimeLoggerMiddleware so disposal failures can be logged */
+  app.use("*", resourceScopeMiddleware());
   app.use(
     /** must be after runtimeLoggerMiddleware, avoid logger reset */
     loggerMiddleware({

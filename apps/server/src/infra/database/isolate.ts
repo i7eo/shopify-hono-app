@@ -14,12 +14,14 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 export type IsolatePostgresDatabase = {
   db: NodePgDatabase<PostgresDatabaseSchema>;
   dialect: "postgres";
+  dispose: () => Promise<void>;
   provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES;
   runtime: RuntimeConfig["APP_RUNTIME"];
 };
 export type IsolateD1Database = {
   db: DrizzleD1Database<SqliteDatabaseSchema>;
   dialect: "sqlite";
+  dispose: () => Promise<void>;
   provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.D1;
   runtime: RuntimeConfig["APP_RUNTIME"];
 };
@@ -47,6 +49,8 @@ export async function createIsolateDatabase(
     return {
       db: drizzle(requireD1(options.d1), { schema: sqliteDatabaseSchema }),
       dialect: "sqlite",
+      // D1 bindings are request-bound and own no closable socket.
+      dispose: () => Promise.resolve(),
       provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
       runtime: config.APP_RUNTIME,
     };
@@ -65,14 +69,20 @@ export async function createIsolateDatabase(
   return {
     db: drizzle({ client, schema: postgresDatabaseSchema }),
     dialect: "postgres",
+    // Each isolate request opens its own pg socket; close it when the
+    // owning request/job scope disposes to avoid exhausting Hyperdrive slots.
+    dispose: () => client.end(),
     provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
     runtime: config.APP_RUNTIME,
   };
 }
 
 /**
- * Reserved disposer for isolate database resources.
- * Current Cloudflare D1/Hyperdrive clients are request-bound.
+ * Capability-level disposer for isolate database infrastructure.
+ *
+ * No-op by design: isolate clients are request-bound and now closed per
+ * request/job by the resource scope (see app/runtime/resources/scope.ts).
+ * Kept for symmetry with the capability disposer wiring at app teardown.
  */
 export function disposeIsolateDatabase() {
   return Promise.resolve();

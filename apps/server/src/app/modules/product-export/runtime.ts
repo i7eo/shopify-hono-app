@@ -12,29 +12,6 @@ import type { Session } from "@shopify/shopify-api";
 type ProductExportRuntimeContext = QueueJobContext | SchedulerTaskContext;
 
 /**
- * Creates the database adapter needed by product-export jobs.
- *
- * Cloudflare jobs receive bindings through queue/scheduler context; Node jobs
- * can use the configured process database directly.
- */
-export async function createProductExportDatabase(
-  context: ProductExportRuntimeContext,
-): Promise<Database> {
-  const databaseFactory = getRuntimeCapability("databaseFactory");
-
-  if (!databaseFactory) {
-    throw badGatewayError(
-      "Runtime capability is not registered: databaseFactory",
-      {
-        expose: true,
-      },
-    );
-  }
-
-  return await databaseFactory(context);
-}
-
-/**
  * Creates the bucket adapter used for CSV part and final CSV writes.
  */
 export async function createProductExportBucket(

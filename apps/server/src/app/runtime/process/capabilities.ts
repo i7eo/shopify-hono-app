@@ -44,7 +44,14 @@ export function registerProcessRuntimeCapabilities() {
   });
   setRuntimeCapability(
     "databaseFactory",
-    (context) => getProcessDatabase(context.runtimeEnv),
+    async (context) => {
+      // Process Postgres runs on a shared module-level pool. Hand callers a
+      // per-request view whose dispose() is a no-op so the request/job scope
+      // can dispose uniformly without ever closing the shared pool; the real
+      // pool.end() stays with disposeProcessDatabase() at app teardown.
+      const database = await getProcessDatabase(context.runtimeEnv);
+      return { ...database, dispose: () => Promise.resolve() };
+    },
     disposeDatabaseCapability,
   );
   setRuntimeCapability(

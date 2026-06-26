@@ -14,6 +14,7 @@ import {
   disposeRuntimeCapabilities,
   setRuntimeCapability,
 } from "@/app/runtime/capabilities";
+import { createResourceScope } from "@/app/runtime/resources";
 import { DEFAULT_SIGNED_DOWNLOAD_URL_EXPIRE } from "@/constants";
 import { createSeekCursor } from "@/shared/models";
 import { runtimeConfig } from "./shopify/test-utils";
@@ -396,10 +397,12 @@ function createServiceContext(options: {
   setRuntimeCapability("bucketFactory", () => bucket);
   setRuntimeCapability("moduleFileDownloadResolverFactory", () => resolver);
 
+  const resources = createResourceScope();
   const context: Pick<Parameters<typeof createFile>[0], "get"> = {
     get: (key: string) => {
       if (key === "runtimeEnv") return options.runtimeEnv ?? runtimeConfig;
       if (key === "requestId") return "req_test";
+      if (key === "resources") return resources;
       return;
     },
   };
@@ -500,6 +503,7 @@ function createMemoryFilesDatabase(
     db: db as never,
     dialect:
       provider === DEFAULT_APP_DATABASE_PROVIDERS.D1 ? "sqlite" : "postgres",
+    dispose: () => Promise.resolve(),
     provider,
     runtime:
       provider === DEFAULT_APP_DATABASE_PROVIDERS.D1

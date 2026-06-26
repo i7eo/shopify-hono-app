@@ -1,6 +1,5 @@
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
-import { internalServerError } from "@/shared/exceptions";
+import { requireCapability } from "@/app/runtime/capabilities";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resources";
 import { createDatabaseShopifySessionStorage } from "./database";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -8,21 +7,17 @@ import type { Context } from "hono";
 /**
  * Resolves the Shopify session storage adapter from the unified database
  * capability. Session storage intentionally has no dedicated runtime
- * capability; it is an adapter over the shared databaseFactory.
+ * capability; it is an adapter over the request-scoped database.
  */
 export async function getShopifySessionStorage(c: Context<AppEnv>) {
-  const databaseFactory = getRuntimeCapability("databaseFactory");
-
-  if (!databaseFactory) {
-    throw internalServerError(
-      "Runtime capability is not registered: databaseFactory",
-      {
-        expose: true,
-      },
-    );
-  }
-
-  return createDatabaseShopifySessionStorage(
-    await databaseFactory(createRuntimeResourceContextFromHono(c)),
+  const database = await c.get("resources").resolve(
+    "database",
+    () =>
+      requireCapability("databaseFactory")(
+        createRuntimeResourceContextFromHono(c),
+      ),
+    (db) => db.dispose(),
   );
+
+  return createDatabaseShopifySessionStorage(database);
 }

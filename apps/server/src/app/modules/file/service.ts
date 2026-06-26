@@ -1,9 +1,10 @@
 import {
   getRuntimeCapability,
+  requireCapability,
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resources";
 import { getBucketEnvConfig, type Bucket } from "@/infra/bucket";
 import {
   badRequestError,
@@ -253,11 +254,16 @@ async function getAvailableFile(
  * Builds the module-owned files store from the shared database capability.
  */
 function getFilesStore(c: Context<AppEnv>): FilesStore {
-  return createDatabaseFilesStoreFromPromise(
-    Promise.resolve(
-      getFactory("databaseFactory")(createRuntimeResourceContextFromHono(c)),
-    ),
+  const database = c.get("resources").resolve(
+    "database",
+    () =>
+      requireCapability("databaseFactory")(
+        createRuntimeResourceContextFromHono(c),
+      ),
+    (db) => db.dispose(),
   );
+
+  return createDatabaseFilesStoreFromPromise(database);
 }
 
 /**

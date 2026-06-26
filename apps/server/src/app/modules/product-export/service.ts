@@ -4,10 +4,11 @@ import {
 } from "@shamt/app-env";
 import {
   getRuntimeCapability,
+  requireCapability,
   type RuntimeCapabilityInstances,
   type RuntimeCapabilityName,
 } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resources";
 import {
   badGatewayError,
   internalServerError,
@@ -379,20 +380,16 @@ export async function fetchProductExportBulkOperation(
  * Resolves the product-export store from the active runtime capability.
  */
 export function getProductExportsStore(c: Context<AppEnv>): ProductExportStore {
-  const databaseFactory = getRuntimeCapability("databaseFactory");
-
-  if (!databaseFactory) {
-    throw badGatewayError(
-      "Runtime capability is not registered: databaseFactory",
-      {
-        expose: true,
-      },
-    );
-  }
-
-  return createDatabaseProductExportsStoreFromPromise(
-    Promise.resolve(databaseFactory(createRuntimeResourceContextFromHono(c))),
+  const database = c.get("resources").resolve(
+    "database",
+    () =>
+      requireCapability("databaseFactory")(
+        createRuntimeResourceContextFromHono(c),
+      ),
+    (db) => db.dispose(),
   );
+
+  return createDatabaseProductExportsStoreFromPromise(database);
 }
 
 /**

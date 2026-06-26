@@ -584,7 +584,12 @@ export class HttpClient {
       ...kyOptions
     } = config;
     const method = (kyOptions.method || "GET") as HttpMethod;
-    const headers = mergeHeaders(kyOptions.headers);
+    // resolveConfig already normalized headers into a Headers instance; only
+    // re-merge when a plugin replaced it with a raw object/array.
+    const headers =
+      kyOptions.headers instanceof Headers
+        ? kyOptions.headers
+        : mergeHeaders(kyOptions.headers);
     const searchParams =
       method === "GET"
         ? appendTimestamp(createSearchParams(query), behavior.timestamp)
@@ -691,9 +696,11 @@ function mergeKyHooks(
   return Object.keys(merged).length > 0 ? (merged as KyHooks) : undefined;
 }
 
+const ABSOLUTE_URL_PATTERN = /^[a-z][a-z\d+\-.]*:\/\//i;
+
 function isAbsoluteUrl(input: Input): boolean {
   if (typeof input === "string") {
-    return /^[a-z][a-z\d+\-.]*:\/\//i.test(input);
+    return ABSOLUTE_URL_PATTERN.test(input);
   }
 
   if (input instanceof URL) return true;

@@ -1,5 +1,5 @@
 import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resources";
 import { badGatewayError } from "@/shared/exceptions";
 import type { PRODUCT_EXPORT_QUEUE_JOBS } from "./constants";
 import type { QueueJobContext, QueueMessage } from "@/infra/queue";

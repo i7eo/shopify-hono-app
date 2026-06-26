@@ -3,6 +3,7 @@ export type {
   QueueJobContext,
   QueueJobDefinition,
   QueueJobHandler,
+  QueueJobScopedContext,
 } from "./registry";
 export type {
   QueueConsumer,

@@ -1,5 +1,6 @@
+import { internalServerError } from "@/shared/exceptions";
 import type { FileDownloadResolver } from "@/app/modules/file/types";
-import type { RuntimeResourceContext } from "@/app/runtime/resource-context";
+import type { RuntimeResourceContext } from "@/app/runtime/resources/context";
 import type { Bucket } from "@/infra/bucket";
 import type { Database } from "@/infra/database";
 import type { RuntimeConfig } from "@/infra/env";
@@ -98,6 +99,31 @@ export function getRuntimeCapability<K extends RuntimeCapabilityName>(
   return runtimeCapabilities.get(name) as
     | RuntimeCapabilityInstances[K]
     | undefined;
+}
+
+/**
+ * Reads a registered runtime capability or fails loudly when it is missing.
+ * The throwing companion to {@link getRuntimeCapability}, used by resource
+ * factories so they never have to repeat the null-check.
+ *
+ * @example
+ * ```ts
+ * const factory = requireCapability("databaseFactory");
+ * const database = await factory(resourceContext);
+ * ```
+ */
+export function requireCapability<K extends RuntimeCapabilityName>(
+  name: K,
+): RuntimeCapabilityInstances[K] {
+  const capability = getRuntimeCapability(name);
+
+  if (!capability) {
+    throw internalServerError(`Runtime capability is not registered: ${name}`, {
+      expose: true,
+    });
+  }
+
+  return capability;
 }
 
 /**

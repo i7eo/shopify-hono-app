@@ -253,25 +253,20 @@ function productToCsvLine(value: unknown): string {
     vendor?: unknown;
   };
 
-  return [
-    product.id,
-    product.title,
+  // Built by direct concatenation (no intermediate array/map allocation) since
+  // this runs once per exported product row.
+  return `${csvCell(product.id)},${csvCell(product.title)},${csvCell(
     product.handle,
-    product.status,
-    product.vendor,
+  )},${csvCell(product.status)},${csvCell(product.vendor)},${csvCell(
     product.productType,
-    product.createdAt,
-    product.updatedAt,
-  ]
-    .map(csvCell)
-    .join(",")
-    .concat("\n");
+  )},${csvCell(product.createdAt)},${csvCell(product.updatedAt)}\n`;
 }
 
 /**
  * Escapes one CSV cell according to RFC 4180 style double-quote escaping.
+ * Cells without an embedded quote skip the replace pass entirely.
  */
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
+  return text.includes('"') ? `"${text.replaceAll('"', '""')}"` : `"${text}"`;
 }

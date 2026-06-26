@@ -2,6 +2,7 @@ import { InvalidWebhookError } from "@shopify/shopify-api";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { disposeRuntimeCapabilities } from "@/app/runtime/capabilities";
+import { createResourceScope } from "@/app/runtime/resources";
 import { logger, runtimeConfig } from "./test-utils";
 import type { ProductExportRecord } from "@/app/modules/product-export/types";
 import type { AppEnv } from "@/typings";
@@ -48,6 +49,7 @@ describe("Shopify webhook routes", () => {
       c.set("runtimeLogger", logger as never);
       c.set("runtimeEnv", runtimeConfig);
       c.set("requestId", "req_test");
+      c.set("resources", createResourceScope());
       await next();
     });
     app.route("/webhooks", createWebhookRoutes());

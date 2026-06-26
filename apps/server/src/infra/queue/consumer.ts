@@ -1,5 +1,10 @@
+import { createResourceScope } from "@/app/runtime/resources";
 import { internalServerError } from "@/shared/exceptions";
-import { getQueueJob, type QueueJobContext } from "./registry";
+import {
+  getQueueJob,
+  type QueueJobContext,
+  type QueueJobScopedContext,
+} from "./registry";
 import type { QueueMessage } from "./shared";
 
 export type QueueConsumerMessage = {
@@ -59,9 +64,11 @@ export async function consumeQueueBatch(
 
     if (job.mode === "batch") {
       try {
-        await job.batchHandler(
-          group.messages.map((message) => message.body),
-          context,
+        await withJobScope(context, (scoped) =>
+          job.batchHandler(
+            group.messages.map((message) => message.body),
+            scoped,
+          ),
         );
         results.push(
           ...group.messages.map((message) => ({
@@ -84,7 +91,9 @@ export async function consumeQueueBatch(
 
     for (const message of group.messages) {
       try {
-        await job.handler(message.body.payload, context);
+        await withJobScope(context, (scoped) =>
+          job.handler(message.body.payload, scoped),
+        );
         results.push({ action: "ack", id: message.id });
       } catch (error) {
         results.push({ action: "retry", error, id: message.id });
@@ -93,6 +102,24 @@ export async function consumeQueueBatch(
   }
 
   return { results };
+}
+
+/**
+ * Runs a job handler inside a fresh per-message resource scope, disposing any
+ * database (or other resource) opened during the job exactly once afterwards.
+ */
+async function withJobScope(
+  context: QueueJobContext,
+  run: (scoped: QueueJobScopedContext) => Promise<void>,
+): Promise<void> {
+  const resources = createResourceScope(context.logger);
+  const scoped: QueueJobScopedContext = { ...context, resources };
+
+  try {
+    await run(scoped);
+  } finally {
+    await resources.dispose();
+  }
 }
 
 function groupMessagesByName(messages: QueueConsumerMessage[]): Array<{

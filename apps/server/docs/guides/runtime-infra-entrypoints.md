@@ -87,6 +87,8 @@ Queue 和 Scheduler context 本身已经携带 `runtimeEnv` 与可选 `bindings`
 
 这样 infra factory 不需要知道调用来自 HTTP、Queue 还是 Scheduler，也不会依赖 Hono。
 
+> `RuntimeResourceContext` 与 `createRuntimeResourceContextFromHono` 现位于 `app/runtime/resources/context.ts`。这些 factory 产出的资源在一次请求/任务内如何复用与释放，见 [resource-scope.md](./resource-scope.md)。
+
 ## 新增 Infra 能力的规则
 
 新增 `infra/foo` 时按以下规则放置代码：

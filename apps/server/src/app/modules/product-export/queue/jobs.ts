@@ -1,11 +1,15 @@
 import { chunk } from "@shamt/utils";
-import { registerQueueJob, type QueueJobContext } from "@/infra/queue";
+import { requireCapability } from "@/app/runtime/capabilities";
+import {
+  registerQueueJob,
+  type QueueJobContext,
+  type QueueJobScopedContext,
+} from "@/infra/queue";
 import { registerSchedulerTask } from "@/infra/scheduler";
 import { badGatewayError } from "@/shared/exceptions";
 import { createBucketObjectKey } from "@/utils";
 import {
   createProductExportBucket,
-  createProductExportDatabase,
   createProductExportShopifyClient,
   createProductExportShopifyClientContext,
 } from "../runtime";
@@ -51,6 +55,7 @@ import type { Context } from "hono";
 
 let registered = false;
 const PRODUCT_EXPORT_PART_DELETE_CONCURRENCY = 10;
+const PRODUCT_EXPORT_RECONCILE_CONCURRENCY = 10;
 
 /**
  * Registers every background entrypoint used by product exports.
@@ -101,7 +106,7 @@ export function registerModuleProductExportJobs(): void {
 
 async function startBulkJob(
   payload: Record<string, unknown>,
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
   const store = await createStore(context);
@@ -112,7 +117,11 @@ async function startBulkJob(
 
   if (!record || record.status !== PRODUCT_EXPORT_STATUSES.QUEUED) return;
 
-  const database = await createProductExportDatabase(context);
+  const database = await context.resources.resolve(
+    "database",
+    () => requireCapability("databaseFactory")(context),
+    (db) => db.dispose(),
+  );
   const { client, session } = await createProductExportShopifyClientContext(
     context.runtimeEnv,
     database,
@@ -132,7 +141,7 @@ async function startBulkJob(
  */
 async function bulkFinishedJob(
   payload: Record<string, unknown>,
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
   const store = await createStore(context);
@@ -144,7 +153,11 @@ async function bulkFinishedJob(
   if (!record?.shopifyBulkOperationId) return;
 
   if (!record.resultUrl) {
-    const database = await createProductExportDatabase(context);
+    const database = await context.resources.resolve(
+      "database",
+      () => requireCapability("databaseFactory")(context),
+      (db) => db.dispose(),
+    );
     const client = await createProductExportShopifyClient(
       context.runtimeEnv,
       database,
@@ -175,7 +188,7 @@ async function bulkFinishedJob(
  */
 async function planPartsJob(
   payload: Record<string, unknown>,
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
   const store = await createStore(context);
@@ -219,7 +232,7 @@ async function planPartsJob(
  */
 async function processPartJob(
   payload: Record<string, unknown>,
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
   if (job.seq === undefined) return;
@@ -275,7 +288,7 @@ async function processPartJob(
  */
 async function finalizeJob(
   payload: Record<string, unknown>,
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
   const store = await createStore(context);
@@ -339,7 +352,7 @@ async function finalizeJob(
  */
 async function reconcileJob(
   _payload: Record<string, unknown>,
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<void> {
   const store = await createStore(context);
   const olderThan = new Date(Date.now() - 15 * 60 * 1000);
@@ -354,8 +367,13 @@ async function reconcileJob(
 
     if (records.length === 0) return;
 
-    for (const record of records) {
-      await reconcileRecord(context, store, record);
+    // Records in a batch are independent; reconcile them with bounded
+    // concurrency instead of strictly serially. reconcileRecord is idempotent,
+    // so a mid-batch failure is safe to retry.
+    for (const group of chunk(records, PRODUCT_EXPORT_RECONCILE_CONCURRENCY)) {
+      await Promise.all(
+        group.map((record) => reconcileRecord(context, store, record)),
+      );
     }
 
     const lastRecord = records.at(-1)!;
@@ -431,7 +449,7 @@ async function reconcileRecord(
  * transitions stay consistent across webhook and cron compensation flows.
  */
 async function updateBulkOperationResult(
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
   record: ProductExportRecord,
   operation: NonNullable<
     Awaited<ReturnType<typeof fetchProductExportBulkOperation>>
@@ -481,10 +499,14 @@ async function enqueuePendingParts(
  * Creates a product-export store from the queue runtime context.
  */
 async function createStore(
-  context: QueueJobContext,
+  context: QueueJobScopedContext,
 ): Promise<ProductExportStore> {
   return createDatabaseProductExportsStore(
-    await createProductExportDatabase(context),
+    await context.resources.resolve(
+      "database",
+      () => requireCapability("databaseFactory")(context),
+      (db) => db.dispose(),
+    ),
   );
 }
 
@@ -786,12 +808,15 @@ async function deleteProductExportPartObjectsByPage(
  * Adapts queue context to the minimal Hono Context shape required by service
  * helpers that still resolve runtime capabilities through context accessors.
  */
-function createServiceContext(context: QueueJobContext): Context<AppEnv> {
+function createServiceContext(context: QueueJobScopedContext): Context<AppEnv> {
   return {
     env: context.bindings ?? {},
     get(key: string) {
       if (key === "runtimeEnv") return context.runtimeEnv;
       if (key === "runtimeLogger") return context.logger;
+      // Share the job's resource bag so service helpers reuse and dispose the
+      // same job-scoped database connection.
+      if (key === "resources") return context.resources;
       return;
     },
   } as unknown as Context<AppEnv>;

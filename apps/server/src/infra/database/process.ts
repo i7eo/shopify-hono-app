@@ -27,16 +27,27 @@ export type ProcessD1Database = {
 };
 export type ProcessDatabase = ProcessPostgresDatabase | ProcessD1Database;
 
-let processDatabase: ProcessDatabase | undefined;
+let processDatabase: Promise<ProcessDatabase> | undefined;
+let processDatabaseCacheKey: string | undefined;
 
 /**
  * Reuses the selected process database client across Node requests.
- * The cached Postgres pool is released by disposeProcessDatabase().
+ *
+ * Caches the in-flight Promise (not the resolved value) and assigns it
+ * synchronously, so concurrent first calls share one creation instead of
+ * racing into multiple pools. Re-created when the connection identity changes;
+ * the cached Postgres pool is released by disposeProcessDatabase().
  */
-export async function getProcessDatabase(
+export function getProcessDatabase(
   config: RuntimeConfig,
 ): Promise<ProcessDatabase> {
-  processDatabase ??= await createProcessDatabase(config);
+  const cacheKey = getProcessDatabaseCacheKey(config);
+
+  if (!processDatabase || processDatabaseCacheKey !== cacheKey) {
+    processDatabase = createProcessDatabase(config);
+    processDatabaseCacheKey = cacheKey;
+  }
+
   return processDatabase;
 }
 
@@ -87,6 +98,26 @@ export async function createProcessDatabase(
 export async function disposeProcessDatabase(): Promise<void> {
   const database = processDatabase;
   processDatabase = undefined;
+  processDatabaseCacheKey = undefined;
 
-  await database?.dispose();
+  await (await database)?.dispose();
+}
+
+/**
+ * Builds the process database cache key from the fields that change the
+ * connection identity, so a config switch rebuilds the client.
+ */
+function getProcessDatabaseCacheKey(config: RuntimeConfig): string {
+  const strategy = getDatabaseEnvConfig(config);
+
+  if (strategy.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+    return [
+      strategy.provider,
+      config.APP_CLOUDFLARE_WORKER_ACCOUNT_ID,
+      config.APP_DATABASE_D1_ID,
+      config.APP_CLOUDFLARE_USER_TOKEN,
+    ].join(":");
+  }
+
+  return [strategy.provider, getDatabaseUrl(config)].join(":");
 }

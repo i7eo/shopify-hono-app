@@ -1,5 +1,6 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { expect, vi } from "vitest";
+import { createResourceScope } from "@/app/runtime/resources";
 import { getRuntimeConfig } from "@/infra/env";
 
 export const runtimeConfig = getRuntimeConfig({
@@ -69,6 +70,7 @@ export function createMockContext(options: MockContextOptions = {}) {
     runtimeEnv: runtimeConfig,
     runtimeLogger: logger,
     requestId: "req_test",
+    resources: createResourceScope(),
     ...options.vars,
   };
   const raw = new Request(options.url ?? "https://app.example.com/test", {

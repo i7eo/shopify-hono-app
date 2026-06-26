@@ -3,6 +3,7 @@ import {
   disposeRuntimeCapabilities,
   setRuntimeCapability,
 } from "@/app/runtime/capabilities";
+import { createResourceScope } from "@/app/runtime/resources";
 import { runtimeConfig } from "./shopify/test-utils";
 import type { FileDownloadResolver } from "@/app/modules/file/types";
 import type { downloadProductExport } from "@/app/modules/product-export/service";
@@ -384,10 +385,12 @@ function createProductExportMetaMock() {
 }
 
 function createServiceContext() {
+  const resources = createResourceScope();
   const context = {
     get(key: string) {
       if (key === "runtimeEnv") return runtimeConfig;
       if (key === "requestId") return "req_test";
+      if (key === "resources") return resources;
       return;
     },
   } satisfies Pick<Parameters<typeof downloadProductExport>[0], "get">;
@@ -396,11 +399,13 @@ function createServiceContext() {
 }
 
 function createCreateRouteContext() {
+  const resources = createResourceScope();
   return {
     get(key: string) {
       if (key === "requestId") return "req_test";
       if (key === "runtimeEnv") return runtimeConfig;
       if (key === "shopDomain") return "test-shop.myshopify.com";
+      if (key === "resources") return resources;
       return;
     },
     json(value: unknown, status: number) {
@@ -458,11 +463,16 @@ function createDownloadRouteContext() {
 
 function createTestDatabase(): Database {
   return {
-    db: {},
+    db: createUnusedDatabaseClient(),
     dialect: "postgres",
+    dispose: () => Promise.resolve(),
     provider: "postgres",
     runtime: "node",
   };
+}
+
+function createUnusedDatabaseClient(): Database["db"] {
+  return Object.create(null);
 }
 
 function createProductExportRecord(

@@ -35,6 +35,25 @@ describe("createProcessGracefulExit", () => {
     });
   });
 
+  it("replaces its listeners on re-register instead of accumulating them", () => {
+    const gracefulExit = createProcessGracefulExit(createLogger());
+    const before = exitSignals.map((signal) => process.listenerCount(signal));
+
+    gracefulExit.register(() => Promise.resolve());
+    const unregister = gracefulExit.register(() => Promise.resolve());
+
+    // Two register() calls still leave exactly one listener per signal.
+    exitSignals.forEach((signal, index) => {
+      expect(process.listenerCount(signal)).toBe(before[index] + 1);
+    });
+
+    unregister();
+
+    exitSignals.forEach((signal, index) => {
+      expect(process.listenerCount(signal)).toBe(before[index]);
+    });
+  });
+
   it("runs stop before the optional shutdown callback", async () => {
     const gracefulExit = createProcessGracefulExit(createLogger());
     const calls: string[] = [];

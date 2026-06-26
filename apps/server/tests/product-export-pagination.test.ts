@@ -186,6 +186,7 @@ function createMemoryExportsDatabase(): Database {
   return {
     db: db as never,
     dialect: "postgres",
+    dispose: () => Promise.resolve(),
     provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
     runtime: "node",
   };

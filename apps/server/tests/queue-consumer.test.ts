@@ -30,6 +30,32 @@ describe("queue batch consumer", () => {
     vi.clearAllMocks();
   });
 
+  it("disposes per-message resources after the handler settles", async () => {
+    const dispose = vi.fn();
+    registerQueueJob({
+      handler: (_payload, scoped) => {
+        scoped.resources.add(dispose);
+        return Promise.resolve();
+      },
+      name: "test:dispose",
+    });
+
+    await consumeQueueBatch(
+      {
+        messages: [
+          {
+            attempts: 1,
+            body: { name: "test:dispose", payload: {}, version: 1 },
+            id: "message-one",
+          },
+        ],
+      },
+      context,
+    );
+
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("routes single-message jobs and acknowledges successful messages", async () => {
     const handler = vi.fn().mockResolvedValue(undefined);
     registerQueueJob({
@@ -54,7 +80,10 @@ describe("queue batch consumer", () => {
       context,
     );
 
-    expect(handler).toHaveBeenCalledWith({ id: "one" }, context);
+    expect(handler).toHaveBeenCalledWith(
+      { id: "one" },
+      expect.objectContaining({ ...context, resources: expect.anything() }),
+    );
     expect(result.results).toEqual([
       {
         action: "ack",
@@ -110,7 +139,7 @@ describe("queue batch consumer", () => {
           version: 1,
         },
       ],
-      context,
+      expect.objectContaining({ ...context, resources: expect.anything() }),
     );
     expect(result.results).toEqual([
       {
@@ -269,7 +298,10 @@ describe("queue batch consumer", () => {
       context,
     );
 
-    expect(handler).toHaveBeenCalledWith({ id: "one" }, context);
+    expect(handler).toHaveBeenCalledWith(
+      { id: "one" },
+      expect.objectContaining({ ...context, resources: expect.anything() }),
+    );
     expect(ack).toHaveBeenCalledTimes(1);
     expect(retry).not.toHaveBeenCalled();
   });

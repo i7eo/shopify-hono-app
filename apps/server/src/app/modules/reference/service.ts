@@ -1,10 +1,6 @@
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
-import {
-  badGatewayError,
-  conflictError,
-  notFoundError,
-} from "@/shared/exceptions";
+import { requireCapability } from "@/app/runtime/capabilities";
+import { createRuntimeResourceContextFromHono } from "@/app/runtime/resources";
+import { conflictError, notFoundError } from "@/shared/exceptions";
 import { toPaginationInput } from "@/shared/models";
 import { REFERENCE_GENDER_DEFAULTS, REFERENCE_NAMESPACES } from "./constants";
 import { createDatabaseReferenceStoreFromPromise } from "./stores/database";
@@ -170,20 +166,16 @@ export async function deleteReference(
  * Resolves the reference store from the active runtime capability.
  */
 export function getReferenceStore(c: Context<AppEnv>): ReferenceStore {
-  const databaseFactory = getRuntimeCapability("databaseFactory");
-
-  if (!databaseFactory) {
-    throw badGatewayError(
-      "Runtime capability is not registered: databaseFactory",
-      {
-        expose: true,
-      },
-    );
-  }
-
-  return createDatabaseReferenceStoreFromPromise(
-    Promise.resolve(databaseFactory(createRuntimeResourceContextFromHono(c))),
+  const database = c.get("resources").resolve(
+    "database",
+    () =>
+      requireCapability("databaseFactory")(
+        createRuntimeResourceContextFromHono(c),
+      ),
+    (db) => db.dispose(),
   );
+
+  return createDatabaseReferenceStoreFromPromise(database);
 }
 
 async function ensureReferenceNamespaceDefaults(
