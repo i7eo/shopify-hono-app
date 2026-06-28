@@ -23,7 +23,6 @@ interface WranglerEnvironmentConfig {
   name: string;
   r2_buckets?: R2BucketBinding[];
   d1_databases?: D1DatabaseBinding[];
-  hyperdrive?: HyperdriveBinding[];
   queues?: QueueConfig;
   triggers?: TriggerConfig;
 }
@@ -40,12 +39,6 @@ interface D1DatabaseBinding {
   database_id: string;
   migrations_dir: string;
   remote?: boolean;
-}
-
-interface HyperdriveBinding {
-  binding: string;
-  id: string;
-  localConnectionString?: string;
 }
 
 interface QueueConfig {
@@ -114,13 +107,6 @@ function renderWranglerEnvironment(
     environment.d1_databases = [getD1DatabaseBinding(config)];
   }
 
-  if (
-    config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE &&
-    databaseProvider === DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES
-  ) {
-    environment.hyperdrive = [getHyperdriveBinding(config)];
-  }
-
   if (config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE) {
     if (queueProvider === DEFAULT_APP_QUEUE_PROVIDERS.QUEUES) {
       environment.queues = getQueueConfig(config);
@@ -133,6 +119,7 @@ function renderWranglerEnvironment(
 
   validateQueueProvider(config, queueProvider);
   validateSchedulerProvider(config, schedulerProvider);
+  validateDatabaseProvider(config, databaseProvider);
 
   return environment;
 }
@@ -146,9 +133,11 @@ function getBucketProvider(config: WranglerFileConfig) {
 }
 
 function getDatabaseProvider(config: WranglerFileConfig) {
-  return (
-    config.APP_DATABASE_PROVIDER ?? DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES
-  );
+  if (config.APP_DATABASE_PROVIDER) return config.APP_DATABASE_PROVIDER;
+
+  return config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE
+    ? DEFAULT_APP_DATABASE_PROVIDERS.D1
+    : DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES;
 }
 
 function getQueueProvider(config: WranglerFileConfig) {
@@ -210,16 +199,6 @@ function getD1DatabaseBinding(config: WranglerFileConfig): D1DatabaseBinding {
   return binding;
 }
 
-function getHyperdriveBinding(config: WranglerFileConfig): HyperdriveBinding {
-  return {
-    binding: requireConfigValue(
-      config.APP_HYPERDRIVER_BINDING,
-      "APP_HYPERDRIVER_BINDING",
-    ),
-    id: requireConfigValue(config.APP_HYPERDRIVER_ID, "APP_HYPERDRIVER_ID"),
-  };
-}
-
 function getQueueConfig(config: WranglerFileConfig): QueueConfig {
   const queue = requireConfigValue(config.APP_QUEUE_NAME, "APP_QUEUE_NAME");
 
@@ -253,6 +232,31 @@ function getTriggerConfig(config: WranglerFileConfig): TriggerConfig {
       ),
     ],
   };
+}
+
+function validateDatabaseProvider(
+  config: WranglerFileConfig,
+  databaseProvider: WranglerFileConfig["APP_DATABASE_PROVIDER"],
+) {
+  if (
+    config.APP_RUNTIME === DEFAULT_RUNTIMES.NODE &&
+    databaseProvider !== DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES
+  ) {
+    throwError(
+      "write-wrangler-file",
+      "Node runtime only supports postgres database",
+    );
+  }
+
+  if (
+    config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE &&
+    databaseProvider !== DEFAULT_APP_DATABASE_PROVIDERS.D1
+  ) {
+    throwError(
+      "write-wrangler-file",
+      "Cloudflare runtime only supports d1 database",
+    );
+  }
 }
 
 function validateQueueProvider(

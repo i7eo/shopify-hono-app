@@ -37,5 +37,13 @@ const isolateConfigSchema: z.ZodType<IsolateConfig> = z.union([
 export function parseIsolateConfig(
   env: Record<string, unknown>,
 ): IsolateConfig {
+  if (env.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE) {
+    return parseWithSchema(cloudflareIsolateConfigSchema, env);
+  }
+
+  if (env.APP_RUNTIME === DEFAULT_RUNTIMES.VERCEL_EDGE) {
+    return parseWithSchema(vercelEdgeIsolateConfigSchema, env);
+  }
+
   return parseWithSchema(isolateConfigSchema, env);
 }

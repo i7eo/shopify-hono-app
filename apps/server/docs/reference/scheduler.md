@@ -34,7 +34,7 @@ Node + `pg-boss` 要求：
 APP_DATABASE_PROVIDER=postgres
 ```
 
-原因是 `pg-boss` 的 schedule 能力基于 PostgreSQL。Node + D1 HTTP 不支持当前 scheduler provider。
+原因是 `pg-boss` 的 schedule 能力基于 PostgreSQL。Node + D1 不支持当前 scheduler provider。
 
 ## 配置
 

@@ -1,4 +1,3 @@
-import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
   setRuntimeCapability,
@@ -27,7 +26,6 @@ import {
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
   isCloudflareD1Database,
-  isCloudflareHyperdrive,
   isCloudflareQueue,
   isCloudflareR2Bucket,
   requireCloudflareBinding,
@@ -37,8 +35,8 @@ import type { Context } from "hono";
 
 /**
  * Registers Cloudflare isolate implementations for runtime and module
- * capabilities. Request-bound D1, Hyperdrive and R2 inputs are validated only
- * when their capability is used.
+ * capabilities. Request-bound D1 and R2 inputs are validated only when their
+ * capability is used.
  */
 export function registerCloudflareIsolateRuntimeCapabilities() {
   setRuntimeCapability("runtimeLoggerSetup", setupIsolateLogger);
@@ -99,35 +97,19 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
 
 /**
  * Creates the runtime database once request runtime env is available.
- *
- * Example:
- * - APP_DATABASE_PROVIDER=d1 requires APP_DATABASE_D1_BINDING.
- * - APP_DATABASE_PROVIDER=postgres requires APP_HYPERDRIVER_BINDING.
  */
 function getDatabase(context: {
   bindings?: Record<string, unknown>;
   runtimeEnv: RuntimeAppEnv<"cloudflare">["Variables"]["runtimeEnv"];
 }) {
   const config = context.runtimeEnv;
-  const bindings = context.bindings ?? {};
-
-  if (config.APP_DATABASE_PROVIDER === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
-    return createIsolateDatabase(config, {
-      d1: requireConfiguredCloudflareBinding(
-        bindings,
-        config.APP_DATABASE_D1_BINDING,
-        "APP_DATABASE_D1_BINDING",
-        isCloudflareD1Database,
-      ),
-    });
-  }
 
   return createIsolateDatabase(config, {
-    hyperdrive: requireConfiguredCloudflareBinding(
-      bindings,
-      config.APP_HYPERDRIVER_BINDING,
-      "APP_HYPERDRIVER_BINDING",
-      isCloudflareHyperdrive,
+    d1: requireConfiguredCloudflareBinding(
+      context.bindings ?? {},
+      config.APP_DATABASE_D1_BINDING,
+      "APP_DATABASE_D1_BINDING",
+      isCloudflareD1Database,
     ),
   });
 }

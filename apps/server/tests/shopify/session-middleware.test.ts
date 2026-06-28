@@ -87,46 +87,6 @@ describe("Shopify session storage", () => {
     expect(createDatabase).toHaveBeenCalledOnce();
     expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
-
-  it("uses database session storage in node d1 runtime", async () => {
-    const database = {
-      db: {},
-      dialect: "sqlite",
-      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-      runtime: "node",
-    };
-    const sessionStorage = { kind: "database-session-storage" };
-    const createDatabase = vi.fn(() => Promise.resolve(database));
-    const createDatabaseShopifySessionStorage = vi.fn(() => sessionStorage);
-
-    vi.doMock("@/infra/database", () => ({
-      createDatabase,
-    }));
-    vi.doMock("@/app/modules/shopify/session-storage/database", () => ({
-      createDatabaseShopifySessionStorage,
-    }));
-
-    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
-    const { getShopifySessionStorage } =
-      await import("@/app/modules/shopify/session-storage");
-    setRuntimeCapability("databaseFactory", () => createDatabase());
-    const context = createMockContext({
-      vars: {
-        runtimeEnv: {
-          ...runtimeConfig,
-          APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-          APP_RUNTIME: "node",
-          APP_ENV: "production",
-        },
-      },
-    });
-
-    await expect(getShopifySessionStorage(context as never)).resolves.toBe(
-      sessionStorage,
-    );
-    expect(createDatabase).toHaveBeenCalledOnce();
-    expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
-  });
 });
 
 describe("Shopify database session storage adapter", () => {

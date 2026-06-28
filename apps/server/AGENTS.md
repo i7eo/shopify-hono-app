@@ -13,7 +13,7 @@
 - Normalize errors through the shared `AppError` pattern and existing Hono `onError` behavior.
 - Preserve fail-fast startup behavior for duplicate registry entries and invalid runtime invariants.
 - Business modules must support both Node process and Cloudflare isolate unless a capability boundary explicitly marks a runtime unsupported.
-- Runtime-specific APIs such as `process`, Node built-ins, `R2Bucket`, D1 bindings, Hyperdrive, Cloudflare Queues, pg-boss, or AWS SDK clients must stay in entrypoints, runtime capabilities, or `src/infra/*` adapters.
+- Runtime-specific APIs such as `process`, Node built-ins, `R2Bucket`, D1 bindings, Cloudflare Queues, pg-boss, or AWS SDK clients must stay in entrypoints, runtime capabilities, or `src/infra/*` adapters.
 - Shared app modules should depend on runtime capability contracts, app-owned stores, Web Fetch/Web Streams, and package-owned schemas/types instead of concrete runtime SDKs.
 
 ## Package Ownership Rules
@@ -54,7 +54,7 @@
 ## Runtime And Infrastructure Rules
 
 - Database and bucket providers must remain selected by env and runtime capability boundaries.
-- Node PostgreSQL, Node D1 HTTP, Cloudflare D1 binding, and Hyperdrive/PostgreSQL behavior must stay separated behind the app database factory.
+- Node PostgreSQL and Cloudflare D1 binding behavior must stay separated behind the app database factory.
 - Process runtime may cache long-lived clients and must dispose them on shutdown or test teardown.
 - Cloudflare isolate runtime must treat request/event bindings as the resource boundary.
 - Queue and scheduler changes must preserve both Node provider behavior and Cloudflare Queues/Cron Trigger behavior where applicable.

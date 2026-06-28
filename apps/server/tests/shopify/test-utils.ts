@@ -24,8 +24,6 @@ export const runtimeConfig = getRuntimeConfig({
   APP_DATABASE_D1_ID: "test-d1-id",
   APP_DATABASE_D1_NAME: "test-d1",
   APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
-  APP_HYPERDRIVER_BINDING: "test_hyperdrive",
-  APP_HYPERDRIVER_ID: "test-hyperdrive-id",
   APP_FILE_DIR: "files",
   APP_FILE_EXPIRE: 1000 * 60 * 60 * 24,
   APP_FILE_MAX_SIZE: 1024 * 1024 * 10,

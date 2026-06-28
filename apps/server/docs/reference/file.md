@@ -133,15 +133,12 @@ packages/database/src/models/sqlite/files.ts
 
 当前 provider 规则：
 
-| Runtime      | `APP_DATABASE_PROVIDER` | 实现                                               |
-| ------------ | ----------------------- | -------------------------------------------------- |
-| `node`       | `postgres`              | `pg.Pool` + `drizzle-orm/node-postgres`            |
-| `node`       | `d1`                    | Cloudflare D1 HTTP API + `drizzle-orm/d1`          |
-| `cloudflare` | `postgres`              | Hyperdrive `connectionString` + PostgreSQL Drizzle |
-| `cloudflare` | `d1`                    | Cloudflare D1 + `drizzle-orm/d1`                   |
+| Runtime      | `APP_DATABASE_PROVIDER` | 实现                                    |
+| ------------ | ----------------------- | --------------------------------------- |
+| `node`       | `postgres`              | `pg.Pool` + `drizzle-orm/node-postgres` |
+| `cloudflare` | `d1`                    | Cloudflare D1 + `drizzle-orm/d1`        |
 
-Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare PostgreSQL 需要 `APP_HYPERDRIVER_BINDING` 指向的 Hyperdrive binding。
-Node D1 通过 Cloudflare D1 HTTP API 访问，需要 `APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID` 和 `APP_CLOUDFLARE_USER_TOKEN`。Cloudflare D1 需要 `APP_DATABASE_D1_BINDING` 指向的 D1 binding。PostgreSQL migration 使用 `apps/server/drizzle.pg.config.ts` 与 `apps/server/drizzle.pg`，D1 migration 使用 `apps/server/drizzle.d1.config.ts` 与 `apps/server/drizzle.d1`。
+Node PostgreSQL 需要 `APP_DATABASE_URL`。Cloudflare D1 需要 `APP_DATABASE_D1_BINDING` 指向的 D1 binding。PostgreSQL migration 使用 `apps/server/drizzle.pg.config.ts` 与 `apps/server/drizzle.pg`，D1 migration 使用 `apps/server/drizzle.d1.config.ts` 与 `apps/server/drizzle.d1`。
 
 常用数据库命令：
 

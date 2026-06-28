@@ -6,7 +6,7 @@
 - Framework: Hono with TypeScript.
 - Platform: Shopify embedded or standalone app.
 - Package manager: pnpm workspace.
-- Session storage: D1 or Hyperdrive/PostgreSQL through app-owned runtime adapters.
+- Session storage: Node PostgreSQL or Cloudflare D1 through app-owned runtime adapters.
 
 ## Repository Layout
 

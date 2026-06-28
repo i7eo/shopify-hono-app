@@ -103,12 +103,10 @@ provider registry 不只按 provider 名称缓存实例，还把调用方传入�
 
 Database 矩阵：
 
-| Runtime      | Provider   | 实现                                               |
-| ------------ | ---------- | -------------------------------------------------- |
-| `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres`            |
-| `node`       | `d1`       | Cloudflare D1 HTTP API + `drizzle-orm/d1`          |
-| `cloudflare` | `postgres` | Hyperdrive `connectionString` + PostgreSQL Drizzle |
-| `cloudflare` | `d1`       | Worker D1 binding + `drizzle-orm/d1`               |
+| Runtime      | Provider   | 实现                                    |
+| ------------ | ---------- | --------------------------------------- |
+| `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres` |
+| `cloudflare` | `d1`       | Worker D1 binding + `drizzle-orm/d1`    |
 
 Bucket 矩阵：
 
@@ -129,8 +127,8 @@ Bucket 矩阵：
 
 优势：
 
-- Node 开发、本地文件、PostgreSQL、D1 HTTP 可以组合使用。
-- Cloudflare 部署可以换成 Hyperdrive/D1/R2 binding，而不改业务 controller。
+- Node 开发、本地文件、PostgreSQL 可以组合使用。
+- Cloudflare 部署可以使用 D1/R2 binding，而不改业务 controller。
 - `scripts/write-wrangler-file` 能根据同一组 env 生成最小 Wrangler binding，避免每个环境手写一份资源配置。
 
 ## 更完整的 Shopify Session 策略

@@ -126,7 +126,7 @@ requireConfiguredCloudflareBinding(
 );
 ```
 
-这样 bootstrap 和 route metadata import 不会因为 request-bound binding 尚未出现而失败，但真正使用 D1、Hyperdrive、R2 或 Queue 时会快速失败。
+这样 bootstrap 和 route metadata import 不会因为 request-bound binding 尚未出现而失败，但真正使用 D1、R2 或 Queue 时会快速失败。
 
 ## 检查项
 

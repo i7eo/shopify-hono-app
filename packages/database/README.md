@@ -8,9 +8,8 @@ runtime-specific Drizzle clients. This package does not open database
 connections and does not read environment variables.
 
 `apps/server` currently consumes these schemas through a runtime-aware database
-factory. PostgreSQL models are used by Node PostgreSQL and Cloudflare
-Hyperdrive. SQLite models are used by Cloudflare D1 and the Node D1 HTTP API
-adapter.
+factory. PostgreSQL models are used by Node PostgreSQL. SQLite models are used
+by Cloudflare D1.
 
 ## Exports
 

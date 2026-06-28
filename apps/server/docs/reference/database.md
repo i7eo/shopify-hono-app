@@ -1,26 +1,24 @@
 # Database
 
-`apps/server/src/infra/database` 是 Shopify session storage 和 file metadata 共用的 runtime-aware database 层。它通过 `databaseFactory` capability 暴露 Drizzle client，让业务模块不直接关心 Node、D1、Hyperdrive 等平台差异。
+`apps/server/src/infra/database` 是 Shopify session storage 和 file metadata 共用的 runtime-aware database 层。它通过 `databaseFactory` capability 暴露 Drizzle client，让业务模块不直接关心 Node PostgreSQL 与 Cloudflare D1 的平台差异。
 
 ## Provider 矩阵
 
 数据库 provider 来自 `APP_DATABASE_PROVIDER`：
 
-| Provider   | 值         | 说明                                              |
-| ---------- | ---------- | ------------------------------------------------- |
-| PostgreSQL | `postgres` | Node 使用 `pg`，Cloudflare 使用 Hyperdrive        |
-| D1         | `d1`       | Node 使用 D1 HTTP API，Cloudflare 使用 D1 binding |
+| Provider   | 值         | 说明                       |
+| ---------- | ---------- | -------------------------- |
+| PostgreSQL | `postgres` | Node 使用 `pg`             |
+| D1         | `d1`       | Cloudflare 使用 D1 binding |
 
 当前支持矩阵：
 
-| Runtime      | APP_DATABASE_PROVIDER | 实现                                               | Cloudflare binding        |
-| ------------ | --------------------- | -------------------------------------------------- | ------------------------- |
-| `node`       | `postgres`            | `pg.Pool` + `drizzle-orm/node-postgres`            | 不需要                    |
-| `node`       | `d1`                  | Cloudflare D1 HTTP API + `drizzle-orm/d1`          | 不需要                    |
-| `cloudflare` | `postgres`            | Hyperdrive `connectionString` + PostgreSQL Drizzle | `APP_HYPERDRIVER_BINDING` |
-| `cloudflare` | `d1`                  | Cloudflare D1 binding + `drizzle-orm/d1`           | `APP_DATABASE_D1_BINDING` |
+| Runtime      | APP_DATABASE_PROVIDER | 实现                                     | Cloudflare binding        |
+| ------------ | --------------------- | ---------------------------------------- | ------------------------- |
+| `node`       | `postgres`            | `pg.Pool` + `drizzle-orm/node-postgres`  | 不需要                    |
+| `cloudflare` | `d1`                  | Cloudflare D1 binding + `drizzle-orm/d1` | `APP_DATABASE_D1_BINDING` |
 
-`APP_DATABASE_PROVIDER` 缺省时按 `postgres` 处理。
+`APP_DATABASE_PROVIDER` 缺省值按 runtime 分发：Node 缺省为 `postgres`，Cloudflare 缺省为 `d1`。`node + d1` 与 `cloudflare + postgres` 会通过 env 解析，但会在 database strategy 边界失败。
 
 ## Runtime 实现
 
@@ -43,52 +41,7 @@ apps/server/src/infra/database/shared.ts
 
 数据库连接会缓存在 process runtime 中，并在 runtime capability disposer 中释放。
 
-### Node + D1 HTTP
-
-Node D1 不使用 Worker D1 binding，而是通过 Cloudflare D1 HTTP API 访问：
-
-```text
-APP_RUNTIME=node
-APP_DATABASE_PROVIDER=d1
-APP_CLOUDFLARE_WORKER_ACCOUNT_ID=...
-APP_CLOUDFLARE_USER_TOKEN=...
-APP_DATABASE_D1_ID=...
-```
-
-对应实现：
-
-```text
-apps/server/src/infra/database/process.d1-http.ts
-```
-
-这个实现把 D1 HTTP API 包装成兼容 `drizzle-orm/d1` 的 `D1Database` 形状，因此上层仍然可以使用 SQLite schema。
-
-`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database factory；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database factory。process PostgreSQL/D1 HTTP 可以缓存连接或 client；isolate D1/Hyperdrive 当前以 request binding 为边界，disposer 是 no-op。
-
-### Cloudflare + PostgreSQL
-
-Cloudflare PostgreSQL 通过 Hyperdrive 取得 `connectionString`：
-
-```text
-APP_RUNTIME=cloudflare
-APP_DATABASE_PROVIDER=postgres
-APP_HYPERDRIVER_BINDING=i7eo_shopify_app_hyperdrive
-```
-
-`wrangler.json` 中会生成：
-
-```json
-{
-  "hyperdrive": [
-    {
-      "binding": "i7eo_shopify_app_hyperdrive",
-      "id": "..."
-    }
-  ]
-}
-```
-
-runtime capability 会通过 `APP_HYPERDRIVER_BINDING` 动态读取 `c.env[binding]`，并在使用点强校验。
+`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database factory；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database factory。process PostgreSQL 可以缓存连接；isolate D1 当前以 request binding 为边界，disposer 是 no-op。
 
 ### Cloudflare + D1
 
@@ -219,8 +172,6 @@ pnpm --dir apps/server run db:seed:dev:d1
 | Runtime      | Provider   | 启动前推荐命令                                                               |
 | ------------ | ---------- | ---------------------------------------------------------------------------- |
 | `node`       | `postgres` | `pnpm --dir apps/server run db:push:pg`，需要样例数据时再跑 `db:seed:dev:pg` |
-| `node`       | `d1`       | `pnpm --dir apps/server run db:push:d1`，需要样例数据时再跑 `db:seed:dev:d1` |
-| `cloudflare` | `postgres` | 通过 Hyperdrive/PostgreSQL 访问数据库，schema 同步仍使用 `db:push:pg`        |
 | `cloudflare` | `d1`       | development binding 使用远端 dev D1，schema 同步使用 `db:push:d1`            |
 
 Cloudflare + D1 的默认开发路径是远端 development D1。决策背景、常规步骤和 local D1 调试方式见 [D1 开发工作流](../guides/d1-development.md)。
@@ -254,12 +205,10 @@ pnpm dev:tunnel
 
 生产环境使用 `.env.production`。部署前应先确认 migration 已生成并在目标数据库执行：
 
-| Runtime      | Provider   | 部署前推荐命令                                                           |
-| ------------ | ---------- | ------------------------------------------------------------------------ |
-| `node`       | `postgres` | 开发变更时生成 `db:generate:pg`；部署前执行 `db:migrate:pg`              |
-| `node`       | `d1`       | 开发变更时生成 `db:generate:d1`；部署前执行 `db:migrate:d1`              |
-| `cloudflare` | `postgres` | Cloudflare 通过 Hyperdrive 连接 PostgreSQL；部署前仍执行 `db:migrate:pg` |
-| `cloudflare` | `d1`       | Cloudflare 通过远端 D1 binding 访问数据库；部署前执行 `db:migrate:d1`    |
+| Runtime      | Provider   | 部署前推荐命令                                                        |
+| ------------ | ---------- | --------------------------------------------------------------------- |
+| `node`       | `postgres` | 开发变更时生成 `db:generate:pg`；部署前执行 `db:migrate:pg`           |
+| `cloudflare` | `d1`       | Cloudflare 通过远端 D1 binding 访问数据库；部署前执行 `db:migrate:d1` |
 
 部署：
 
@@ -332,15 +281,13 @@ D1_WRANGLER_ENV=production
 | Runtime      | Provider   | Wrangler 数据库配置 |
 | ------------ | ---------- | ------------------- |
 | `node`       | `postgres` | 不生成              |
-| `node`       | `d1`       | 不生成              |
-| `cloudflare` | `postgres` | 生成 `hyperdrive`   |
 | `cloudflare` | `d1`       | 生成 `d1_databases` |
 
-Node + D1 虽然需要 `APP_DATABASE_D1_ID` 和 Cloudflare token，但它不需要 Worker D1 binding。Cloudflare + D1 需要 `APP_DATABASE_D1_ID` 生成 `d1_databases`。非 production D1 binding 会带上 `remote: true`，让本地 Worker 开发默认连接远端 dev D1。R2 binding 也使用同样的非 production 远端开发策略，避免数据库记录指向远端 R2 URL 但对象实际写入本地 R2 模拟。
+Cloudflare + D1 需要 `APP_DATABASE_D1_ID` 生成 `d1_databases`。非 production D1 binding 会带上 `remote: true`，让本地 Worker 开发默认连接远端 dev D1。R2 binding 也使用同样的非 production 远端开发策略，避免数据库记录指向远端 R2 URL 但对象实际写入本地 R2 模拟。
 
 ## 使用边界
 
-- 业务模块不要直接创建 `pg.Pool`、D1 client 或 Hyperdrive client。
+- 业务模块不要直接创建 `pg.Pool` 或 D1 client。
 - Shopify session storage 和 file store 都应通过 `databaseFactory` 获取 database。
-- Cloudflare binding 字段不要写死在业务代码里，必须通过 `APP_DATABASE_D1_BINDING` 或 `APP_HYPERDRIVER_BINDING` 动态读取。
+- Cloudflare binding 字段不要写死在业务代码里，必须通过 `APP_DATABASE_D1_BINDING` 动态读取。
 - 迁移目录 `drizzle.pg` / `drizzle.d1` 是生成产物目录，lint 会跳过目录内容，但仍会校验 `drizzle.*.config.ts`。

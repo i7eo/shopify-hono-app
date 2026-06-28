@@ -1,41 +1,26 @@
 import {
-  createCursorPagination,
-  createPagePagination,
   createSeekCursor,
   readSeekCursor,
   type SeekCursor,
 } from "@/shared/models";
+import { toPaginatedRowsPage } from "@/utils/pagination";
 import type { FileListInput, FileRecord, FilesPage } from "../../types";
+
+export { getPageOffset } from "@/utils/pagination";
 
 export function toFilesPage(
   rows: FileRecord[],
   input: FileListInput,
   total?: number,
 ): FilesPage {
-  if (input.pagination.mode === "page") {
-    const files = rows.slice(0, input.pagination.limit);
-
-    return {
-      files,
-      pagination: createPagePagination({
-        hasNext: rows.length > input.pagination.limit,
-        limit: input.pagination.limit,
-        page: input.pagination.page,
-        total: total ?? files.length,
-      }),
-    };
-  }
-
-  const files = rows.slice(0, input.pagination.limit);
-  const hasNext = rows.length > input.pagination.limit;
+  const page = toPaginatedRowsPage(rows, input.pagination, {
+    createCursor: createFileCursor,
+    total,
+  });
 
   return {
-    files,
-    pagination: createCursorPagination({
-      hasNext,
-      limit: input.pagination.limit,
-      nextCursor: hasNext ? createFileCursor(files.at(-1)) : undefined,
-    }),
+    files: page.items,
+    pagination: page.pagination,
   };
 }
 
@@ -46,13 +31,6 @@ export function createFileCursor(file?: FileRecord): string | undefined {
     createdAt: file.createdAt,
     id: file.id,
   });
-}
-
-export function getPageOffset(pagination: {
-  limit: number;
-  page: number;
-}): number {
-  return (pagination.page - 1) * pagination.limit;
 }
 
 export function getListCursor(input: FileListInput): SeekCursor | null {

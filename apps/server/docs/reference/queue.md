@@ -190,7 +190,7 @@ type QueueJobContext = {
 };
 ```
 
-Cloudflare consumer 会把 `env` 放进 `bindings`。业务 job 如果需要 D1、Hyperdrive、R2 或 Queue binding，应在 job 内按需解析 binding 并创建对应 adapter。
+Cloudflare consumer 会把 `env` 放进 `bindings`。业务 job 如果需要 D1、R2 或 Queue binding，应在 job 内按需解析 binding 并创建对应 adapter。
 
 ## Consumer
 
@@ -273,7 +273,7 @@ Cloudflare consumer 会：
 6. 成功消息 `message.ack()`。
 7. 失败消息 `message.retry()`。
 
-`bindings` 保存原始 `env`，供业务 job 在需要 D1、Hyperdrive、R2 或 Queue
+`bindings` 保存原始 `env`，供业务 job 在需要 D1、R2 或 Queue
 binding 时按需创建 adapter。
 
 建议 Cloudflare v1 先配置：

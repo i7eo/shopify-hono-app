@@ -31,7 +31,6 @@ clean.
 - queue provider fields
 - scheduler provider fields
 - Cloudflare account/token fields
-- Hyperdrive binding fields
 
 Shopify fields:
 
@@ -56,8 +55,8 @@ App database fields:
 | `APP_DATABASE_D1_NAME`    | optional string    |
 | `APP_DATABASE_D1_ID`      | optional string    |
 
-`postgres` and `d1` are both implemented by `apps/server`. Node + D1 uses
-Cloudflare's D1 HTTP API. Cloudflare + D1 uses a request-bound Worker binding.
+`apps/server` supports PostgreSQL in the Node runtime and D1 in the Cloudflare
+runtime. Cloudflare + D1 uses a request-bound Worker binding.
 
 Bucket fields:
 
@@ -102,31 +101,18 @@ Cloudflare fields:
 | `APP_CLOUDFLARE_WORKER_ACCOUNT_ID` | optional string |
 | `APP_CLOUDFLARE_USER_TOKEN`        | optional string |
 
-These fields are used by Node-side Cloudflare HTTP integrations such as D1 HTTP
-and R2 S3 credential derivation.
-
-Hyperdrive fields:
-
-| Field                     | Values / shape  |
-| ------------------------- | --------------- |
-| `APP_HYPERDRIVER_BINDING` | optional string |
-| `APP_HYPERDRIVER_ID`      | optional string |
-
-The historical spelling is `HYPERDRIVER` in env keys. Keep using that key family
-unless the schema is migrated intentionally.
+These fields are used by Node-side Cloudflare HTTP integrations such as R2 S3
+credential derivation.
 
 ## Runtime Matrix
 
 `apps/server` consumes this schema with the following infrastructure matrix:
 
-| Runtime      | Database provider | Bucket provider | Main infrastructure                           |
-| ------------ | ----------------- | --------------- | --------------------------------------------- |
-| `node`       | `postgres`        | `memory`        | `pg.Pool` + filesystem-backed memory bucket   |
-| `node`       | `postgres`        | `r2`            | `pg.Pool` + R2 S3-compatible API              |
-| `node`       | `d1`              | `memory`        | D1 HTTP API + filesystem-backed memory bucket |
-| `node`       | `d1`              | `r2`            | D1 HTTP API + R2 S3-compatible API            |
-| `cloudflare` | `postgres`        | `r2`            | Hyperdrive + Worker R2 binding                |
-| `cloudflare` | `d1`              | `r2`            | Worker D1 binding + Worker R2 binding         |
+| Runtime      | Database provider | Bucket provider | Main infrastructure                         |
+| ------------ | ----------------- | --------------- | ------------------------------------------- |
+| `node`       | `postgres`        | `memory`        | `pg.Pool` + filesystem-backed memory bucket |
+| `node`       | `postgres`        | `r2`            | `pg.Pool` + R2 S3-compatible API            |
+| `cloudflare` | `d1`              | `r2`            | Worker D1 binding + Worker R2 binding       |
 
 `scripts/write-wrangler-file` uses `APP_ENV`, `APP_RUNTIME`,
 `APP_DATABASE_PROVIDER`, and `APP_BUCKET_PROVIDER` to generate the minimum

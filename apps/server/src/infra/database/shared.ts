@@ -1,4 +1,8 @@
 import {
+  DEFAULT_APP_DATABASE_PROVIDERS,
+  DEFAULT_RUNTIMES,
+} from "@shamt/app-env";
+import {
   postgresFiles,
   postgresShopifySessions,
 } from "@shamt/database/models/postgres";
@@ -27,17 +31,68 @@ export type DatabaseRuntimeStrategy = {
 };
 
 /**
- * Returns the configured database strategy without opening a connection.
- * Runtime factories own support checks because each runtime has different
- * required bindings and connection setup.
+ * Returns the configured database strategy and rejects runtime/provider pairs
+ * that cannot be executed by the current infrastructure.
+ *
+ * Supported matrix:
+ * - node + postgres
+ * - cloudflare + d1
  */
 export function getDatabaseEnvConfig(
   config: RuntimeConfig,
 ): DatabaseRuntimeStrategy {
-  return {
-    provider: config.APP_DATABASE_PROVIDER,
+  const strategy: DatabaseRuntimeStrategy = {
+    provider: getDatabaseProvider(config),
     runtime: config.APP_RUNTIME,
   };
+
+  if (
+    strategy.runtime === DEFAULT_RUNTIMES.NODE &&
+    strategy.provider !== DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES
+  ) {
+    throw internalServerError(
+      "Node runtime only supports the postgres database provider",
+      {
+        details: strategy,
+        expose: true,
+      },
+    );
+  }
+
+  if (
+    strategy.runtime === DEFAULT_RUNTIMES.CLOUDFLARE &&
+    strategy.provider !== DEFAULT_APP_DATABASE_PROVIDERS.D1
+  ) {
+    throw internalServerError(
+      "Cloudflare runtime only supports the d1 database provider",
+      {
+        details: strategy,
+        expose: true,
+      },
+    );
+  }
+
+  if (
+    strategy.runtime !== DEFAULT_RUNTIMES.NODE &&
+    strategy.runtime !== DEFAULT_RUNTIMES.CLOUDFLARE
+  ) {
+    throw internalServerError("Runtime does not support database providers", {
+      details: strategy,
+      expose: true,
+    });
+  }
+
+  return strategy;
+}
+
+function getDatabaseProvider(
+  config: RuntimeConfig,
+): NonNullable<RuntimeConfig["APP_DATABASE_PROVIDER"]> {
+  if (config.APP_DATABASE_PROVIDER) return config.APP_DATABASE_PROVIDER;
+
+  return config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE
+    ? DEFAULT_APP_DATABASE_PROVIDERS.D1
+    : DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES;
 }
 
 /**

@@ -2,12 +2,38 @@ import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getDatabaseEnvConfig } from "@/infra/database";
 import { createIsolateDatabase } from "@/infra/database/isolate";
-import { createProcessDatabase } from "@/infra/database/process";
+import {
+  disposeProcessDatabase,
+  getProcessDatabase,
+} from "@/infra/database/process";
+import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { runtimeConfig } from "./shopify/test-utils";
-import type { RuntimeConfig } from "@/infra/env";
+
+const poolEnd = vi.fn(() => Promise.resolve());
+const poolInstances: Array<{ connectionString: string | undefined }> = [];
+
+vi.mock("pg", () => ({
+  Pool: vi.fn(function Pool(input: { connectionString?: string }) {
+    poolInstances.push(input);
+
+    return {
+      end: poolEnd,
+    };
+  }),
+}));
+
+vi.mock("drizzle-orm/node-postgres", () => ({
+  drizzle: vi.fn((input: unknown) => ({
+    input,
+    kind: "postgres-db",
+  })),
+}));
 
 describe("database runtime strategy", () => {
   afterEach(() => {
+    poolEnd.mockClear();
+    poolInstances.length = 0;
+    vi.clearAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -25,33 +51,53 @@ describe("database runtime strategy", () => {
     });
   });
 
-  it("supports node with d1 as a reserved provider", () => {
+  it("parses node with d1 before database strategy validation", () => {
     expect(
+      getRuntimeConfig({
+        ...runtimeConfig,
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+        APP_RUNTIME: "node",
+      }),
+    ).toMatchObject({
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      APP_RUNTIME: "node",
+    });
+  });
+
+  it("rejects node with d1 at the database strategy boundary", () => {
+    expect(() =>
       getDatabaseEnvConfig({
         ...runtimeConfig,
         APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
         APP_RUNTIME: "node",
       } as RuntimeConfig),
-    ).toEqual({
-      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-      runtime: "node",
+    ).toThrow("Node runtime only supports the postgres database provider");
+  });
+
+  it("parses cloudflare with postgres before database strategy validation", () => {
+    expect(
+      getRuntimeConfig({
+        ...runtimeConfig,
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+        APP_RUNTIME: "cloudflare",
+      }),
+    ).toMatchObject({
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      APP_RUNTIME: "cloudflare",
     });
   });
 
-  it("supports cloudflare with postgres", () => {
-    expect(
+  it("rejects cloudflare with postgres at the database strategy boundary", () => {
+    expect(() =>
       getDatabaseEnvConfig({
         ...runtimeConfig,
         APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
         APP_RUNTIME: "cloudflare",
       } as RuntimeConfig),
-    ).toEqual({
-      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
-      runtime: "cloudflare",
-    });
+    ).toThrow("Cloudflare runtime only supports the d1 database provider");
   });
 
-  it("supports cloudflare with d1 as a reserved provider", () => {
+  it("supports cloudflare with d1", () => {
     expect(
       getDatabaseEnvConfig({
         ...runtimeConfig,
@@ -64,67 +110,27 @@ describe("database runtime strategy", () => {
     });
   });
 
-  it("supports node d1 through the D1 HTTP API", async () => {
-    const fetch = vi.fn(() =>
-      Promise.resolve(
-        Response.json({
-          result: {
-            meta: {},
-            results: [{ id: 1 }],
-            success: true,
-          },
-          success: true,
-        }),
-      ),
-    );
-    vi.stubGlobal("fetch", fetch);
-    const database = await createProcessDatabase({
-      ...runtimeConfig,
-      APP_CLOUDFLARE_WORKER_ACCOUNT_ID: "account_test",
-      APP_CLOUDFLARE_USER_TOKEN: "token_test",
-      APP_DATABASE_D1_NAME: "account_test",
-      APP_DATABASE_D1_BINDING: "https://api.cloudflare.com",
-      APP_DATABASE_D1_ID: "database_test",
-      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-      APP_RUNTIME: "node",
-    } as RuntimeConfig);
-    const result = await database.db.$client
-      .prepare("select ? as id")
-      .bind(1)
-      .run();
-
-    expect(database).toMatchObject({
-      dialect: "sqlite",
-      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-      runtime: "node",
-    });
-    expect(result.results).toEqual([{ id: 1 }]);
-    expect(fetch).toHaveBeenCalledWith(
-      "https://api.cloudflare.com/client/v4/accounts/account_test/d1/database/database_test/query",
-      expect.objectContaining({
-        body: JSON.stringify({
-          params: [1],
-          sql: "select ? as id",
-        }),
-        headers: expect.objectContaining({
-          Authorization: "Bearer token_test",
-          "Content-Type": "application/json",
-        }),
-        method: "POST",
-      }),
-    );
-  });
-
-  it("requires D1 HTTP config for node d1", async () => {
-    await expect(
-      createProcessDatabase({
+  it("defaults database provider by runtime", () => {
+    expect(
+      getDatabaseEnvConfig({
         ...runtimeConfig,
-        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+        APP_DATABASE_PROVIDER: undefined,
         APP_RUNTIME: "node",
       } as RuntimeConfig),
-    ).rejects.toMatchObject({
-      status: 500,
-      message: "D1 HTTP database config is incomplete",
+    ).toEqual({
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      runtime: "node",
+    });
+
+    expect(
+      getDatabaseEnvConfig({
+        ...runtimeConfig,
+        APP_DATABASE_PROVIDER: undefined,
+        APP_RUNTIME: "cloudflare",
+      } as RuntimeConfig),
+    ).toEqual({
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "cloudflare",
     });
   });
 
@@ -160,17 +166,35 @@ describe("database runtime strategy", () => {
     });
   });
 
-  it("requires hyperdrive for cloudflare postgres", async () => {
-    await expect(
-      createIsolateDatabase({
-        ...runtimeConfig,
-        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
-        APP_RUNTIME: "cloudflare",
-      } as RuntimeConfig),
-    ).rejects.toMatchObject({
-      status: 500,
-      message: "Cloudflare Hyperdrive binding is required",
-    });
+  it("reuses process database promises until the cache key changes", async () => {
+    await disposeProcessDatabase();
+
+    const firstConfig: RuntimeConfig = {
+      ...runtimeConfig,
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      APP_DATABASE_URL: "postgresql://first",
+      APP_RUNTIME: "node",
+    };
+    const secondConfig: RuntimeConfig = {
+      ...firstConfig,
+      APP_DATABASE_URL: "postgresql://second",
+    };
+
+    const first = getProcessDatabase(firstConfig);
+    const second = getProcessDatabase(firstConfig);
+    expect(first).toBe(second);
+    await first;
+
+    const third = getProcessDatabase(secondConfig);
+    expect(third).not.toBe(first);
+    await third;
+
+    expect(poolInstances.map((input) => input.connectionString)).toEqual([
+      "postgresql://first",
+      "postgresql://second",
+    ]);
+
+    await disposeProcessDatabase();
   });
 });
 

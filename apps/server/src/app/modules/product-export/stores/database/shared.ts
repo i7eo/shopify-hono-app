@@ -1,10 +1,9 @@
 import {
-  createCursorPagination,
-  createPagePagination,
   createSeekCursor,
   readSeekCursor,
   type SeekCursor,
 } from "@/shared/models";
+import { toPaginatedRowsPage } from "@/utils/pagination";
 import type {
   ProductExportListInput,
   ProductExportPartRecord,
@@ -13,36 +12,21 @@ import type {
   ProductExportsPage,
 } from "../../types";
 
+export { getPageOffset } from "@/utils/pagination";
+
 export function toProductExportsPage(
   rows: ProductExportRecord[],
   input: ProductExportListInput,
   total?: number,
 ): ProductExportsPage {
-  if (input.pagination.mode === "page") {
-    const productExports = rows.slice(0, input.pagination.limit);
-
-    return {
-      pagination: createPagePagination({
-        hasNext: rows.length > input.pagination.limit,
-        limit: input.pagination.limit,
-        page: input.pagination.page,
-        total: total ?? productExports.length,
-      }),
-      productExports,
-    };
-  }
-
-  const productExports = rows.slice(0, input.pagination.limit);
-  const next =
-    rows.length > input.pagination.limit ? productExports.at(-1) : undefined;
+  const page = toPaginatedRowsPage(rows, input.pagination, {
+    createCursor: createProductExportCursor,
+    total,
+  });
 
   return {
-    pagination: createCursorPagination({
-      hasNext: Boolean(next),
-      limit: input.pagination.limit,
-      nextCursor: createProductExportCursor(next),
-    }),
-    productExports,
+    pagination: page.pagination,
+    productExports: page.items,
   };
 }
 
@@ -55,13 +39,6 @@ export function createProductExportCursor(
     createdAt: record.createdAt,
     id: record.id,
   });
-}
-
-export function getPageOffset(pagination: {
-  limit: number;
-  page: number;
-}): number {
-  return (pagination.page - 1) * pagination.limit;
 }
 
 export function getListCursor(

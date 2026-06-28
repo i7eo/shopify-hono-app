@@ -1,3 +1,4 @@
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBucketDownloadSigner } from "@/infra/bucket";
 import { createIsolateBucket } from "@/infra/bucket/isolate";
@@ -494,6 +495,7 @@ function createCloudflareR2Config(): RuntimeConfig {
     APP_BUCKET_R2_URL:
       "https://account-id.r2.cloudflarestorage.com/product-export",
     APP_CLOUDFLARE_USER_TOKEN: "token_value",
+    APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
     APP_RUNTIME: "cloudflare",
   });
 

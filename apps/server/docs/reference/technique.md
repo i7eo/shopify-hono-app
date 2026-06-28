@@ -6,16 +6,13 @@
 
 当前基础设施由 runtime、database provider、bucket provider 三个维度组合。业务模块通过 runtime capability 使用它们，不直接感知平台差异。
 
-| Runtime      | Database provider | Database 实现                       | Bucket provider | Bucket 实现                | Wrangler binding             |
-| ------------ | ----------------- | ----------------------------------- | --------------- | -------------------------- | ---------------------------- |
-| `node`       | `postgres`        | `pg.Pool` + PostgreSQL Drizzle      | `memory`        | 本地文件系统 memory bucket | 无                           |
-| `node`       | `postgres`        | `pg.Pool` + PostgreSQL Drizzle      | `r2`            | R2 S3-compatible API       | `r2_buckets`                 |
-| `node`       | `d1`              | Cloudflare D1 HTTP API + D1 Drizzle | `memory`        | 本地文件系统 memory bucket | 无                           |
-| `node`       | `d1`              | Cloudflare D1 HTTP API + D1 Drizzle | `r2`            | R2 S3-compatible API       | `r2_buckets`                 |
-| `cloudflare` | `postgres`        | Hyperdrive + PostgreSQL Drizzle     | `r2`            | Worker R2 binding          | `hyperdrive`、`r2_buckets`   |
-| `cloudflare` | `d1`              | Worker D1 binding + D1 Drizzle      | `r2`            | Worker R2 binding          | `d1_databases`、`r2_buckets` |
+| Runtime      | Database provider | Database 实现                  | Bucket provider | Bucket 实现                | Wrangler binding             |
+| ------------ | ----------------- | ------------------------------ | --------------- | -------------------------- | ---------------------------- |
+| `node`       | `postgres`        | `pg.Pool` + PostgreSQL Drizzle | `memory`        | 本地文件系统 memory bucket | 无                           |
+| `node`       | `postgres`        | `pg.Pool` + PostgreSQL Drizzle | `r2`            | R2 S3-compatible API       | `r2_buckets`                 |
+| `cloudflare` | `d1`              | Worker D1 binding + D1 Drizzle | `r2`            | Worker R2 binding          | `d1_databases`、`r2_buckets` |
 
-Cloudflare + `memory` bucket 当前不支持。Node + D1 使用 HTTP API，因此不会生成 Worker D1 binding。
+Cloudflare + `memory` bucket 当前不支持。Node + D1、Cloudflare + PostgreSQL 当前不支持，会在 database strategy 边界失败。
 
 queue 与 scheduler 是另外两条 runtime-aware infra 轴：
 
@@ -84,7 +81,7 @@ provider registry 缓存跨请求可复用的基础设施实例：
 
 每个 provider 都有 reset/disposer 入口，测试和 lifecycle 可以清理全局状态，避免 provider cache 污染下一轮运行。
 
-database、bucket、queue 和 scheduler 没有放入 provider registry，而是作为 runtime capability + infra adapter 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool、memory/r2 bucket cache 和 pg-boss worker，Cloudflare 需要 request-bound D1/Hyperdrive/R2/Queue binding。capability disposer 会在 process runtime 释放 cached pg pool、bucket adapter、queue consumer/producer 和 scheduler，isolate runtime 当前保持 no-op。
+database、bucket、queue 和 scheduler 没有放入 provider registry，而是作为 runtime capability + infra adapter 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool、memory/r2 bucket cache 和 pg-boss worker，Cloudflare 需要 request-bound D1/R2/Queue binding。capability disposer 会在 process runtime 释放 cached pg pool、bucket adapter、queue consumer/producer 和 scheduler，isolate runtime 当前保持 no-op。
 
 ### Shopify Mode Capability
 

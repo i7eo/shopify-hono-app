@@ -7,7 +7,7 @@
 | `development` | 远端 development D1 | 远端 development R2 |
 | `production`  | 远端 production D1  | 远端 production R2  |
 
-这样 Node 和 Cloudflare 的开发行为保持一致。Node + D1/R2 本来就通过 Cloudflare HTTP 或 S3-compatible API 访问远端资源；Cloudflare Worker development binding 也通过 `remote: true` 访问远端 development D1 和 R2。
+这样 Cloudflare D1/R2 与 Node R2 的开发行为保持一致。Node + R2 通过 S3-compatible API 访问远端资源；Cloudflare Worker development binding 也通过 `remote: true` 访问远端 development D1 和 R2。
 
 ## 决策
 
@@ -23,7 +23,7 @@ Production 不需要这个开关，因为部署后的 Worker 本身就在 Cloudf
 
 默认使用远端 development 存储可以避免这些错位：
 
-- Node development 写远端 D1，而 Cloudflare development 读本地 D1。
+- Cloudflare development 误读本地 D1，而 migration/seed 写在远端 D1。
 - Cloudflare development 把导出 CSV 写进本地 R2 模拟，但 download 签出远端 R2 URL，导致远端返回 `NoSuchKey`。
 - `db:push:d1` 更新了远端 D1，但 `wrangler dev` 仍然因为本地表缺失报错。
 - seed 数据写在一份 D1 里，但当前 runtime 读取另一份 D1。

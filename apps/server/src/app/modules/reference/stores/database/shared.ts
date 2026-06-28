@@ -1,13 +1,12 @@
-import {
-  AppError,
-  createCursorPagination,
-  createPagePagination,
-} from "@/shared/models";
+import { AppError } from "@/shared/models";
+import { toPaginatedRowsPage } from "@/utils/pagination";
 import type {
   ReferenceListInput,
   ReferenceRecord,
   ReferencesPage,
 } from "../../types";
+
+export { getPageOffset } from "@/utils/pagination";
 
 type ReferenceCursor = Pick<ReferenceRecord, "code" | "id" | "sortOrder">;
 
@@ -16,31 +15,14 @@ export function toReferencesPage(
   input: ReferenceListInput,
   total?: number,
 ): ReferencesPage {
-  if (input.pagination.mode === "page") {
-    const references = rows.slice(0, input.pagination.limit);
-
-    return {
-      pagination: createPagePagination({
-        hasNext: rows.length > input.pagination.limit,
-        limit: input.pagination.limit,
-        page: input.pagination.page,
-        total: total ?? references.length,
-      }),
-      references,
-    };
-  }
-
-  const references = rows.slice(0, input.pagination.limit);
-  const next =
-    rows.length > input.pagination.limit ? references.at(-1) : undefined;
+  const page = toPaginatedRowsPage(rows, input.pagination, {
+    createCursor: createReferenceCursor,
+    total,
+  });
 
   return {
-    pagination: createCursorPagination({
-      hasNext: Boolean(next),
-      limit: input.pagination.limit,
-      nextCursor: createReferenceCursor(next),
-    }),
-    references,
+    pagination: page.pagination,
+    references: page.items,
   };
 }
 
@@ -54,13 +36,6 @@ export function createReferenceCursor(
     encodeURIComponent(record.code),
     encodeURIComponent(record.id),
   ].join(":");
-}
-
-export function getPageOffset(pagination: {
-  limit: number;
-  page: number;
-}): number {
-  return (pagination.page - 1) * pagination.limit;
 }
 
 export function getReferenceListCursor(

@@ -1,3 +1,4 @@
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   disposeRuntimeCapabilities,
@@ -41,6 +42,7 @@ describe("file download runtime capability", () => {
       APP_BUCKET_R2_URL:
         "https://account-id.r2.cloudflarestorage.com/product-export",
       APP_CLOUDFLARE_USER_TOKEN: "token_value",
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
       APP_RUNTIME: "cloudflare",
     });
     const r2 = createR2Binding();

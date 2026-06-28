@@ -220,13 +220,11 @@ Standalone Shopify session expired or was revoked
 
 Shopify session storage 由 `src/app/modules/shopify/session-storage` 通过统一 `databaseFactory` 创建 Drizzle-backed adapter；runtime 不再单独注册 Shopify session storage capability：
 
-| Runtime / Provider        | Storage 策略                                            |
-| ------------------------- | ------------------------------------------------------- |
-| `node` + `postgres`       | `DrizzleSessionStoragePostgres` + `pg.Pool`             |
-| `node` + `d1`             | `DrizzleSessionStorageSQLite` + Cloudflare D1 HTTP API  |
-| `cloudflare` + `postgres` | `DrizzleSessionStoragePostgres` + Hyperdrive PostgreSQL |
-| `cloudflare` + `d1`       | `DrizzleSessionStorageSQLite` + Cloudflare D1           |
-| `vercel-edge`             | 预留 runtime，没有完整 session storage 能力             |
+| Runtime / Provider  | Storage 策略                                  |
+| ------------------- | --------------------------------------------- |
+| `node` + `postgres` | `DrizzleSessionStoragePostgres` + `pg.Pool`   |
+| `cloudflare` + `d1` | `DrizzleSessionStorageSQLite` + Cloudflare D1 |
+| `vercel-edge`       | 预留 runtime，没有完整 session storage 能力   |
 
 入口：
 
@@ -239,7 +237,7 @@ Shopify session storage 由 `src/app/modules/shopify/session-storage` 通过统�
 - `packages/database/src/models/postgres/shopify-sessions.ts`
 - `packages/database/src/models/sqlite/shopify-sessions.ts`
 
-Node D1 通过 Cloudflare D1 HTTP API 访问，需要 `APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID` 和 `APP_CLOUDFLARE_USER_TOKEN`。Cloudflare 下的 D1/Hyperdrive binding 在 config schema 中允许 bootstrap 阶段缺失。真正创建 database 时，Cloudflare runtime capability 会根据 `APP_DATABASE_PROVIDER` 强校验 `APP_DATABASE_D1_BINDING` 或 `APP_HYPERDRIVER_BINDING` 指向的 request-bound binding。这样 route metadata 等模块 import 阶段不会因为 request-bound binding 尚未进入而失败，但 session storage 使用点仍然会快速失败。
+Cloudflare 下的 D1 binding 在 config schema 中允许 bootstrap 阶段缺失。真正创建 database 时，Cloudflare runtime capability 会强校验 `APP_DATABASE_D1_BINDING` 指向的 request-bound binding。这样 route metadata 等模块 import 阶段不会因为 request-bound binding 尚未进入而失败，但 session storage 使用点仍然会快速失败。
 
 数据库 schema 来自 `@shamt/database` 的 PostgreSQL / SQLite models，与 file module 共享同一个 `databaseFactory`。本地验证可使用：
 
@@ -379,18 +377,17 @@ session 解析、client 创建、401 retry 都由 middleware 和 Shopify Admin c
 
 ## 出问题时看哪里
 
-| 现象                         | 优先检查                                                                                             |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
-| App 页面打不开               | `app-shell/index.ts`、`mode/*`、`SHOPIFY_APP_MODE`                                                   |
-| embedded API 返回 401        | `verify-session-token.ts`、App Bridge 是否加载                                                       |
-| embedded token exchange 失败 | `token-exchange.ts`、`session.ts`、app secret/scopes                                                 |
-| standalone API 返回 401      | `account/session.ts`、account cookie、stored session                                                 |
-| Admin API 401 retry 异常     | `shopify/admin/client.ts`、`mode/*`、`session.ts`                                                    |
-| Shopify 数据查不到           | `modules/shop`、`modules/product`、scopes                                                            |
-| Webhook 失败                 | `verify-webhook.ts`、raw body、app secret                                                            |
-| Cloudflare session 找不到    | `APP_DATABASE_PROVIDER`、D1/Hyperdrive binding、Cloudflare runtime capability                        |
-| Node D1 session 报错         | `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_CLOUDFLARE_USER_TOKEN` |
-| TOML role/mode 配置不一致    | `SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、`scripts/write-shopify-file/index.ts`             |
+| 现象                         | 优先检查                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| App 页面打不开               | `app-shell/index.ts`、`mode/*`、`SHOPIFY_APP_MODE`                                       |
+| embedded API 返回 401        | `verify-session-token.ts`、App Bridge 是否加载                                           |
+| embedded token exchange 失败 | `token-exchange.ts`、`session.ts`、app secret/scopes                                     |
+| standalone API 返回 401      | `account/session.ts`、account cookie、stored session                                     |
+| Admin API 401 retry 异常     | `shopify/admin/client.ts`、`mode/*`、`session.ts`                                        |
+| Shopify 数据查不到           | `modules/shop`、`modules/product`、scopes                                                |
+| Webhook 失败                 | `verify-webhook.ts`、raw body、app secret                                                |
+| Cloudflare session 找不到    | `APP_DATABASE_PROVIDER`、D1 binding、Cloudflare runtime capability                       |
+| TOML role/mode 配置不一致    | `SHOPIFY_APP_MODE`、`SHOPIFY_APP_FRONTEND_TARGET`、`scripts/write-shopify-file/index.ts` |
 
 ## 当前测试覆盖
 

@@ -9,7 +9,7 @@
 - Shopify: 使用 `@shopify/shopify-api` 官方包处理 OAuth、session token、token exchange、webhook 校验和 Admin GraphQL client。
 - Shopify app mode: `SHOPIFY_APP_MODE=embedded|standalone` 必须显式配置；embedded 使用 App Bridge session token，standalone 使用 app account session cookie。
 - Shopify frontend target: `SHOPIFY_APP_FRONTEND_TARGET=backend|frontend` 决定 app shell 由 server 还是 web 承载。
-- Session storage: Node 和 Cloudflare 都通过统一 `databaseFactory` 使用 PostgreSQL 或 D1；Node D1 走 Cloudflare D1 HTTP API，Cloudflare D1 走 Worker binding。
+- Session storage: Node 通过统一 `databaseFactory` 使用 PostgreSQL，Cloudflare 通过统一 `databaseFactory` 使用 D1 Worker binding。
 - Resource APIs: `shop`、`product`、`file`、`product-export`、`reference` 已作为独立业务模块注册，复用 Shopify Admin middleware，不再放在 Shopify app-flow 模块下。
 - OpenAPI: 非 production Node 可注册 `/document` 和 `/reference`；生产和 Cloudflare isolate 默认不注册。
 - Env typing: Hono `AppEnv` 从 runtime schema 推导 bindings；runtime 入口可用 `RuntimeAppEnv<"cloudflare">` 等具体类型收窄。
@@ -29,7 +29,7 @@
 | [shopify.md](./docs/reference/shopify.md)               | Shopify app mode、App Shell、OAuth、account/session、Admin middleware、webhook、resource API |
 | [queue.md](./docs/reference/queue.md)                   | Queue provider 矩阵、job registry、producer/consumer 生命周期、Cloudflare Queues 行为        |
 | [scheduler.md](./docs/reference/scheduler.md)           | Scheduler provider 矩阵、task registry、Node pg-boss schedule、Cloudflare Cron Triggers      |
-| [database.md](./docs/reference/database.md)             | PostgreSQL、D1 HTTP、D1 binding、Hyperdrive 的 runtime-aware database 实现                   |
+| [database.md](./docs/reference/database.md)             | Node PostgreSQL、Cloudflare D1 binding 的 runtime-aware database 实现                        |
 | [d1-development.md](./docs/guides/d1-development.md)    | Development 直连远端 D1、local D1 调试与 seed 使用决策                                       |
 | [reference-data.md](./docs/guides/reference-data.md)    | Product export templates 与通用 reference module 的边界决策                                  |
 | [bucket.md](./docs/reference/bucket.md)                 | Memory/R2 bucket、Node S3-compatible、Cloudflare R2 binding、下载策略                        |

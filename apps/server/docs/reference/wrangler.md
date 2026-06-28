@@ -34,15 +34,13 @@ pnpm deploy:prepare:wrangler
 | -------------------------- | --------------------------------------- |
 | `APP_ENV`                  | 决定 Wrangler env key 和 Worker name    |
 | `APP_RUNTIME`              | 决定是否需要 Cloudflare runtime binding |
-| `APP_DATABASE_PROVIDER`    | 决定 D1 或 Hyperdrive binding           |
+| `APP_DATABASE_PROVIDER`    | 决定是否生成 D1 binding                 |
 | `APP_BUCKET_PROVIDER`      | 决定 R2 binding                         |
 | `APP_BUCKET_R2_BINDING`    | 生成 R2 binding 时必需                  |
 | `APP_BUCKET_R2_NAME`       | 生成 R2 bucket name 时必需              |
 | `APP_DATABASE_D1_BINDING`  | 生成 D1 binding 时必需                  |
 | `APP_DATABASE_D1_NAME`     | 生成 D1 database name 时必需            |
 | `APP_DATABASE_D1_ID`       | 生成 D1 binding 时必需                  |
-| `APP_HYPERDRIVER_BINDING`  | 生成 Hyperdrive binding 时必需          |
-| `APP_HYPERDRIVER_ID`       | 生成 Hyperdrive binding 时必需          |
 | `APP_QUEUE_BINDING`        | 生成 Queue producer/consumer 时必需     |
 | `APP_QUEUE_NAME`           | 生成 Queue 名称时必需                   |
 | `APP_SCHEDULER_CRON_VALUE` | 生成 Cron Trigger 时使用                |
@@ -51,7 +49,7 @@ pnpm deploy:prepare:wrangler
 
 | 字段                     | 缺省行为                                             |
 | ------------------------ | ---------------------------------------------------- |
-| `APP_DATABASE_PROVIDER`  | 默认 `postgres`                                      |
+| `APP_DATABASE_PROVIDER`  | Node 默认 `postgres`，Cloudflare 默认 `d1`           |
 | `APP_BUCKET_PROVIDER`    | Node 默认 `memory`，Cloudflare 默认 `r2`             |
 | `APP_QUEUE_PROVIDER`     | Node 默认 `pg-boss`，Cloudflare 默认 `queues`        |
 | `APP_SCHEDULER_PROVIDER` | Node 默认 `pg-boss`，Cloudflare 默认 `cron-triggers` |
@@ -72,25 +70,23 @@ i7eo-shopify-app
 | `production`  | `i7eo-shopify-app`      |
 | `test`        | `i7eo-shopify-app-test` |
 
-`env.<APP_ENV>.name` 是 Worker 服务名，也就是 `wrangler deploy --env <APP_ENV>` 的部署目标。它只描述 Worker 本身，不描述 R2、D1 或 Hyperdrive 资源。
+`env.<APP_ENV>.name` 是 Worker 服务名，也就是 `wrangler deploy --env <APP_ENV>` 的部署目标。它只描述 Worker 本身，不描述 R2 或 D1 资源。
 
-| Wrangler 字段                  | 作用                                       |
-| ------------------------------ | ------------------------------------------ |
-| `env.<APP_ENV>.name`           | Worker 服务名                              |
-| `r2_buckets[].binding`         | Worker 代码中访问 R2 的 `env` 变量名       |
-| `r2_buckets[].bucket_name`     | Cloudflare R2 bucket 的真实资源名          |
-| `r2_buckets[].remote`          | 本地 `wrangler dev` 是否访问远端 R2        |
-| `d1_databases[].binding`       | Worker 代码中访问 D1 的 `env` 变量名       |
-| `d1_databases[].database_name` | Cloudflare D1 database 的真实资源名        |
-| `d1_databases[].remote`        | 本地 `wrangler dev` 是否访问远端 D1        |
-| `hyperdrive[].binding`         | Worker 代码中访问 Hyperdrive 的变量名      |
-| `hyperdrive[].id`              | Cloudflare Hyperdrive config 的真实资源 ID |
-| `queues.producers[].binding`   | Worker 代码中访问 Queue producer 的变量名  |
-| `queues.producers[].queue`     | Cloudflare Queue 的真实资源名              |
-| `queues.consumers[].queue`     | 当前 Worker 消费的 Cloudflare Queue 名     |
-| `triggers.crons[]`             | Cloudflare Cron Triggers 表达式            |
+| Wrangler 字段                  | 作用                                      |
+| ------------------------------ | ----------------------------------------- |
+| `env.<APP_ENV>.name`           | Worker 服务名                             |
+| `r2_buckets[].binding`         | Worker 代码中访问 R2 的 `env` 变量名      |
+| `r2_buckets[].bucket_name`     | Cloudflare R2 bucket 的真实资源名         |
+| `r2_buckets[].remote`          | 本地 `wrangler dev` 是否访问远端 R2       |
+| `d1_databases[].binding`       | Worker 代码中访问 D1 的 `env` 变量名      |
+| `d1_databases[].database_name` | Cloudflare D1 database 的真实资源名       |
+| `d1_databases[].remote`        | 本地 `wrangler dev` 是否访问远端 D1       |
+| `queues.producers[].binding`   | Worker 代码中访问 Queue producer 的变量名 |
+| `queues.producers[].queue`     | Cloudflare Queue 的真实资源名             |
+| `queues.consumers[].queue`     | 当前 Worker 消费的 Cloudflare Queue 名    |
+| `triggers.crons[]`             | Cloudflare Cron Triggers 表达式           |
 
-R2、D1 和 Hyperdrive 的 binding/resource name 不再由生成器推导，必须在 env file 中显式声明。建议 binding 名保持稳定，资源名按环境变化：
+R2 和 D1 的 binding/resource name 不再由生成器推导，必须在 env file 中显式声明。建议 binding 名保持稳定，资源名按环境变化：
 
 ```env
 APP_BUCKET_R2_BINDING=i7eo_shopify_app_dev_r2
@@ -98,8 +94,6 @@ APP_BUCKET_R2_NAME=i7eo-shopify-app-dev-r2
 
 APP_DATABASE_D1_BINDING=i7eo_shopify_app_dev_d1
 APP_DATABASE_D1_NAME=i7eo-shopify-app-dev-d1
-
-APP_HYPERDRIVER_BINDING=i7eo_shopify_app_dev_hyperdrive
 
 APP_QUEUE_BINDING=i7eo_shopify_app_dev_queue
 APP_QUEUE_NAME=i7eo-shopify-app-dev-queue
@@ -111,12 +105,9 @@ APP_QUEUE_NAME=i7eo-shopify-app-dev-queue
 | ------------ | --------------------- | ------------------- | ---------------------------------------- |
 | `node`       | `postgres`            | `memory`            | 无                                       |
 | `node`       | `postgres`            | `r2`                | `r2_buckets`                             |
-| `node`       | `d1`                  | `memory`            | 无 Cloudflare runtime binding            |
-| `node`       | `d1`                  | `r2`                | `r2_buckets`                             |
-| `cloudflare` | `postgres`            | `r2`                | `r2_buckets`、`hyperdrive`、Queue/Cron   |
 | `cloudflare` | `d1`                  | `r2`                | `r2_buckets`、`d1_databases`、Queue/Cron |
 
-Node + D1 走 Cloudflare D1 HTTP API，不需要 Worker D1 binding。Node + PostgreSQL 走 `pg`，不需要 Hyperdrive binding。
+Node + PostgreSQL 走 `pg`，不生成 database binding。Node + D1、Cloudflare + PostgreSQL 当前不支持，会由 database strategy 边界拒绝。
 
 非 production 的 Cloudflare + D1/R2 会生成 `remote: true`，让 `wrangler dev` 默认访问远端 development D1/R2。production 部署本来就在 Cloudflare 上访问远端资源，因此不需要写这个本地开发开关。
 
@@ -148,7 +139,7 @@ Cloudflare + memory bucket 当前不支持。`APP_BUCKET_PROVIDER=memory` 与 `A
 }
 ```
 
-`node + postgres + r2` 只生成 R2 binding，不生成 D1 或 Hyperdrive binding。
+`node + postgres + r2` 只生成 R2 binding，不生成 D1 binding。
 
 ## Runtime vars 注入
 
@@ -165,7 +156,6 @@ Cloudflare runtime capability 不写死 binding 字段。它读取 runtime env �
 ```ts
 context.env[config.APP_BUCKET_R2_BINDING];
 context.env[config.APP_DATABASE_D1_BINDING];
-context.env[config.APP_HYPERDRIVER_BINDING];
 context.env[config.APP_QUEUE_BINDING];
 ```
 

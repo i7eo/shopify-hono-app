@@ -2,7 +2,7 @@
 
 ## Scope
 
-`@shamt/app-env` composes runtime-neutral schemas from `@shamt/envs` with Shopify app, database provider, bucket provider, Cloudflare, Hyperdrive, queue, and scheduler fields.
+`@shamt/app-env` composes runtime-neutral schemas from `@shamt/envs` with Shopify app, database provider, bucket provider, Cloudflare, queue, and scheduler fields.
 
 ## Boundary Rules
 
@@ -14,7 +14,6 @@
 ## Schema Rules
 
 - Keep env key families stable unless the migration is intentional and documented.
-- Preserve the historical `APP_HYPERDRIVER_*` spelling unless explicitly migrating it.
 - Use const objects for provider values and mode values, following existing package style.
 - Add new provider constants and schemas together.
 - Keep defaults and validation behavior explicit in Zod schemas.

@@ -66,15 +66,13 @@ binding 为边界，当前 disposer 是预留 no-op。
 
 当前策略：
 
-| Runtime      | Provider   | 行为                                               |
-| ------------ | ---------- | -------------------------------------------------- |
-| `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres`            |
-| `node`       | `d1`       | Cloudflare D1 HTTP API + `drizzle-orm/d1`          |
-| `cloudflare` | `postgres` | Hyperdrive `connectionString` + PostgreSQL Drizzle |
-| `cloudflare` | `d1`       | Cloudflare D1 + `drizzle-orm/d1`                   |
+| Runtime      | Provider   | 行为                                    |
+| ------------ | ---------- | --------------------------------------- |
+| `node`       | `postgres` | `pg.Pool` + `drizzle-orm/node-postgres` |
+| `cloudflare` | `d1`       | Cloudflare D1 + `drizzle-orm/d1`        |
 
 PostgreSQL 使用 `drizzle.pg.config.ts` 和 `drizzle.pg`。D1 使用 `drizzle.d1.config.ts` 和 `drizzle.d1`，Wrangler binding 的 `migrations_dir` 指向 `drizzle.d1`。
-Node D1 不依赖 Worker binding，而是通过 Cloudflare D1 HTTP API 访问。它需要 `APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID` 和 `APP_CLOUDFLARE_USER_TOKEN`。
+Node 只支持 PostgreSQL；Cloudflare 只支持 D1。非法组合会通过 runtime env 解析，但会在 database strategy 边界失败。
 
 ### Bucket Factory
 

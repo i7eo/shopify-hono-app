@@ -5,8 +5,8 @@ import { internalServerError } from "@/shared/exceptions";
  * Bootstrap config may be parsed from process.env before bindings exist, so
  * bindings stay optional in schema and become required where they are used.
  *
- * Example: databaseFactory requires D1 or Hyperdrive only after the request
- * context is available.
+ * Example: databaseFactory requires D1 only after the request context is
+ * available.
  */
 export function requireCloudflareBinding<T>(
   value: unknown,
@@ -38,17 +38,6 @@ export function isCloudflareD1Database(value: unknown): value is D1Database {
     typeof database.batch === "function" &&
     typeof database.exec === "function"
   );
-}
-
-/**
- * Runtime shape check for the Hyperdrive binding used by Cloudflare Postgres
- * capabilities.
- */
-export function isCloudflareHyperdrive(value: unknown): value is Hyperdrive {
-  if (!value || typeof value !== "object") return false;
-
-  const hyperdrive = value as Partial<Hyperdrive>;
-  return typeof hyperdrive.connectionString === "string";
 }
 
 /**
