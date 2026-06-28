@@ -35,8 +35,8 @@
   },
   "dependencies": {
     "dayjs": "catalog:",
-    "es-toolkit": "^1.47.1",
-    "nanoid": "^5.1.14"
+    "es-toolkit": "^1.49.0",
+    "nanoid": "^5.1.16"
   },
   "devDependencies": {
     "@types/node": "catalog:",

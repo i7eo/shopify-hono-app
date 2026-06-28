@@ -25,31 +25,31 @@ publicHoistPattern:
   - "*changeset*"
 
 catalog:
-  "@types/node": "^26.0.0"
+  "@types/node": "^26.0.1"
   "npm-run-all2": "^9.0.2"
   "rimraf": "^6.1.3"
   "typescript": "^6.0.3"
   "zod": "^4.4.3"
   "dayjs": "^1.11.21"
-  "vite": "^8.0.16"
+  "vite": "^8.1.0"
 
 catalogs:
   "dx":
-    "eslint": "^10.5.0"
+    "eslint": "^10.6.0"
     "@sxzz/eslint-config": "^8.2.1"
     "eslint-plugin-react-hooks": "^7.1.1"
     "eslint-plugin-react-refresh": "^0.5.2"
-    "@commitlint/cli": "^21.0.2"
-    "@commitlint/config-conventional": "^21.0.2"
-    "@commitlint/types": "^21.0.1"
+    "@commitlint/cli": "^21.1.0"
+    "@commitlint/config-conventional": "^21.1.0"
+    "@commitlint/types": "^21.1.0"
     "czg": "^1.13.1"
-    "lint-staged": "^17.0.7"
-    "prettier": "^3.8.4"
+    "lint-staged": "^17.0.8"
+    "prettier": "^3.9.0"
     "prettier-plugin-tailwindcss": "^0.8.0"
     "simple-git-hooks": "^2.13.1"
     "@unconfig/stylelint-config": "^0.1.10"
     "@unconfig/ts-config-latest": "^0.0.1"
-    "rolldown": "^1.1.2"
+    "rolldown": "^1.1.3"
     "rolldown-plugin-dts": "^0.26.0"
     "tsx": "^4.22.4"
     "turbo": "^2.9.14"
@@ -61,16 +61,16 @@ catalogs:
     "@types/react-dom": "^19.2.3"
     "immer": "^11.1.8"
     "zustand": "^5.0.14"
-    "@vitejs/plugin-react": "^6.0.2"
+    "@vitejs/plugin-react": "^6.0.3"
   "vue":
-    "vue": "^3.5.38"
+    "vue": "^3.5.39"
     "@vitejs/plugin-vue": "^6.0.7"
-    "@vitejs/plugin-vue-jsx": "^5.1.5"
+    "@vitejs/plugin-vue-jsx": "^5.1.6"
   "tailwindcss":
     "tailwindcss": "^4.3.1"
     "@tailwindcss/vite": "^4.3.1"
   "hono":
-    "hono": "^4.12.26"
+    "hono": "^4.12.27"
   "drizzle":
     "drizzle-orm": "^0.45.2"
     "drizzle-zod": "^0.8.3"
@@ -79,11 +79,11 @@ catalogs:
     "pg": "^8.22.0"
     "@types/pg": "^8.20.0"
   "queue":
-    "pg-boss": "^12.20.0"
+    "pg-boss": "^12.23.0"
   "redis":
-    "redis": "^6.0.0"
+    "redis": "^6.0.1"
   "shopify":
-    "@shopify/cli": "^4.2.0"
+    "@shopify/cli": "^4.3.0"
   "test":
     "vitest": "^4.1.8"
     "@vitest/ui": "^4.1.8"
@@ -91,8 +91,8 @@ catalogs:
     "@testing-library/react": "^16.3.2"
     "jsdom": "^29.1.1"
   "cloudflare":
-    "@cloudflare/workers-types": "^4.20260619.1"
-    "wrangler": "^4.103.0"
+    "@cloudflare/workers-types": "^4.20260627.1"
+    "wrangler": "^4.105.0"
 
 minimumReleaseAgeExclude:
   - hono@4.12.23

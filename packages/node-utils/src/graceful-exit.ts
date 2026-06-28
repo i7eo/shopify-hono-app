@@ -110,6 +110,11 @@ export function createProcessGracefulExit(
 
   /** Register process signal listeners and return an unregister function. */
   const register = (cleanup: () => Promise<void>) => {
+    // A controller owns one active set of signal listeners. Re-registering
+    // replaces the previous set, so repeated calls (hot reload, tests) never
+    // accumulate listeners or leave orphaned process handlers behind.
+    removeAllRegisteredExitSignalListeners();
+
     const listeners = exitSignals.map((signal) => {
       const listener = async () => {
         await shutdown(cleanup);
