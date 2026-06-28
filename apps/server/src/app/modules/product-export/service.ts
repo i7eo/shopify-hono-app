@@ -20,7 +20,7 @@ import {
   PRODUCT_EXPORT_CSV_CONTENT_TYPE,
   PRODUCT_EXPORT_QUEUE_JOBS,
 } from "./queue/constants";
-import { createDatabaseProductExportsStoreFromPromise } from "./stores/database";
+import { createDatabaseProductExportsRepositoryFromPromise } from "./repositories/database";
 import { listProductExportTemplates as listTemplates } from "./templates";
 import { mapBulkOperationStatus, PRODUCT_EXPORT_STATUSES } from "./utils";
 import type {
@@ -28,8 +28,8 @@ import type {
   ProductExportCreateInput,
   ProductExportLookup,
   ProductExportRecord,
+  ProductExportRepository,
   ProductExportsPage,
-  ProductExportStore,
 } from "./types";
 import type { FileDownload } from "@/app/modules/file/types";
 import type { ShopifyClient } from "@/infra/provider";
@@ -87,7 +87,7 @@ export async function createProductExport(
 ): Promise<ProductExportRecord> {
   const now = new Date();
   const id = crypto.randomUUID();
-  const store = getProductExportsStore(c);
+  const store = getProductExportsRepository(c);
   const record: ProductExportRecord = {
     bucketKey: null,
     bucketProvider: null,
@@ -127,7 +127,7 @@ export async function listProductExports(
   c: Context<AppEnv>,
   input: ListProductExportsInput,
 ): Promise<ProductExportsPage> {
-  return await getProductExportsStore(c).list({
+  return await getProductExportsRepository(c).list({
     pagination: toPaginationInput(
       {
         cursor: input.cursor,
@@ -155,7 +155,7 @@ export async function getProductExport(
   c: Context<AppEnv>,
   input: ProductExportLookup,
 ): Promise<ProductExportRecord> {
-  const record = await getProductExportsStore(c).findById(input);
+  const record = await getProductExportsRepository(c).findById(input);
 
   if (!record) {
     throw notFoundError("Product export not found", {
@@ -175,7 +175,7 @@ export async function deleteProductExport(
   input: ProductExportLookup,
 ): Promise<void> {
   await getProductExport(c, input);
-  await getProductExportsStore(c).delete(input);
+  await getProductExportsRepository(c).delete(input);
 }
 
 /**
@@ -186,7 +186,7 @@ export async function downloadProductExport(
   shopDomain: string,
   id: string,
 ): Promise<FileDownload> {
-  const record = await getProductExportsStore(c).findById({
+  const record = await getProductExportsRepository(c).findById({
     id,
     shopDomain,
   });
@@ -250,7 +250,7 @@ export async function completeProductExportBulkOperation(
   c: Context<AppEnv>,
   input: ProductExportBulkOperationFinishInput,
 ): Promise<ProductExportRecord | null> {
-  const store = getProductExportsStore(c);
+  const store = getProductExportsRepository(c);
   const record = await store.findByBulkOperationId(input.bulkOperationId);
 
   if (!record || record.shopDomain !== input.shopDomain) {
@@ -281,7 +281,7 @@ export async function startProductExportBulkOperationForRecord(input: {
   client: ShopifyClient;
   record: ProductExportRecord;
   shopifySessionId: string;
-  store: ProductExportStore;
+  store: ProductExportRepository;
 }): Promise<ProductExportRecord> {
   if (input.record.shopifyBulkOperationId) return input.record;
 
@@ -378,7 +378,9 @@ export async function fetchProductExportBulkOperation(
 /**
  * Resolves the product-export store from the active runtime capability.
  */
-export function getProductExportsStore(c: Context<AppEnv>): ProductExportStore {
+export function getProductExportsRepository(
+  c: Context<AppEnv>,
+): ProductExportRepository {
   const databaseFactory = getRuntimeCapability("databaseFactory");
 
   if (!databaseFactory) {
@@ -390,7 +392,7 @@ export function getProductExportsStore(c: Context<AppEnv>): ProductExportStore {
     );
   }
 
-  return createDatabaseProductExportsStoreFromPromise(
+  return createDatabaseProductExportsRepositoryFromPromise(
     Promise.resolve(databaseFactory(createRuntimeResourceContextFromHono(c))),
   );
 }

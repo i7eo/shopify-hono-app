@@ -13,25 +13,27 @@ import {
   listSqliteFiles,
   updateSqliteFileStatus,
 } from "./sqlite";
-import type { FileRecord, FilesPage, FilesStore } from "../../types";
+import type { FileRecord, FilesPage, FilesRepository } from "../../types";
 import type { Database } from "@/infra/database";
 
 type FilesDatabase = Database;
 
 /**
- * Creates a Drizzle-backed files store from an eager database client.
+ * Creates a Drizzle-backed files repository from an eager database client.
  */
-export function createDatabaseFilesStore(db: FilesDatabase): FilesStore {
-  return createDatabaseFilesStoreFromPromise(Promise.resolve(db));
+export function createDatabaseFilesRepository(
+  db: FilesDatabase,
+): FilesRepository {
+  return createDatabaseFilesRepositoryFromPromise(Promise.resolve(db));
 }
 
 /**
- * Creates a Drizzle-backed files store from a lazy database promise so runtime
+ * Creates a Drizzle-backed files repository from a lazy database promise so runtime
  * capabilities can stay synchronous at registration time.
  */
-export function createDatabaseFilesStoreFromPromise(
+export function createDatabaseFilesRepositoryFromPromise(
   dbPromise: Promise<FilesDatabase>,
-): FilesStore {
+): FilesRepository {
   return {
     async create(file): Promise<void> {
       const database = await dbPromise;

@@ -77,13 +77,13 @@ GET /api/product-exports?status=ready&limit=20&page=2
 
 ## 数据库
 
-导出 job、part 和生成文件关联通过 Drizzle-backed product export store 存储：
+导出 job、part 和生成文件关联通过 Drizzle-backed product export repository 存储：
 
 ```text
-apps/server/src/app/modules/product-export/stores/database/index.ts
-apps/server/src/app/modules/product-export/stores/database/postgres.ts
-apps/server/src/app/modules/product-export/stores/database/sqlite.ts
-apps/server/src/app/modules/product-export/stores/database/shared.ts
+apps/server/src/app/modules/product-export/repositories/database/index.ts
+apps/server/src/app/modules/product-export/repositories/database/postgres.ts
+apps/server/src/app/modules/product-export/repositories/database/sqlite.ts
+apps/server/src/app/modules/product-export/repositories/database/shared.ts
 packages/database/src/models/postgres/product-exports.ts
 packages/database/src/models/sqlite/product-exports.ts
 ```

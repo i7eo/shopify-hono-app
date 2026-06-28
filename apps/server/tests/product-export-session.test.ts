@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { startProductExportBulkOperationForRecord } from "@/app/modules/product-export/service";
 import type {
   ProductExportRecord,
-  ProductExportStore,
+  ProductExportRepository,
 } from "@/app/modules/product-export/types";
 import type { ShopifyClient } from "@/infra/provider";
 
@@ -11,7 +11,7 @@ describe("product export Shopify session ownership", () => {
     const now = new Date("2026-06-18T12:00:00.000Z");
     const record = createProductExportRecord({ updatedAt: now });
     const update = vi.fn();
-    const store = createProductExportStore({ update });
+    const store = createProductExportRepository({ update });
     const client: ShopifyClient = {
       request: vi.fn().mockResolvedValue({
         data: {
@@ -54,9 +54,9 @@ describe("product export Shopify session ownership", () => {
   });
 });
 
-function createProductExportStore(
-  overrides: Partial<ProductExportStore> = {},
-): ProductExportStore {
+function createProductExportRepository(
+  overrides: Partial<ProductExportRepository> = {},
+): ProductExportRepository {
   return {
     claimPart: vi.fn(),
     create: vi.fn(),

@@ -34,8 +34,8 @@ import type {
   ProductExportPartStats,
   ProductExportPartStatus,
   ProductExportRecord,
+  ProductExportRepository,
   ProductExportsPage,
-  ProductExportStore,
 } from "../../types";
 import type { PostgresDatabase } from "@/infra/database";
 import type { SeekCursor } from "@/shared/models";
@@ -187,7 +187,7 @@ export async function listPostgresProductExportParts(
 
 export async function listPostgresProductExportPartsPage(
   database: PostgresDatabase,
-  input: Parameters<ProductExportStore["listPartsPage"]>[0],
+  input: Parameters<ProductExportRepository["listPartsPage"]>[0],
 ): Promise<ProductExportPartRecord[]> {
   const where =
     input.afterSeq === undefined
@@ -225,7 +225,7 @@ export async function listPostgresProductExportPartsByStatus(
 
 export async function listPostgresRecoverableProductExports(
   database: PostgresDatabase,
-  input: Parameters<ProductExportStore["listRecoverableExports"]>[0],
+  input: Parameters<ProductExportRepository["listRecoverableExports"]>[0],
 ): Promise<ProductExportRecord[]> {
   return await database.db
     .select()
@@ -359,7 +359,7 @@ function getPostgresListWhere(
 }
 
 function getPostgresRecoverableWhere(
-  input: Parameters<ProductExportStore["listRecoverableExports"]>[0],
+  input: Parameters<ProductExportRepository["listRecoverableExports"]>[0],
 ) {
   const conditions = [
     isNull(postgresProductExports.deletedAt),

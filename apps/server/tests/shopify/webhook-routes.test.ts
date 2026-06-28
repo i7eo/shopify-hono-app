@@ -11,7 +11,7 @@ describe("Shopify webhook routes", () => {
     vi.resetModules();
     vi.doUnmock("@/shared/middlewares");
     vi.doUnmock("@/app/modules/shopify/session-storage");
-    vi.doUnmock("@/app/modules/product-export/stores/database");
+    vi.doUnmock("@/app/modules/product-export/repositories/database");
     return disposeRuntimeCapabilities();
   });
 
@@ -114,8 +114,8 @@ describe("Shopify webhook routes", () => {
     const enqueue = vi.fn();
     const update = vi.fn();
 
-    vi.doMock("@/app/modules/product-export/stores/database", () => ({
-      createDatabaseProductExportsStoreFromPromise: vi.fn(() => ({
+    vi.doMock("@/app/modules/product-export/repositories/database", () => ({
+      createDatabaseProductExportsRepositoryFromPromise: vi.fn(() => ({
         create: vi.fn(),
         delete: vi.fn(),
         findByBulkOperationId: vi.fn(() => record),

@@ -10,7 +10,7 @@ import type {
   ReferenceListInput,
   ReferenceLookup,
   ReferenceRecord,
-  ReferenceStore,
+  ReferenceRepository,
 } from "../../types";
 import type { PostgresDatabase } from "@/infra/database";
 
@@ -202,7 +202,7 @@ async function countPostgresReferences(
   return Number(row?.total ?? 0);
 }
 
-export const postgresReferenceStore = {
+export const postgresReferenceRepository = {
   create: createPostgresReference,
   delete: deletePostgresReference,
   findByCode: findPostgresReferenceByCode,
@@ -210,4 +210,4 @@ export const postgresReferenceStore = {
   findById: findPostgresReferenceById,
   list: listPostgresReferences,
   update: updatePostgresReference,
-} satisfies Record<keyof ReferenceStore, unknown>;
+} satisfies Record<keyof ReferenceRepository, unknown>;

@@ -34,8 +34,8 @@ import type {
   ProductExportPartStats,
   ProductExportPartStatus,
   ProductExportRecord,
+  ProductExportRepository,
   ProductExportsPage,
-  ProductExportStore,
 } from "../../types";
 import type { D1DatabaseClient } from "@/infra/database";
 import type { SeekCursor } from "@/shared/models";
@@ -184,7 +184,7 @@ export async function listSqliteProductExportParts(
 
 export async function listSqliteProductExportPartsPage(
   database: D1DatabaseClient,
-  input: Parameters<ProductExportStore["listPartsPage"]>[0],
+  input: Parameters<ProductExportRepository["listPartsPage"]>[0],
 ): Promise<ProductExportPartRecord[]> {
   const where =
     input.afterSeq === undefined
@@ -222,7 +222,7 @@ export async function listSqliteProductExportPartsByStatus(
 
 export async function listSqliteRecoverableProductExports(
   database: D1DatabaseClient,
-  input: Parameters<ProductExportStore["listRecoverableExports"]>[0],
+  input: Parameters<ProductExportRepository["listRecoverableExports"]>[0],
 ): Promise<ProductExportRecord[]> {
   return await database.db
     .select()
@@ -353,7 +353,7 @@ function getSqliteListWhere(
 }
 
 function getSqliteRecoverableWhere(
-  input: Parameters<ProductExportStore["listRecoverableExports"]>[0],
+  input: Parameters<ProductExportRepository["listRecoverableExports"]>[0],
 ) {
   const conditions = [
     isNull(sqliteProductExports.deletedAt),

@@ -11,8 +11,8 @@ import type { Database } from "@/infra/database";
 
 const findByIdMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/modules/product-export/stores/database", () => ({
-  createDatabaseProductExportsStoreFromPromise: () => ({
+vi.mock("@/app/modules/product-export/repositories/database", () => ({
+  createDatabaseProductExportsRepositoryFromPromise: () => ({
     findById: findByIdMock,
   }),
 }));

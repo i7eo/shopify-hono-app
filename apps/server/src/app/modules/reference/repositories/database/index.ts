@@ -17,16 +17,18 @@ import {
   listSqliteReferences,
   updateSqliteReference,
 } from "./sqlite";
-import type { ReferenceStore } from "../../types";
+import type { ReferenceRepository } from "../../types";
 import type { Database } from "@/infra/database";
 
-export function createDatabaseReferenceStore(db: Database): ReferenceStore {
-  return createDatabaseReferenceStoreFromPromise(Promise.resolve(db));
+export function createDatabaseReferenceRepository(
+  db: Database,
+): ReferenceRepository {
+  return createDatabaseReferenceRepositoryFromPromise(Promise.resolve(db));
 }
 
-export function createDatabaseReferenceStoreFromPromise(
+export function createDatabaseReferenceRepositoryFromPromise(
   dbPromise: Promise<Database>,
-): ReferenceStore {
+): ReferenceRepository {
   return {
     async create(record): Promise<void> {
       const database = await dbPromise;

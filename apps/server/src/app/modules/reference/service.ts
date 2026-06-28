@@ -7,7 +7,7 @@ import {
 } from "@/shared/exceptions";
 import { toPaginationInput } from "@/shared/models";
 import { REFERENCE_GENDER_DEFAULTS, REFERENCE_NAMESPACES } from "./constants";
-import { createDatabaseReferenceStoreFromPromise } from "./stores/database";
+import { createDatabaseReferenceRepositoryFromPromise } from "./repositories/database";
 import type {
   ListReferencesInput,
   ReferenceCreateInput,
@@ -15,7 +15,7 @@ import type {
   ReferenceLookup,
   ReferenceNamespaceLookup,
   ReferenceRecord,
-  ReferenceStore,
+  ReferenceRepository,
   ReferenceUpdateInput,
 } from "./types";
 import type { AppEnv } from "@/typings";
@@ -43,7 +43,7 @@ export async function listReferences(
   };
 
   await ensureReferenceNamespaceDefaults(c, listInput);
-  return await getReferenceStore(c).list(listInput);
+  return await getReferenceRepository(c).list(listInput);
 }
 
 /**
@@ -53,7 +53,7 @@ export async function createReference(
   c: Context<AppEnv>,
   input: ReferenceCreateInput,
 ): Promise<ReferenceRecord> {
-  const store = getReferenceStore(c);
+  const store = getReferenceRepository(c);
   const existing = await store.findByCodeIncludingDeleted(input);
 
   if (existing && !existing.deletedAt) {
@@ -100,7 +100,7 @@ export async function getReference(
 ): Promise<ReferenceRecord> {
   await ensureReferenceNamespaceDefaults(c, input);
 
-  const record = await getReferenceStore(c).findById(input);
+  const record = await getReferenceRepository(c).findById(input);
 
   if (!record) {
     throw notFoundError("Reference not found", {
@@ -119,7 +119,7 @@ export async function updateReference(
   c: Context<AppEnv>,
   input: ReferenceUpdateInput,
 ): Promise<ReferenceRecord> {
-  const store = getReferenceStore(c);
+  const store = getReferenceRepository(c);
   const current = await getReference(c, input);
   const nextCode = input.code ?? current.code;
 
@@ -163,13 +163,15 @@ export async function deleteReference(
   input: ReferenceLookup,
 ): Promise<void> {
   await getReference(c, input);
-  await getReferenceStore(c).delete(input);
+  await getReferenceRepository(c).delete(input);
 }
 
 /**
- * Resolves the reference store from the active runtime capability.
+ * Resolves the reference repository from the active runtime capability.
  */
-export function getReferenceStore(c: Context<AppEnv>): ReferenceStore {
+export function getReferenceRepository(
+  c: Context<AppEnv>,
+): ReferenceRepository {
   const databaseFactory = getRuntimeCapability("databaseFactory");
 
   if (!databaseFactory) {
@@ -181,7 +183,7 @@ export function getReferenceStore(c: Context<AppEnv>): ReferenceStore {
     );
   }
 
-  return createDatabaseReferenceStoreFromPromise(
+  return createDatabaseReferenceRepositoryFromPromise(
     Promise.resolve(databaseFactory(createRuntimeResourceContextFromHono(c))),
   );
 }
@@ -192,7 +194,7 @@ async function ensureReferenceNamespaceDefaults(
 ): Promise<void> {
   if (input.namespace !== REFERENCE_NAMESPACES.GENDER) return;
 
-  const store = getReferenceStore(c);
+  const store = getReferenceRepository(c);
   const now = new Date();
 
   await Promise.all(

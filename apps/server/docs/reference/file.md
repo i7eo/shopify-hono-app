@@ -118,13 +118,13 @@ Multipart 解析当前由 `apps/server/src/app/modules/file/upload-stream-parser
 
 ## 数据库
 
-文件元数据通过 Drizzle-backed files store 存储：
+文件元数据通过 Drizzle-backed files repository 存储：
 
 ```text
-apps/server/src/app/modules/file/stores/database/index.ts
-apps/server/src/app/modules/file/stores/database/postgres.ts
-apps/server/src/app/modules/file/stores/database/sqlite.ts
-apps/server/src/app/modules/file/stores/database/shared.ts
+apps/server/src/app/modules/file/repositories/database/index.ts
+apps/server/src/app/modules/file/repositories/database/postgres.ts
+apps/server/src/app/modules/file/repositories/database/sqlite.ts
+apps/server/src/app/modules/file/repositories/database/shared.ts
 packages/database/src/models/postgres/files.ts
 packages/database/src/models/sqlite/files.ts
 ```
@@ -163,7 +163,7 @@ file module 使用这些 runtime capabilities：
 | `bucketFactory`                     | 创建通用 object bucket       |
 | `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
 
-file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files store。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver。
+file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files repository。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver。
 
 Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。development 的 R2 binding 需要与 D1 一样保持 `remote: true`，否则写入会进入 Wrangler 本地 R2 模拟，但下载 resolver 生成的 signed URL 会指向远端 R2，最终表现为业务接口成功而 R2 返回 `NoSuchKey`。file module 当前没有模块专属后台 dispatcher；后续过期清理、对象删除重试等后台工作应注册到通用 queue/scheduler infra。
 

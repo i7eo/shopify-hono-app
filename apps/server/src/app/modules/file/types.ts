@@ -36,7 +36,7 @@ export type FileStatusUpdate = FileLookup & {
   deletedAt?: Date;
 };
 
-export interface FilesStore {
+export interface FilesRepository {
   create: (file: FileRecord) => Promise<void>;
   findById: (input: FileLookup) => Promise<FileRecord | null>;
   list: (input: FileListInput) => Promise<FilesPage>;

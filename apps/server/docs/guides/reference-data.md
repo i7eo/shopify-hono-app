@@ -86,7 +86,7 @@ Reference 的核心字段保持通用：
 | `enabled`   | 是否可被选择                           |
 | `system`    | 是否为系统默认项                       |
 
-通用 `reference` module 通过 `databaseFactory` 获取数据库能力，并提供 PostgreSQL 与 D1/SQLite 两套 store 实现。业务 controller/service 不直接判断 Node、Cloudflare、PostgreSQL 或 D1。
+通用 `reference` module 通过 `databaseFactory` 获取数据库能力，并提供 PostgreSQL 与 D1/SQLite 两套 repository 实现。业务 controller/service 不直接判断 Node、Cloudflare、PostgreSQL 或 D1。
 
 ## 放入哪个边界
 

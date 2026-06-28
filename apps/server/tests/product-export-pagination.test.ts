@@ -1,13 +1,13 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { describe, expect, it } from "vitest";
-import { createDatabaseProductExportsStore } from "@/app/modules/product-export/stores/database";
+import { createDatabaseProductExportsRepository } from "@/app/modules/product-export/repositories/database";
 import { createSeekCursor } from "@/shared/models";
 import type { ProductExportRecord } from "@/app/modules/product-export/types";
 import type { Database } from "@/infra/database";
 
 describe("product export pagination", () => {
   it("lists product exports with page pagination metadata", async () => {
-    const store = createDatabaseProductExportsStore(
+    const store = createDatabaseProductExportsRepository(
       createMemoryExportsDatabase(),
     );
 
@@ -42,7 +42,7 @@ describe("product export pagination", () => {
   });
 
   it("continues product export lists after the cursor resource", async () => {
-    const store = createDatabaseProductExportsStore(
+    const store = createDatabaseProductExportsRepository(
       createMemoryExportsDatabase(),
     );
 
@@ -91,7 +91,7 @@ describe("product export pagination", () => {
   });
 
   it("lists recoverable exports in updated-at batches", async () => {
-    const store = createDatabaseProductExportsStore(
+    const store = createDatabaseProductExportsRepository(
       createMemoryExportsDatabase(),
     );
     const olderThan = new Date("2026-06-20T01:00:00.000Z");

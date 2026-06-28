@@ -46,7 +46,7 @@ export type ListReferencesInput = ReferenceNamespaceLookup & {
   page?: number;
 };
 
-export interface ReferenceStore {
+export interface ReferenceRepository {
   create: (record: ReferenceRecord) => Promise<void>;
   delete: (input: ReferenceLookup) => Promise<void>;
   findByCode: (input: ReferenceCodeLookup) => Promise<ReferenceRecord | null>;

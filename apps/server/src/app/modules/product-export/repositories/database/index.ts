@@ -37,22 +37,22 @@ import type {
   ProductExportPartRecord,
   ProductExportPartStats,
   ProductExportRecord,
+  ProductExportRepository,
   ProductExportsPage,
-  ProductExportStore,
 } from "../../types";
 import type { Database } from "@/infra/database";
 
 type ProductExportsDatabase = Database;
 
-export function createDatabaseProductExportsStore(
+export function createDatabaseProductExportsRepository(
   db: ProductExportsDatabase,
-): ProductExportStore {
-  return createDatabaseProductExportsStoreFromPromise(Promise.resolve(db));
+): ProductExportRepository {
+  return createDatabaseProductExportsRepositoryFromPromise(Promise.resolve(db));
 }
 
-export function createDatabaseProductExportsStoreFromPromise(
+export function createDatabaseProductExportsRepositoryFromPromise(
   dbPromise: Promise<ProductExportsDatabase>,
-): ProductExportStore {
+): ProductExportRepository {
   return {
     async create(record): Promise<void> {
       const database = await dbPromise;

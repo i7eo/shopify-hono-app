@@ -1,6 +1,7 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
+import { createDatabaseFilesRepository } from "@/app/modules/file/repositories/database";
 import {
   createFile,
   createFiles,
@@ -9,7 +10,6 @@ import {
   getFile,
   listFiles,
 } from "@/app/modules/file/service";
-import { createDatabaseFilesStore } from "@/app/modules/file/stores/database";
 import {
   disposeRuntimeCapabilities,
   setRuntimeCapability,
@@ -20,7 +20,7 @@ import { runtimeConfig } from "./shopify/test-utils";
 import type {
   FileDownloadResolver,
   FileRecord,
-  FilesStore,
+  FilesRepository,
 } from "@/app/modules/file/types";
 import type {
   Bucket,
@@ -375,7 +375,7 @@ function createServiceContext(options: {
   resolver?: FileDownloadResolver;
   bucket?: Bucket;
   database?: Database;
-  store?: TestFilesStore;
+  store?: TestFilesRepository;
   runtimeEnv?: RuntimeConfig;
 }) {
   const database =
@@ -407,15 +407,15 @@ function createServiceContext(options: {
   return context as Parameters<typeof createFile>[0];
 }
 
-type TestFilesStore = FilesStore & {
+type TestFilesRepository = FilesRepository & {
   database: Database;
 };
 
 function createMemoryMetadataStore(
   provider: Database["provider"] = DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
-): TestFilesStore {
+): TestFilesRepository {
   const database = createMemoryFilesDatabase(provider);
-  const store = createDatabaseFilesStore(database);
+  const store = createDatabaseFilesRepository(database);
 
   return Object.assign(store, { database });
 }

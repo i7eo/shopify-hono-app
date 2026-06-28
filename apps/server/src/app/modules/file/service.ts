@@ -12,7 +12,7 @@ import {
   notFoundError,
 } from "@/shared/exceptions";
 import { PAGINATION_LIMIT_MAX, toPaginationInput } from "@/shared/models";
-import { createDatabaseFilesStoreFromPromise } from "./stores/database";
+import { createDatabaseFilesRepositoryFromPromise } from "./repositories/database";
 import { getFileUploadStreamParser } from "./upload-stream-parser";
 import {
   createBucketKey,
@@ -27,7 +27,7 @@ import type {
   FileDownload,
   FileRecord,
   FilesPage,
-  FilesStore,
+  FilesRepository,
   ListFilesInput,
   PublicFile,
 } from "./types";
@@ -58,7 +58,7 @@ export async function createFile(
     now,
   });
   const bucketProvider = getBucketEnvConfig(input.runtimeEnv).provider;
-  const store = getFilesStore(c);
+  const store = getFilesRepository(c);
   const bucket = await getFileBucket(c);
 
   const initialFile: FileRecord = {
@@ -162,7 +162,7 @@ export async function listFiles(
   c: Context<AppEnv>,
   input: ListFilesInput,
 ): Promise<{ files: PublicFile[]; pagination: FilesPage["pagination"] }> {
-  const page = await getFilesStore(c).list({
+  const page = await getFilesRepository(c).list({
     pagination: toPaginationInput(
       {
         cursor: input.cursor,
@@ -212,7 +212,7 @@ export async function deleteFile(
   shopDomain: string,
   id: string,
 ): Promise<void> {
-  const store = getFilesStore(c);
+  const store = getFilesRepository(c);
   const file = await store.findById({ id, shopDomain });
   if (!file || file.deletedAt || file.status === "deleted") {
     throw notFoundError("File not found");
@@ -230,7 +230,7 @@ async function getAvailableFile(
   shopDomain: string,
   id: string,
 ): Promise<FileRecord> {
-  const store = getFilesStore(c);
+  const store = getFilesRepository(c);
   const file = await store.findById({ id, shopDomain });
 
   if (!file || file.deletedAt || file.status === "deleted") {
@@ -250,10 +250,10 @@ async function getAvailableFile(
 }
 
 /**
- * Builds the module-owned files store from the shared database capability.
+ * Builds the module-owned files repository from the shared database capability.
  */
-function getFilesStore(c: Context<AppEnv>): FilesStore {
-  return createDatabaseFilesStoreFromPromise(
+function getFilesRepository(c: Context<AppEnv>): FilesRepository {
+  return createDatabaseFilesRepositoryFromPromise(
     Promise.resolve(
       getFactory("databaseFactory")(createRuntimeResourceContextFromHono(c)),
     ),

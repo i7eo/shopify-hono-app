@@ -51,7 +51,7 @@ runtime capability 负责注入平台相关能力：
 - `schedulerFactory`
 - `moduleFileDownloadResolverFactory`
 
-共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。文件模块与 Shopify session storage 都通过统一的 `databaseFactory` 获取 Drizzle client，各模块再在自己的业务边界内实现 store/adapter。
+共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。文件模块与 Shopify session storage 都通过统一的 `databaseFactory` 获取 Drizzle client，各模块再在自己的业务边界内实现 repository/adapter。
 file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream 或 R2 signed redirect；Node 与 Cloudflare runtime 共用 R2 SigV4 signer。product-export 等异步模块通过 `queueProducerFactory` 投递小 payload，通过 queue/scheduler registry 注册 handler。
 
 对应文件：

@@ -3,6 +3,7 @@ import { registerQueueJob, type QueueJobContext } from "@/infra/queue";
 import { registerSchedulerTask } from "@/infra/scheduler";
 import { badGatewayError } from "@/shared/exceptions";
 import { createBucketObjectKey } from "@/utils";
+import { createDatabaseProductExportsRepository } from "../repositories/database";
 import {
   createProductExportBucket,
   createProductExportDatabase,
@@ -14,7 +15,6 @@ import {
   fetchProductExportBulkOperation,
   startProductExportBulkOperationForRecord,
 } from "../service";
-import { createDatabaseProductExportsStore } from "../stores/database";
 import {
   createProductExportCsvPartStream,
   CSV_HEADER,
@@ -43,7 +43,7 @@ import {
 import type {
   ProductExportPartRecord,
   ProductExportRecord,
-  ProductExportStore,
+  ProductExportRepository,
 } from "../types";
 import type { Bucket } from "@/infra/bucket";
 import type { AppEnv } from "@/typings";
@@ -370,7 +370,7 @@ async function reconcileJob(
 
 async function reconcileRecord(
   context: QueueJobContext,
-  store: ProductExportStore,
+  store: ProductExportRepository,
   record: ProductExportRecord,
 ): Promise<void> {
   if (record.status === PRODUCT_EXPORT_STATUSES.QUEUED) {
@@ -458,7 +458,7 @@ async function updateBulkOperationResult(
  */
 async function enqueuePendingParts(
   context: QueueJobContext,
-  store: ProductExportStore,
+  store: ProductExportRepository,
   record: ProductExportRecord,
 ): Promise<void> {
   const retryParts = await store.listPartsByStatus({
@@ -482,8 +482,8 @@ async function enqueuePendingParts(
  */
 async function createStore(
   context: QueueJobContext,
-): Promise<ProductExportStore> {
-  return createDatabaseProductExportsStore(
+): Promise<ProductExportRepository> {
+  return createDatabaseProductExportsRepository(
     await createProductExportDatabase(context),
   );
 }
@@ -616,7 +616,7 @@ async function processPart(
  */
 async function finalizeParts(
   record: ProductExportRecord,
-  store: ProductExportStore,
+  store: ProductExportRepository,
   bucket: Bucket,
 ): Promise<{
   bucketKey: string;
@@ -651,7 +651,7 @@ async function finalizeParts(
 
 function createFinalCsvStream(
   bucket: Bucket,
-  store: ProductExportStore,
+  store: ProductExportRepository,
   exportId: string,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
@@ -762,7 +762,7 @@ export async function deleteProductExportPartObjects(
 }
 
 async function deleteProductExportPartObjectsByPage(
-  store: ProductExportStore,
+  store: ProductExportRepository,
   exportId: string,
   bucket: Bucket,
 ): Promise<void> {

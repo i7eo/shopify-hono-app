@@ -10,7 +10,7 @@ import type {
   ReferenceListInput,
   ReferenceLookup,
   ReferenceRecord,
-  ReferenceStore,
+  ReferenceRepository,
 } from "../../types";
 import type { D1DatabaseClient } from "@/infra/database";
 
@@ -202,7 +202,7 @@ async function countSqliteReferences(
   return Number(row?.total ?? 0);
 }
 
-export const sqliteReferenceStore = {
+export const sqliteReferenceRepository = {
   create: createSqliteReference,
   delete: deleteSqliteReference,
   findByCode: findSqliteReferenceByCode,
@@ -210,4 +210,4 @@ export const sqliteReferenceStore = {
   findById: findSqliteReferenceById,
   list: listSqliteReferences,
   update: updateSqliteReference,
-} satisfies Record<keyof ReferenceStore, unknown>;
+} satisfies Record<keyof ReferenceRepository, unknown>;

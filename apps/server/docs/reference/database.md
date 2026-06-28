@@ -73,53 +73,53 @@ runtime capability 会通过 `APP_DATABASE_D1_BINDING` 动态读取 `c.env[bindi
 
 ## Schema 与迁移目录
 
-PostgreSQL 和 D1 使用不同 schema 输出，但业务 store 保持同一接口。
+PostgreSQL 和 D1 使用不同 schema 输出，但业务 repository 保持同一接口。
 
 | Provider   | Drizzle config                     | Migration dir            | Schema package                          |
 | ---------- | ---------------------------------- | ------------------------ | --------------------------------------- |
 | PostgreSQL | `apps/server/drizzle.pg.config.ts` | `apps/server/drizzle.pg` | `packages/database/src/models/postgres` |
 | D1         | `apps/server/drizzle.d1.config.ts` | `apps/server/drizzle.d1` | `packages/database/src/models/sqlite`   |
 
-file metadata store 使用：
+file metadata repository 使用：
 
 ```text
-apps/server/src/app/modules/file/stores/database/index.ts
-apps/server/src/app/modules/file/stores/database/postgres.ts
-apps/server/src/app/modules/file/stores/database/sqlite.ts
-apps/server/src/app/modules/file/stores/database/shared.ts
+apps/server/src/app/modules/file/repositories/database/index.ts
+apps/server/src/app/modules/file/repositories/database/postgres.ts
+apps/server/src/app/modules/file/repositories/database/sqlite.ts
+apps/server/src/app/modules/file/repositories/database/shared.ts
 packages/database/src/models/postgres/files.ts
 packages/database/src/models/sqlite/files.ts
 ```
 
-product export store 使用：
+product export repository 使用：
 
 ```text
-apps/server/src/app/modules/product-export/stores/database/index.ts
-apps/server/src/app/modules/product-export/stores/database/postgres.ts
-apps/server/src/app/modules/product-export/stores/database/sqlite.ts
-apps/server/src/app/modules/product-export/stores/database/shared.ts
+apps/server/src/app/modules/product-export/repositories/database/index.ts
+apps/server/src/app/modules/product-export/repositories/database/postgres.ts
+apps/server/src/app/modules/product-export/repositories/database/sqlite.ts
+apps/server/src/app/modules/product-export/repositories/database/shared.ts
 packages/database/src/models/postgres/product-exports.ts
 packages/database/src/models/sqlite/product-exports.ts
 ```
 
 `product_exports` 记录包含 `template` 字段，默认值为 `basic`。template code 的允许值由 `@shamt/database/constants` 暴露的 `PRODUCT_EXPORT_TEMPLATE_CODE_VALUES` 统一维护，业务层不要在 app 内另写一份枚举。
 
-reference store 使用：
+reference repository 使用：
 
 ```text
-apps/server/src/app/modules/reference/stores/database/index.ts
-apps/server/src/app/modules/reference/stores/database/postgres.ts
-apps/server/src/app/modules/reference/stores/database/sqlite.ts
-apps/server/src/app/modules/reference/stores/database/shared.ts
+apps/server/src/app/modules/reference/repositories/database/index.ts
+apps/server/src/app/modules/reference/repositories/database/postgres.ts
+apps/server/src/app/modules/reference/repositories/database/sqlite.ts
+apps/server/src/app/modules/reference/repositories/database/shared.ts
 packages/database/src/models/postgres/references.ts
 packages/database/src/models/sqlite/references.ts
 ```
 
 `references` 表字段为 `id`、`shop_domain`、`namespace`、`code`、`label`、`enabled`、`system`、`sort_order`、`created_at`、`updated_at`、`deleted_at`。唯一索引 `references_shop_namespace_code_idx` 约束同一 shop 和 namespace 下的 code 唯一；`references_shop_namespace_sort_idx` 支持按 `enabled`、`sort_order`、`code` 的稳定分页排序。
 
-模块 store 约定：
+模块 repository 约定：
 
-- `index.ts` 只负责根据 Drizzle database kind 选择 dialect store。
+- `index.ts` 只负责根据 Drizzle database kind 选择 dialect repository。
 - `postgres.ts` 和 `sqlite.ts` 放置 SQL dialect-specific 查询、排序、聚合和事务逻辑。
 - `shared.ts` 放置分页转换、cursor 解析、page offset、状态统计转换等跨 dialect 逻辑。
 - Cursor 列表使用 `created_at + id` seek cursor，多取一条记录判断 `hasNext`；page 列表只允许浅页导航，并额外计算 `total`。

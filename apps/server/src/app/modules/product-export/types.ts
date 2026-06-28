@@ -54,7 +54,7 @@ export type ProductExportPartStats = {
   total: number;
 };
 
-export type ProductExportStore = {
+export type ProductExportRepository = {
   create: (record: ProductExportRecord) => Promise<void>;
   createParts: (parts: ProductExportPartRecord[]) => Promise<void>;
   claimPart: (
