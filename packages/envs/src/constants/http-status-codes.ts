@@ -1,4 +1,5 @@
 // see https://github.com/w3cj/stoker/blob/main/scripts/update-http-statuses.ts
+// https://raw.githubusercontent.com/prettymuchbryce/http-status-codes/refs/heads/master/codes.json
 export const HTTP_STATUS_CODES = {
   ACCEPTED: {
     code: 202,

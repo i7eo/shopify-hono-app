@@ -78,9 +78,7 @@ export async function disposeProcessDatabase(): Promise<void> {
 function getProcessDatabaseCacheKey(config: RuntimeConfig): string {
   const strategy = getDatabaseEnvConfig(config);
 
-  return JSON.stringify({
-    databaseUrl: getDatabaseUrl(config),
-    provider: strategy.provider,
-    runtime: strategy.runtime,
-  });
+  return [getDatabaseUrl(config), strategy.provider, strategy.runtime].join(
+    ":",
+  );
 }
