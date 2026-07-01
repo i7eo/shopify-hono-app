@@ -61,8 +61,8 @@
     "wrangler": "catalog:cloudflare"
   },
   "simple-git-hooks": {
-    "pre-commit": "lint-staged --concurrent false",
-    "commit-msg": "commitlint --edit $1"
+    "pre-commit": "NODE_OPTIONS=\"--import tsx\" pnpm exec lint-staged --concurrent false",
+    "commit-msg": "NODE_OPTIONS=\"--import tsx\" pnpm exec commitlint --edit $1"
   },
   "devEngines": {
     "packageManager": {

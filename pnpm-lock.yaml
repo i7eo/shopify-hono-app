@@ -793,37 +793,6 @@ importers:
         specifier: "catalog:"
         version: 6.0.3
 
-  packages/cache:
-    dependencies:
-      "@shamt/envs":
-        specifier: workspace:*
-        version: link:../envs
-      "@unimolecule/utils":
-        specifier: "catalog:"
-        version: 0.1.2
-      lru-cache:
-        specifier: ^11.5.1
-        version: 11.5.1
-    devDependencies:
-      "@types/node":
-        specifier: "catalog:"
-        version: 26.0.1
-      "@unconfig/ts-config":
-        specifier: catalog:dx
-        version: 0.1.11
-      rolldown:
-        specifier: catalog:dx
-        version: 1.1.3
-      rolldown-plugin-dts:
-        specifier: catalog:dx
-        version: 0.26.0(rolldown@1.1.3)(typescript@6.0.3)
-      typescript:
-        specifier: "catalog:"
-        version: 6.0.3
-      vitest:
-        specifier: catalog:test
-        version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
-
   packages/database:
     dependencies:
       "@shamt/app-env":

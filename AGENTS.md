@@ -100,7 +100,6 @@ Prefer package-scoped commands for focused work, for example:
 pnpm -F @shamt/server test
 pnpm -F @shamt/server lint
 pnpm -F @shamt/web build
-pnpm -F @shamt/cache test
 ```
 
 ## Verification
