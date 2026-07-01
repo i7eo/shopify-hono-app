@@ -1,6 +1,5 @@
 import { envConfigSchema } from "@shamt/app-env";
-import { throwError } from "@shamt/utils";
-import { formatZodError, isIsolateRuntime } from "@/utils";
+import { formatZodError, isIsolateRuntime, throwError } from "@/utils";
 import { parseIsolateConfig, type IsolateConfig } from "./isolate";
 import { parseProcessConfig, type ProcessConfig } from "./process";
 import { normalizeEnv } from "./shared";

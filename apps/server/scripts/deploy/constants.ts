@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path, { dirname } from "node:path";
-import { throwError } from "@shamt/utils";
+import { throwError } from "./utils";
 
 export const root = findWorkspaceRoot();
 

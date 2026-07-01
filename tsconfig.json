@@ -10,9 +10,7 @@
     { "path": "./packages/cache" },
     { "path": "./packages/database" },
     { "path": "./packages/envs" },
-    { "path": "./packages/node-utils" },
-    { "path": "./packages/oh-my-fetch" },
-    { "path": "./packages/utils" }
+    { "path": "./packages/oh-my-fetch" }
   ],
   "files": []
 }

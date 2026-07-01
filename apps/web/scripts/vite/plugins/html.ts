@@ -1,5 +1,5 @@
 import { DEFAULT_SHOPIFY_APP_MODES, type ConfigSchema } from "@shamt/app-env";
-import { escape as escapeHTML } from "@shamt/utils";
+import { escape as escapeHTML } from "@unimolecule/utils";
 import type { Plugin } from "vite";
 
 interface HtmlPluginOptions {

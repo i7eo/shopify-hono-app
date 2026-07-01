@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("onAppStartup", () => {
   afterEach(() => {
-    vi.doUnmock("@shamt/utils");
+    vi.doUnmock("@unimolecule/utils");
     vi.resetModules();
   });
 
@@ -14,8 +14,8 @@ describe("onAppStartup", () => {
           resolveSleep = resolve;
         }),
     );
-    vi.doMock("@shamt/utils", async (importOriginal) => ({
-      ...(await importOriginal<typeof import("@shamt/utils")>()),
+    vi.doMock("@unimolecule/utils", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@unimolecule/utils")>()),
       sleep,
     }));
     const { onAppStartup } = await import("@/app/lifecycle/startup");

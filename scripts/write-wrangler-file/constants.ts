@@ -1,6 +1,5 @@
 import path from "node:path";
-import { findMonorepoRoot } from "@shamt/node-utils/monorepo";
-import { throwError } from "../utils";
+import { findMonorepoRoot, throwError } from "../utils";
 import type { ConfigSchema } from "@shamt/app-env";
 
 export type WranglerFileConfig = ConfigSchema;

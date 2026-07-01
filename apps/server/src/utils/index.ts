@@ -3,6 +3,7 @@ export * from "./cloudflare";
 export * from "./content-disposition";
 export * from "./date";
 export * from "./envs";
+export * from "./error";
 export * from "./hono";
 export * from "./nullable";
 export * from "./pagination";

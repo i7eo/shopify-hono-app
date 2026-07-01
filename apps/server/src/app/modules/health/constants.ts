@@ -1,4 +1,4 @@
-import { capitalize } from "@shamt/utils";
+import { capitalize } from "@unimolecule/utils";
 import { getEnvProvider } from "@/infra/provider";
 
 const env = getEnvProvider();

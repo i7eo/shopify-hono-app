@@ -1,5 +1,5 @@
 {
-  "extends": ["@unconfig/ts-config-latest/node.json"],
+  "extends": ["@unconfig/ts-config/node.json"],
   "compilerOptions": {
     "composite": true,
     "types": ["node"],

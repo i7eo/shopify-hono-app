@@ -1,4 +1,4 @@
-import { isNumber, isString } from "@shamt/utils";
+import { isNumber, isString } from "@unimolecule/utils";
 
 /**
  * Reads nullable numeric fields that can arrive as numbers or numeric strings.

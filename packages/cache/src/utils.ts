@@ -1,4 +1,4 @@
-import { deserializeValue, serializeValue } from "@shamt/utils";
+import { deserializeValue, serializeValue } from "@unimolecule/utils";
 import { DEFAULT_CACHE_KEY_PREFIX } from "./constants";
 
 /**

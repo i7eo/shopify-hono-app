@@ -1,5 +1,5 @@
 import { configSchema, DEFAULT_RUNTIMES } from "@shamt/app-env";
-import { executeCommand } from "@shamt/node-utils/execute-command";
+import { executeCommand } from "@unimolecule/utils/node";
 import { throwError } from "../utils";
 
 /**

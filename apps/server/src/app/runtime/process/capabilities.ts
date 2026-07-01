@@ -1,4 +1,4 @@
-import { checkProcessDiskAccess } from "@shamt/node-utils/disk";
+import { checkProcessDiskAccess } from "@unimolecule/utils/node";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
   setRuntimeCapability,

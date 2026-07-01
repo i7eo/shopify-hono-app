@@ -1,4 +1,4 @@
-import { deserializeValue } from "@shamt/utils";
+import { deserializeValue } from "@unimolecule/utils";
 import { sanitizeJsonValue, sanitizeJsonValueShallow } from "./sanitize";
 import type { JsonSecurityMode } from "../utils/types";
 

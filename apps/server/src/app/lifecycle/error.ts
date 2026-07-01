@@ -1,4 +1,4 @@
-import { serializeValue } from "@shamt/utils";
+import { serializeValue } from "@unimolecule/utils";
 import { normalizeError } from "@/shared/exceptions";
 import { createErrorResponse } from "@/shared/exceptions/response";
 import { getContextValue } from "@/utils";

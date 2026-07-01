@@ -1,4 +1,4 @@
-import { isString } from "@shamt/utils";
+import { isString } from "@unimolecule/utils";
 
 export function now(options: { type: "date" | "time"; timeZone: string }) {
   const { type, timeZone = "Asia/Shanghai" } = options;

@@ -1,7 +1,7 @@
-import { getPackagesSync } from "@shamt/node-utils/monorepo";
+import { getPackagesSync } from "@unimolecule/utils/node";
 import type { UserConfig } from "@commitlint/types";
 
-const { packages } = getPackagesSync();
+const { packages } = getPackagesSync(process.cwd());
 
 const allowedScopes = [
   ".github",

@@ -1,7 +1,6 @@
 import { configSchema, type ConfigSchema } from "@shamt/app-env";
-import { throwError } from "@shamt/utils";
 import { rootPackagePath } from "./constants";
-import { readJsonFile, sanitizePackageName } from "./utils";
+import { readJsonFile, sanitizePackageName, throwError } from "./utils";
 
 interface RootPackageJson {
   name: string;

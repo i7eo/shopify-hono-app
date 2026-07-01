@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
-import { ensureSuffix } from "@shamt/utils";
+import { ensureSuffix } from "@unimolecule/utils";
+import { executeCommand } from "@unimolecule/utils/node";
 import { dockerComposePath, nginxConfPath, webDistDir } from "./constants";
 import { getDeployContext, type DeployContext } from "./shared";
-import { executeCommand } from "./utils";
 
 /**
  * Build Node/web assets, restart the container, and reload Nginx.

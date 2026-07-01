@@ -1,4 +1,4 @@
-import { escape as escapeHtml } from "@shamt/utils";
+import { escape as escapeHtml } from "@unimolecule/utils";
 
 /**
  * Renders the embedded app shell with App Bridge and Polaris web components.

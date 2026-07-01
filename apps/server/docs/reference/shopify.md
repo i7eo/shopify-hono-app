@@ -71,7 +71,7 @@ standalone shell 只加载：
 - `/api/shop`
 - `/api/product`
 
-Shell 内所有服务端注入到 HTML 的字符串都必须 escape。当前使用 `@shamt/utils` re-export 的 `escape`。
+Shell 内所有服务端注入到 HTML 的字符串都必须 escape。当前使用 `@unimolecule/utils` re-export 的 `escape`。
 
 ## OAuth
 

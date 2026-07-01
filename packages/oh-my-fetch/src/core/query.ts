@@ -4,7 +4,7 @@ import {
   isDateObject,
   isPlainObject,
   timestamp,
-} from "@shamt/utils";
+} from "@unimolecule/utils";
 import type { DayjsLike, QueryParams, QueryPrimitive } from "../utils/types";
 
 type DateTimeInput = Parameters<typeof formatToDateTime>[0];

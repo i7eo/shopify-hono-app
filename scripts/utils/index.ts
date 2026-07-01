@@ -1,3 +1,5 @@
+import { getPackagesSync } from "@unimolecule/utils/node";
+
 /**
  * Error type used by scripts to prefix failures with a scope.
  */
@@ -16,17 +18,14 @@ export function throwError(scope: string, message: string): never {
 }
 
 /**
- * Check whether a value is a non-null object.
+ * Find the nearest monorepo root using @manypkg workspace discovery.
  */
-export function isObject(
-  value: unknown,
-): value is Record<PropertyKey, unknown> {
-  return value !== null && typeof value === "object";
+export function findMonorepoRoot(cwd: string = process.cwd()): string {
+  try {
+    return getPackagesSync(cwd).rootDir;
+  } catch {
+    return "";
+  }
 }
 
-/**
- * Serialize a value with JSON.stringify.
- */
-export function serializeValue<T>(value: T): string {
-  return JSON.stringify(value);
-}
+export { isObject, serializeValue } from "@unimolecule/utils";

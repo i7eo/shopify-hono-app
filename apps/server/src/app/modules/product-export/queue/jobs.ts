@@ -1,4 +1,4 @@
-import { chunk } from "@shamt/utils";
+import { chunk } from "@unimolecule/utils";
 import { registerQueueJob, type QueueJobContext } from "@/infra/queue";
 import { registerSchedulerTask } from "@/infra/scheduler";
 import { badGatewayError } from "@/shared/exceptions";

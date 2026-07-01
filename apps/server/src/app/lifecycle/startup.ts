@@ -1,4 +1,4 @@
-import { sleep } from "@shamt/utils";
+import { sleep } from "@unimolecule/utils";
 
 export async function onAppStartup() {
   await sleep(16.7);

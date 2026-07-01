@@ -1,5 +1,5 @@
 {
-  "extends": ["@unconfig/ts-config-latest/react.json"],
+  "extends": ["@unconfig/ts-config/react.json"],
   "compilerOptions": {
     "composite": true,
     "paths": {

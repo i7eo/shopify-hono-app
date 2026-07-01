@@ -1,5 +1,6 @@
+import { executeCommand } from "@unimolecule/utils/node";
 import { dynamicRoutePatterns, webDistDir, wranglerPath } from "./constants";
-import { executeCommand, readJsonFile, writeJsonFile } from "./utils";
+import { readJsonFile, writeJsonFile } from "./utils";
 
 /**
  * Build web assets and patch Wrangler static asset routing before deploy.

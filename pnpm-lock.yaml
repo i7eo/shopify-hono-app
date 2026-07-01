@@ -260,8 +260,8 @@ settings:
 catalogs:
   cloudflare:
     "@cloudflare/workers-types":
-      specifier: ^4.20260627.1
-      version: 4.20260627.1
+      specifier: ^4.20260629.1
+      version: 4.20260629.1
     wrangler:
       specifier: ^4.105.0
       version: 4.105.0
@@ -269,6 +269,15 @@ catalogs:
     "@types/node":
       specifier: ^26.0.1
       version: 26.0.1
+    "@unimolecule/canon":
+      specifier: ^0.1.1
+      version: 0.1.1
+    "@unimolecule/oh-my-fetch":
+      specifier: ^0.1.1
+      version: 0.1.1
+    "@unimolecule/utils":
+      specifier: ^0.1.1
+      version: 0.1.1
     dayjs:
       specifier: ^1.11.21
       version: 1.11.21
@@ -307,18 +316,15 @@ catalogs:
     "@commitlint/types":
       specifier: ^21.1.0
       version: 21.1.0
-    "@manypkg/get-packages":
-      specifier: ^3.1.0
-      version: 3.1.0
     "@sxzz/eslint-config":
       specifier: ^8.2.1
       version: 8.2.1
     "@unconfig/stylelint-config":
       specifier: ^0.1.10
       version: 0.1.10
-    "@unconfig/ts-config-latest":
-      specifier: ^0.0.1
-      version: 0.0.1
+    "@unconfig/ts-config":
+      specifier: ^0.1.11
+      version: 0.1.11
     czg:
       specifier: ^1.13.1
       version: 1.13.1
@@ -329,8 +335,8 @@ catalogs:
       specifier: ^17.0.8
       version: 17.0.8
     prettier:
-      specifier: ^3.9.0
-      version: 3.9.0
+      specifier: ^3.9.1
+      version: 3.9.1
     prettier-plugin-tailwindcss:
       specifier: ^0.8.0
       version: 0.8.0
@@ -437,30 +443,33 @@ importers:
       "@commitlint/types":
         specifier: catalog:dx
         version: 21.1.0
-      "@manypkg/get-packages":
-        specifier: catalog:dx
-        version: 3.1.0
       "@shamt/app-env":
         specifier: workspace:*
         version: link:packages/app-env
-      "@shamt/node-utils":
-        specifier: workspace:*
-        version: link:packages/node-utils
       "@shopify/cli":
         specifier: catalog:shopify
         version: 4.3.0
       "@sxzz/eslint-config":
         specifier: catalog:dx
-        version: 8.2.1(@typescript-eslint/eslint-plugin@8.61.1(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/rule-tester@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/typescript-estree@8.61.1(typescript@6.0.3))(@typescript-eslint/utils@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.0)(typescript@6.0.3)
+        version: 8.2.1(@typescript-eslint/eslint-plugin@8.61.1(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/rule-tester@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/typescript-estree@8.61.1(typescript@6.0.3))(@typescript-eslint/utils@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.1)(typescript@6.0.3)
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
       "@unconfig/stylelint-config":
         specifier: catalog:dx
-        version: 0.1.10(postcss-html@1.8.1)(prettier@3.9.0)(stylelint@16.26.1(typescript@6.0.3))
-      "@unconfig/ts-config-latest":
+        version: 0.1.10(postcss-html@1.8.1)(prettier@3.9.1)(stylelint@16.26.1(typescript@6.0.3))
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
+      "@unimolecule/canon":
+        specifier: "catalog:"
+        version: 0.1.1
+      "@unimolecule/oh-my-fetch":
+        specifier: "catalog:"
+        version: 0.1.1
+      "@unimolecule/utils":
+        specifier: "catalog:"
+        version: 0.1.1
       czg:
         specifier: catalog:dx
         version: 1.13.1
@@ -475,10 +484,10 @@ importers:
         version: 9.0.2
       prettier:
         specifier: catalog:dx
-        version: 3.9.0
+        version: 3.9.1
       prettier-plugin-tailwindcss:
         specifier: catalog:dx
-        version: 0.8.0(prettier@3.9.0)
+        version: 0.8.0(prettier@3.9.1)
       rimraf:
         specifier: "catalog:"
         version: 6.1.3
@@ -493,7 +502,7 @@ importers:
         version: 6.0.3
       wrangler:
         specifier: catalog:cloudflare
-        version: 4.105.0(@cloudflare/workers-types@4.20260627.1)
+        version: 4.105.0(@cloudflare/workers-types@4.20260629.1)
 
   apps/document:
     dependencies:
@@ -558,24 +567,21 @@ importers:
       "@shamt/database":
         specifier: workspace:*
         version: link:../../packages/database
-      "@shamt/node-utils":
-        specifier: workspace:*
-        version: link:../../packages/node-utils
       "@shamt/oh-my-fetch":
         specifier: workspace:*
         version: link:../../packages/oh-my-fetch
-      "@shamt/utils":
-        specifier: workspace:*
-        version: link:../../packages/utils
       "@shopify/shopify-api":
         specifier: ^13.1.0
         version: 13.1.0
       "@shopify/shopify-app-session-storage-drizzle":
         specifier: ^4.0.1
-        version: 4.0.1(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0))(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0))
+        version: 4.0.1(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0))(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0))
+      "@unimolecule/utils":
+        specifier: "catalog:"
+        version: 0.1.1
       drizzle-orm:
         specifier: catalog:drizzle
-        version: 0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0)
+        version: 0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0)
       formidable:
         specifier: ^4.0.0-rc.6
         version: 4.0.0-rc.6
@@ -597,16 +603,16 @@ importers:
     devDependencies:
       "@cloudflare/workers-types":
         specifier: catalog:cloudflare
-        version: 4.20260627.1
+        version: 4.20260629.1
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
       "@types/pg":
         specifier: catalog:pg
         version: 8.20.0
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       "@vitest/coverage-v8":
         specifier: catalog:test
         version: 4.1.9(vitest@4.1.9)
@@ -630,7 +636,7 @@ importers:
         version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       wrangler:
         specifier: catalog:cloudflare
-        version: 4.105.0(@cloudflare/workers-types@4.20260627.1)
+        version: 4.105.0(@cloudflare/workers-types@4.20260629.1)
 
   apps/web:
     dependencies:
@@ -646,9 +652,6 @@ importers:
       "@shamt/oh-my-fetch":
         specifier: workspace:*
         version: link:../../packages/oh-my-fetch
-      "@shamt/utils":
-        specifier: workspace:*
-        version: link:../../packages/utils
       "@shopify/app-bridge-react":
         specifier: ^4.2.11
         version: 4.2.11(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -659,11 +662,14 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7
       "@tanstack/react-query":
-        specifier: ^5.101.1
-        version: 5.101.1(react@19.2.7)
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
       "@tanstack/react-router":
         specifier: ^1.170.16
         version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      "@unimolecule/utils":
+        specifier: "catalog:"
+        version: 0.1.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -674,8 +680,8 @@ importers:
         specifier: catalog:react
         version: 11.1.8
       lucide-react:
-        specifier: ^1.21.0
-        version: 1.21.0(react@19.2.7)
+        specifier: ^1.22.0
+        version: 1.22.0(react@19.2.7)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -708,8 +714,8 @@ importers:
         specifier: catalog:tailwindcss
         version: 4.3.1(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       "@tanstack/react-query-devtools":
-        specifier: ^5.101.1
-        version: 5.101.1(@tanstack/react-query@5.101.1(react@19.2.7))(react@19.2.7)
+        specifier: ^5.101.2
+        version: 5.101.2(@tanstack/react-query@5.101.2(react@19.2.7))(react@19.2.7)
       "@tanstack/react-router-devtools":
         specifier: ^1.167.0
         version: 1.167.0(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.13)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -728,9 +734,9 @@ importers:
       "@types/react-dom":
         specifier: catalog:react
         version: 19.2.3(@types/react@19.2.17)
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       "@vitejs/plugin-react":
         specifier: catalog:react
         version: 6.0.3(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -774,9 +780,9 @@ importers:
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       rolldown:
         specifier: catalog:dx
         version: 1.1.3
@@ -792,9 +798,9 @@ importers:
       "@shamt/envs":
         specifier: workspace:*
         version: link:../envs
-      "@shamt/utils":
-        specifier: workspace:*
-        version: link:../utils
+      "@unimolecule/utils":
+        specifier: "catalog:"
+        version: 0.1.1
       lru-cache:
         specifier: ^11.5.1
         version: 11.5.1
@@ -802,9 +808,9 @@ importers:
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       rolldown:
         specifier: catalog:dx
         version: 1.1.3
@@ -825,10 +831,10 @@ importers:
         version: link:../app-env
       drizzle-orm:
         specifier: catalog:drizzle
-        version: 0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0)
+        version: 0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0)
       drizzle-zod:
         specifier: catalog:drizzle
-        version: 0.8.3(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0))(zod@4.4.3)
+        version: 0.8.3(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0))(zod@4.4.3)
       zod:
         specifier: "catalog:"
         version: 4.4.3
@@ -836,9 +842,9 @@ importers:
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       drizzle-kit:
         specifier: catalog:drizzle
         version: 0.31.10
@@ -861,9 +867,9 @@ importers:
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       rolldown:
         specifier: catalog:dx
         version: 1.1.3
@@ -873,40 +879,15 @@ importers:
       typescript:
         specifier: "catalog:"
         version: 6.0.3
-
-  packages/node-utils:
-    dependencies:
-      "@manypkg/get-packages":
-        specifier: catalog:dx
-        version: 3.1.0
-    devDependencies:
-      "@types/node":
-        specifier: "catalog:"
-        version: 26.0.1
-      "@unconfig/ts-config-latest":
-        specifier: catalog:dx
-        version: 0.0.1
-      rolldown:
-        specifier: catalog:dx
-        version: 1.1.3
-      rolldown-plugin-dts:
-        specifier: catalog:dx
-        version: 0.26.0(rolldown@1.1.3)(typescript@6.0.3)
-      typescript:
-        specifier: "catalog:"
-        version: 6.0.3
-      vitest:
-        specifier: catalog:test
-        version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/oh-my-fetch:
     dependencies:
       "@shamt/envs":
         specifier: workspace:*
         version: link:../envs
-      "@shamt/utils":
-        specifier: workspace:*
-        version: link:../utils
+      "@unimolecule/utils":
+        specifier: "catalog:"
+        version: 0.1.1
       ky:
         specifier: ^2.0.2
         version: 2.0.2
@@ -914,40 +895,9 @@ importers:
       "@types/node":
         specifier: "catalog:"
         version: 26.0.1
-      "@unconfig/ts-config-latest":
+      "@unconfig/ts-config":
         specifier: catalog:dx
-        version: 0.0.1
-      rolldown:
-        specifier: catalog:dx
-        version: 1.1.3
-      rolldown-plugin-dts:
-        specifier: catalog:dx
-        version: 0.26.0(rolldown@1.1.3)(typescript@6.0.3)
-      typescript:
-        specifier: "catalog:"
-        version: 6.0.3
-      vitest:
-        specifier: catalog:test
-        version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
-
-  packages/utils:
-    dependencies:
-      dayjs:
-        specifier: "catalog:"
-        version: 1.11.21
-      es-toolkit:
-        specifier: ^1.49.0
-        version: 1.49.0
-      nanoid:
-        specifier: ^5.1.16
-        version: 5.1.16
-    devDependencies:
-      "@types/node":
-        specifier: "catalog:"
-        version: 26.0.1
-      "@unconfig/ts-config-latest":
-        specifier: catalog:dx
-        version: 0.0.1
+        version: 0.1.11
       rolldown:
         specifier: catalog:dx
         version: 1.1.3
@@ -1655,16 +1605,16 @@ packages:
       }
     hasBin: true
 
-  "@cacheable/memory@2.0.9":
+  "@cacheable/memory@2.2.0":
     resolution:
       {
-        integrity: sha512-HdMx6DoGywB30vacDbBsITbIX4pgFqj1zsrV58jZBUw3klzkNoXhj7qOqAgledhxG7YZI5rBSJg7Zp8/VG0DuA==,
+        integrity: sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ==,
       }
 
-  "@cacheable/utils@2.4.1":
+  "@cacheable/utils@2.5.0":
     resolution:
       {
-        integrity: sha512-eiFgzCbIneyMlLOmNG4g9xzF7Hv3Mga4LjxjcSC/ues6VYq2+gUbQI8JqNuw/ZM8tJIeIaBGpswAsqV2V7ApgA==,
+        integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==,
       }
 
   "@cloudflare/kv-asset-handler@0.5.0":
@@ -1731,10 +1681,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  "@cloudflare/workers-types@4.20260627.1":
+  "@cloudflare/workers-types@4.20260629.1":
     resolution:
       {
-        integrity: sha512-QhVvier1eW9Ydw96N/Ez79i5CSGy7h39JucrUejQmAWQw9qBdlB1aOTjaD93EGYrV0t9U81YWetI3LcaxxILNw==,
+        integrity: sha512-5vq2ErIFVRSQ8Dcw5YOeEoBdZBudqBjHFKTWD3SBGiJR5hD1+/86aRUV/DTpEK9sXXCGOTGgpWBGlPSlW7djVg==,
       }
 
   "@commitlint/cli@21.1.0":
@@ -1924,10 +1874,10 @@ packages:
     peerDependencies:
       "@csstools/css-tokenizer": ^4.0.0
 
-  "@csstools/css-syntax-patches-for-csstree@1.1.5":
+  "@csstools/css-syntax-patches-for-csstree@1.1.6":
     resolution:
       {
-        integrity: sha512-oNjBvzLq2GPZtJphCjLqXow/cHySHSgtxvKZb7OqSZ/xHgw6NWNhfad+6AB9cLeVm6eA9d/qMll3JdEHjy6M+A==,
+        integrity: sha512-TcJCWFbXLPpJYq6z7bfOyjWYJDiDg2/I4gyUC9pqPNqHFRIey0EB0q0L5cSnQDfWJg8Jd6VadakxdIez/3zkqQ==,
       }
     peerDependencies:
       css-tree: ^3.2.1
@@ -4613,31 +4563,31 @@ packages:
       }
     engines: { node: ">=20.19" }
 
-  "@tanstack/query-core@5.101.1":
+  "@tanstack/query-core@5.101.2":
     resolution:
       {
-        integrity: sha512-Y6Y92dkXtNqx67m2pMSxUsA3zOCwv862JexZRP8/EPwvKXMPu9m8rv43spiXWzOUIggQ3SQApttALStzhA8B4g==,
+        integrity: sha512-hH5MLoJhF7KaIGd7q3xTXGXvslI+GYlM1Z/35aSHHWaCJWB7XvTSHYuV3eM7tw+aE0mT/xMro4M4Q9rCGHT0lw==,
       }
 
-  "@tanstack/query-devtools@5.101.1":
+  "@tanstack/query-devtools@5.101.2":
     resolution:
       {
-        integrity: sha512-37RQ9U2PxlXQiv1era2t+uHgVhmiyvxqTMu30+KoVf0rufiucu6rpGRKFJk61Wh5OAZFKqCQd6lxTzFWfLZiuQ==,
+        integrity: sha512-o+wHcqgN7Pp0s8v1i0UGq/ZrrEKrxdIiMQmKRdYb2w7NPtylYSJ4+wg/tIn71m9DLstwUwdEGAvROdly6HXP6w==,
       }
 
-  "@tanstack/react-query-devtools@5.101.1":
+  "@tanstack/react-query-devtools@5.101.2":
     resolution:
       {
-        integrity: sha512-OXFR9XKdEslraq3cpl3kCUeNvTIq/xGWEZiFZdn2bLB/q4WxSALMEDKYZ5yYjMQytsfnQxwQYqV4qtVEf0nuog==,
+        integrity: sha512-eU7HctdA9gDjqoERoEdzLbw9DiqnBDfh5+Hu0u26gjqoHJezOpQAuiesDL2VvkU+2cPV76zgv0tMZsOrI4LjnQ==,
       }
     peerDependencies:
-      "@tanstack/react-query": ^5.101.1
+      "@tanstack/react-query": ^5.101.2
       react: ^18 || ^19
 
-  "@tanstack/react-query@5.101.1":
+  "@tanstack/react-query@5.101.2":
     resolution:
       {
-        integrity: sha512-ZnONUuQKJe1bJMStXUL1s5uKN9FcfC28j5cK+iDZcdSHtUv1wtin1cGc/Oewhf2Oc4eKY7lggtpvT/AbMmhHew==,
+        integrity: sha512-seDkr6kzGzX1okaaTtZPtgA688CDPlXUz1C6xSg0ESqn04Vuc8tlrYms1s3de+znBqhPVxFRfpAfUf+6XvfPWg==,
       }
     peerDependencies:
       react: ^18 || ^19
@@ -5014,17 +4964,35 @@ packages:
     peerDependencies:
       stylelint: ^16.6.1
 
-  "@unconfig/ts-config-latest@0.0.1":
+  "@unconfig/ts-config@0.1.11":
     resolution:
       {
-        integrity: sha512-yeVW0B+a1K7Xw43vKEn0KaiLrt6NjkG6Ddfsp+LCxSnnMszTdkwJfj+6IP1gle02WjQFEyo5oKjyd28DVpItPg==,
+        integrity: sha512-P/SdSzK9pRYgjWWw4WysUyhQDZwlH9rnFKBjum4d8YTdtid4ZJhemf6ibonasX/F9zg87kH+/b1aiPVKnLLkqQ==,
       }
-    engines: { node: ">=20", pnpm: ">=9" }
+    engines: { node: ">=24", pnpm: ">=9" }
 
   "@ungap/structured-clone@1.3.1":
     resolution:
       {
         integrity: sha512-mUFwbeTqrVgDQxFveS+df2yfap6iuP20NAKAsBt5jDEoOTDew+zwLAOilHCeQJOVSvmgCX4ogqIrA0mnyr08yQ==,
+      }
+
+  "@unimolecule/canon@0.1.1":
+    resolution:
+      {
+        integrity: sha512-qSEDoVGs494Io8znzVA6p+SKdYZ2xGyX4ELij+Yc2W4r/6VXrjHGM252hdn70q6iAOxRVGhKsXxrwSQcKMwUzQ==,
+      }
+
+  "@unimolecule/oh-my-fetch@0.1.1":
+    resolution:
+      {
+        integrity: sha512-e3sqy6+sCAdtESn+ZBa/tRZki8KTGlYZ/jYXzBq2krACzILfvMwt4ntBu3VgsC6EVOjGXnbaSf7QUDPKIFzLHA==,
+      }
+
+  "@unimolecule/utils@0.1.1":
+    resolution:
+      {
+        integrity: sha512-vMHoip5EdAup3qy71HYHPAKDANgkE4p3vhLf/ulJs0m6nx5QUehqmPnKDOSCQfjsUrPqgc6vwFc57GL/j2jmCw==,
       }
 
   "@vitejs/plugin-react@6.0.3":
@@ -5573,10 +5541,10 @@ packages:
       }
     engines: { node: ">=18.20" }
 
-  cacheable@2.3.5:
+  cacheable@2.5.0:
     resolution:
       {
-        integrity: sha512-EQfaKe09tl615iNvq/TBRWTFf1AKJNXYQSsMx0Z3EI0nA+pVsVPS8wJhnRlkbdacKPh1d0qVIhwTc2zsQNFEEg==,
+        integrity: sha512-60cyAOytib/OzBw1JNSoSV/boK1AtHryDIjvVBk7XbN4ugfkM3+Sry7fEjNgPMGgOjuaZPAp8ruZ0Cxafwyq9g==,
       }
 
   callsites@3.1.0:
@@ -6778,10 +6746,10 @@ packages:
       picomatch:
         optional: true
 
-  file-entry-cache@11.1.3:
+  file-entry-cache@11.1.5:
     resolution:
       {
-        integrity: sha512-oMbq0PD6VIiIwMF6LIa7MEwd/l9huKwmqRKXqmrkqIZv8CvRbfowL+L0ryAl8h//HfAS0zS+4SbYoRyAoA6BJA==,
+        integrity: sha512-+PFTHITI08JIGhnNpGNI8T8inUpgZfk3GNEqfT9R2zZV2iFXg3CvqzSl/uEhs7TSGujYRELEANyDvS8Fj7+S7Q==,
       }
 
   file-entry-cache@8.0.0:
@@ -6819,10 +6787,10 @@ packages:
       }
     engines: { node: ">=16" }
 
-  flat-cache@6.1.22:
+  flat-cache@6.1.23:
     resolution:
       {
-        integrity: sha512-N2dnzVJIphnNsjHcrxGW7DePckJ6haPrSFqpsBUhHYgwtKGVq4JrBGielEGD2fCVnsGm1zlBVZ8wGhkyuetgug==,
+        integrity: sha512-f++BY9pTk+983xK1FLzlLpmM0i0z+jHmx3QESGkURMXujQZz1k5wzwX6hjnQ8goaD0B+sYnDK1yZ6MTyZfUaqA==,
       }
 
   flatted@3.4.2:
@@ -7681,10 +7649,10 @@ packages:
         integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==,
       }
 
-  lucide-react@1.21.0:
+  lucide-react@1.22.0:
     resolution:
       {
-        integrity: sha512-reEZMXq8Qdd5jg5XYkQ5TR1fB/GiQ7ih4vcrthYDtgjSDwh0i6/YLiGjsWsIwgN49gpAnd4J2elSNzncMEEUUQ==,
+        integrity: sha512-c9o3l0PiNcgOQDW4F31BEYHudE7kgxVt3o30qMl36ZPwTxXlGB4QnLilhERvVM4uh/pl5MDyY1/gzZSYcHDtBg==,
       }
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -8501,6 +8469,13 @@ packages:
       }
     engines: { node: ^10 || ^12 || >=14 }
 
+  postcss@8.5.16:
+    resolution:
+      {
+        integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==,
+      }
+    engines: { node: ^10 || ^12 || >=14 }
+
   postgres-array@2.0.0:
     resolution:
       {
@@ -8607,10 +8582,10 @@ packages:
       prettier-plugin-svelte:
         optional: true
 
-  prettier@3.9.0:
+  prettier@3.9.1:
     resolution:
       {
-        integrity: sha512-LjIqSIC5VYLzs9WedVmJ2ljNAGnU+DteIClbahu4L/DBeWjZ6iT/k1lAYyu9JUh+1xINxWadaPw/Pl63y/agAw==,
+        integrity: sha512-ppiDo2CSwexck1eyZUwJHg/N3nf1+6IRCv7W/VJ5vaLnVCmB7+3CdRfMwoCHBBX6xTrREDTksZ4OZl5SSf4zXA==,
       }
     engines: { node: ">=14" }
     hasBin: true
@@ -9357,16 +9332,16 @@ packages:
       }
     engines: { node: ">=14.0.0" }
 
-  tldts-core@7.4.4:
+  tldts-core@7.4.5:
     resolution:
       {
-        integrity: sha512-vwVLJVvvpslm7vqAH7+XNj/neA/Ynq7DT2EEcMuwc5YzN5XaMyRAqxwU+uX3azZ1FQtB2gvrvnLnAEkvYlVdfg==,
+        integrity: sha512-pGrwzZDvPwKe+7NNUqAunb6rqTfynr0VOUhCMdqbu5xlvNiszsAJygRzwvpVycdzejlbpY+SWJOn+s75Og7FEA==,
       }
 
-  tldts@7.4.4:
+  tldts@7.4.5:
     resolution:
       {
-        integrity: sha512-kFXFK7O4WPextIUAOk8qtnw9dxR9UIXP9CjuH1cTBVBZMDeQcUPgr/IazGiw1B0Yiw5L75gHLWeW4iD793r90g==,
+        integrity: sha512-RfEzKWcq5fHUOFq7J3rl3Oz6ylKGtcHqUznzj4EcXsxLSIjJcvpbXAQtWGeJQ0xKnimR5e0Cn+cn9TssfMzm+g==,
       }
     hasBin: true
 
@@ -10603,14 +10578,14 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  "@cacheable/memory@2.0.9":
+  "@cacheable/memory@2.2.0":
     dependencies:
-      "@cacheable/utils": 2.4.1
+      "@cacheable/utils": 2.5.0
       "@keyv/bigmap": 1.3.1(keyv@5.6.0)
       hookified: 1.15.1
       keyv: 5.6.0
 
-  "@cacheable/utils@2.4.1":
+  "@cacheable/utils@2.5.0":
     dependencies:
       hashery: 1.5.1
       keyv: 5.6.0
@@ -10638,7 +10613,7 @@ snapshots:
   "@cloudflare/workerd-windows-64@1.20260625.1":
     optional: true
 
-  "@cloudflare/workers-types@4.20260627.1": {}
+  "@cloudflare/workers-types@4.20260629.1": {}
 
   "@commitlint/cli@21.1.0(@types/node@26.0.1)(conventional-commits-parser@6.4.0)(typescript@6.0.3)":
     dependencies:
@@ -10783,7 +10758,7 @@ snapshots:
     dependencies:
       "@csstools/css-tokenizer": 4.0.0
 
-  "@csstools/css-syntax-patches-for-csstree@1.1.5(css-tree@3.2.1)":
+  "@csstools/css-syntax-patches-for-csstree@1.1.6(css-tree@3.2.1)":
     optionalDependencies:
       css-tree: 3.2.1
 
@@ -11823,11 +11798,11 @@ snapshots:
       lossless-json: 4.3.0
       tslib: 2.8.1
 
-  "@shopify/shopify-app-session-storage-drizzle@4.0.1(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0))(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0))":
+  "@shopify/shopify-app-session-storage-drizzle@4.0.1(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0))(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0))":
     dependencies:
       "@shopify/shopify-api": 13.1.0
       "@shopify/shopify-app-session-storage": 5.0.0(@shopify/shopify-api@13.1.0)
-      drizzle-orm: 0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0)
+      drizzle-orm: 0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0)
       tslib: 2.8.1
 
   "@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0)":
@@ -11900,7 +11875,7 @@ snapshots:
 
   "@standard-schema/spec@1.1.0": {}
 
-  "@sxzz/eslint-config@8.2.1(@typescript-eslint/eslint-plugin@8.61.1(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/rule-tester@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/typescript-estree@8.61.1(typescript@6.0.3))(@typescript-eslint/utils@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.0)(typescript@6.0.3)":
+  "@sxzz/eslint-config@8.2.1(@typescript-eslint/eslint-plugin@8.61.1(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/parser@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/rule-tester@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(@typescript-eslint/typescript-estree@8.61.1(typescript@6.0.3))(@typescript-eslint/utils@8.61.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.1)(typescript@6.0.3)":
     dependencies:
       "@eslint-community/eslint-plugin-eslint-comments": 4.7.2(eslint@10.6.0(jiti@2.7.0))
       "@eslint/js": 10.0.1(eslint@10.6.0(jiti@2.7.0))
@@ -11919,7 +11894,7 @@ snapshots:
       eslint-plugin-n: 18.1.0(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3)
       eslint-plugin-perfectionist: 5.9.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3)
       eslint-plugin-pnpm: 1.6.1(eslint@10.6.0(jiti@2.7.0))
-      eslint-plugin-prettier: 5.5.6(eslint-config-prettier@10.1.8(eslint@10.6.0(jiti@2.7.0)))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.0)
+      eslint-plugin-prettier: 5.5.6(eslint-config-prettier@10.1.8(eslint@10.6.0(jiti@2.7.0)))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.1)
       eslint-plugin-regexp: 3.1.0(eslint@10.6.0(jiti@2.7.0))
       eslint-plugin-sxzz: 0.5.0(eslint@10.6.0(jiti@2.7.0))
       eslint-plugin-unicorn: 65.0.1(eslint@10.6.0(jiti@2.7.0))
@@ -12014,19 +11989,19 @@ snapshots:
 
   "@tanstack/history@1.162.0": {}
 
-  "@tanstack/query-core@5.101.1": {}
+  "@tanstack/query-core@5.101.2": {}
 
-  "@tanstack/query-devtools@5.101.1": {}
+  "@tanstack/query-devtools@5.101.2": {}
 
-  "@tanstack/react-query-devtools@5.101.1(@tanstack/react-query@5.101.1(react@19.2.7))(react@19.2.7)":
+  "@tanstack/react-query-devtools@5.101.2(@tanstack/react-query@5.101.2(react@19.2.7))(react@19.2.7)":
     dependencies:
-      "@tanstack/query-devtools": 5.101.1
-      "@tanstack/react-query": 5.101.1(react@19.2.7)
+      "@tanstack/query-devtools": 5.101.2
+      "@tanstack/react-query": 5.101.2(react@19.2.7)
       react: 19.2.7
 
-  "@tanstack/react-query@5.101.1(react@19.2.7)":
+  "@tanstack/react-query@5.101.2(react@19.2.7)":
     dependencies:
-      "@tanstack/query-core": 5.101.1
+      "@tanstack/query-core": 5.101.2
       react: 19.2.7
 
   "@tanstack/react-router-devtools@1.167.0(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@tanstack/router-core@1.171.13)(csstype@3.2.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)":
@@ -12079,7 +12054,7 @@ snapshots:
       "@tanstack/virtual-file-routes": 1.162.0
       jiti: 2.7.0
       magic-string: 0.30.21
-      prettier: 3.9.0
+      prettier: 3.9.1
       zod: 4.4.3
     transitivePeerDependencies:
       - supports-color
@@ -12313,7 +12288,7 @@ snapshots:
       "@typescript-eslint/types": 8.61.1
       eslint-visitor-keys: 5.0.1
 
-  "@unconfig/stylelint-config@0.1.10(postcss-html@1.8.1)(prettier@3.9.0)(stylelint@16.26.1(typescript@6.0.3))":
+  "@unconfig/stylelint-config@0.1.10(postcss-html@1.8.1)(prettier@3.9.1)(stylelint@16.26.1(typescript@6.0.3))":
     dependencies:
       stylelint: 16.26.1(typescript@6.0.3)
       stylelint-config-property-sort-order-smacss: 10.0.0(stylelint@16.26.1(typescript@6.0.3))
@@ -12321,14 +12296,29 @@ snapshots:
       stylelint-config-recommended-vue: 1.6.1(postcss-html@1.8.1)(stylelint@16.26.1(typescript@6.0.3))
       stylelint-config-standard: 36.0.1(stylelint@16.26.1(typescript@6.0.3))
       stylelint-order: 6.0.4(stylelint@16.26.1(typescript@6.0.3))
-      stylelint-prettier: 5.0.3(prettier@3.9.0)(stylelint@16.26.1(typescript@6.0.3))
+      stylelint-prettier: 5.0.3(prettier@3.9.1)(stylelint@16.26.1(typescript@6.0.3))
     transitivePeerDependencies:
       - postcss-html
       - prettier
 
-  "@unconfig/ts-config-latest@0.0.1": {}
+  "@unconfig/ts-config@0.1.11": {}
 
   "@ungap/structured-clone@1.3.1": {}
+
+  "@unimolecule/canon@0.1.1": {}
+
+  "@unimolecule/oh-my-fetch@0.1.1":
+    dependencies:
+      "@unimolecule/canon": 0.1.1
+      "@unimolecule/utils": 0.1.1
+      ky: 2.0.2
+
+  "@unimolecule/utils@0.1.1":
+    dependencies:
+      "@manypkg/get-packages": 3.1.0
+      dayjs: 1.11.21
+      es-toolkit: 1.49.0
+      nanoid: 5.1.16
 
   "@vitejs/plugin-react@6.0.3(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))":
     dependencies:
@@ -12690,10 +12680,10 @@ snapshots:
 
   builtin-modules@5.2.0: {}
 
-  cacheable@2.3.5:
+  cacheable@2.5.0:
     dependencies:
-      "@cacheable/memory": 2.0.9
-      "@cacheable/utils": 2.4.1
+      "@cacheable/memory": 2.2.0
+      "@cacheable/utils": 2.5.0
       hookified: 1.15.1
       keyv: 5.6.0
       qified: 0.10.1
@@ -12939,15 +12929,15 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.22.4
 
-  drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0):
+  drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0):
     optionalDependencies:
-      "@cloudflare/workers-types": 4.20260627.1
+      "@cloudflare/workers-types": 4.20260629.1
       "@types/pg": 8.20.0
       pg: 8.22.0
 
-  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0))(zod@4.4.3):
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0))(zod@4.4.3):
     dependencies:
-      drizzle-orm: 0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/pg@8.20.0)(pg@8.22.0)
+      drizzle-orm: 0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0)
       zod: 4.4.3
 
   dts-resolver@3.0.0: {}
@@ -13248,10 +13238,10 @@ snapshots:
       yaml: 2.9.0
       yaml-eslint-parser: 2.0.0
 
-  eslint-plugin-prettier@5.5.6(eslint-config-prettier@10.1.8(eslint@10.6.0(jiti@2.7.0)))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.0):
+  eslint-plugin-prettier@5.5.6(eslint-config-prettier@10.1.8(eslint@10.6.0(jiti@2.7.0)))(eslint@10.6.0(jiti@2.7.0))(prettier@3.9.1):
     dependencies:
       eslint: 10.6.0(jiti@2.7.0)
-      prettier: 3.9.0
+      prettier: 3.9.1
       prettier-linter-helpers: 1.0.1
       synckit: 0.11.13
     optionalDependencies:
@@ -13434,9 +13424,9 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
-  file-entry-cache@11.1.3:
+  file-entry-cache@11.1.5:
     dependencies:
-      flat-cache: 6.1.22
+      flat-cache: 6.1.23
 
   file-entry-cache@8.0.0:
     dependencies:
@@ -13458,9 +13448,9 @@ snapshots:
       flatted: 3.4.2
       keyv: 4.5.4
 
-  flat-cache@6.1.22:
+  flat-cache@6.1.23:
     dependencies:
-      cacheable: 2.3.5
+      cacheable: 2.5.0
       flatted: 3.4.2
       hookified: 1.15.1
 
@@ -13727,7 +13717,7 @@ snapshots:
       "@asamuzakjp/css-color": 5.1.11
       "@asamuzakjp/dom-selector": 7.1.1
       "@bramus/specificity": 2.4.2
-      "@csstools/css-syntax-patches-for-csstree": 1.1.5(css-tree@3.2.1)
+      "@csstools/css-syntax-patches-for-csstree": 1.1.6(css-tree@3.2.1)
       "@exodus/bytes": 1.15.1
       css-tree: 3.2.1
       data-urls: 7.0.0
@@ -13891,7 +13881,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.21.0(react@19.2.7):
+  lucide-react@1.22.0(react@19.2.7):
     dependencies:
       react: 19.2.7
 
@@ -14487,18 +14477,18 @@ snapshots:
     dependencies:
       htmlparser2: 8.0.2
       js-tokens: 9.0.1
-      postcss: 8.5.15
-      postcss-safe-parser: 6.0.0(postcss@8.5.15)
+      postcss: 8.5.16
+      postcss-safe-parser: 6.0.0(postcss@8.5.16)
 
   postcss-resolve-nested-selector@0.1.6: {}
 
-  postcss-safe-parser@6.0.0(postcss@8.5.15):
+  postcss-safe-parser@6.0.0(postcss@8.5.16):
     dependencies:
-      postcss: 8.5.15
+      postcss: 8.5.16
 
-  postcss-safe-parser@7.0.1(postcss@8.5.15):
+  postcss-safe-parser@7.0.1(postcss@8.5.16):
     dependencies:
-      postcss: 8.5.15
+      postcss: 8.5.16
 
   postcss-selector-parser@7.1.4:
     dependencies:
@@ -14512,6 +14502,12 @@ snapshots:
   postcss-value-parser@4.2.0: {}
 
   postcss@8.5.15:
+    dependencies:
+      nanoid: 3.3.15
+      picocolors: 1.1.1
+      source-map-js: 1.2.1
+
+  postcss@8.5.16:
     dependencies:
       nanoid: 3.3.15
       picocolors: 1.1.1
@@ -14535,11 +14531,11 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier-plugin-tailwindcss@0.8.0(prettier@3.9.0):
+  prettier-plugin-tailwindcss@0.8.0(prettier@3.9.1):
     dependencies:
-      prettier: 3.9.0
+      prettier: 3.9.1
 
-  prettier@3.9.0: {}
+  prettier@3.9.1: {}
 
   pretty-format@27.5.1:
     dependencies:
@@ -14960,16 +14956,16 @@ snapshots:
       postcss-sorting: 8.0.2(postcss@8.5.15)
       stylelint: 16.26.1(typescript@6.0.3)
 
-  stylelint-prettier@5.0.3(prettier@3.9.0)(stylelint@16.26.1(typescript@6.0.3)):
+  stylelint-prettier@5.0.3(prettier@3.9.1)(stylelint@16.26.1(typescript@6.0.3)):
     dependencies:
-      prettier: 3.9.0
+      prettier: 3.9.1
       prettier-linter-helpers: 1.0.1
       stylelint: 16.26.1(typescript@6.0.3)
 
   stylelint@16.26.1(typescript@6.0.3):
     dependencies:
       "@csstools/css-parser-algorithms": 3.0.5(@csstools/css-tokenizer@3.0.4)
-      "@csstools/css-syntax-patches-for-csstree": 1.1.5(css-tree@3.2.1)
+      "@csstools/css-syntax-patches-for-csstree": 1.1.6(css-tree@3.2.1)
       "@csstools/css-tokenizer": 3.0.4
       "@csstools/media-query-list-parser": 4.0.3(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
       "@csstools/selector-specificity": 5.0.0(postcss-selector-parser@7.1.4)
@@ -14982,7 +14978,7 @@ snapshots:
       debug: 4.4.3
       fast-glob: 3.3.3
       fastest-levenshtein: 1.0.16
-      file-entry-cache: 11.1.3
+      file-entry-cache: 11.1.5
       global-modules: 2.0.0
       globby: 11.1.0
       globjoin: 0.1.4
@@ -14996,9 +14992,9 @@ snapshots:
       micromatch: 4.0.8
       normalize-path: 3.0.0
       picocolors: 1.1.1
-      postcss: 8.5.15
+      postcss: 8.5.16
       postcss-resolve-nested-selector: 0.1.6
-      postcss-safe-parser: 7.0.1(postcss@8.5.15)
+      postcss-safe-parser: 7.0.1(postcss@8.5.16)
       postcss-selector-parser: 7.1.4
       postcss-value-parser: 4.2.0
       resolve-from: 5.0.0
@@ -15073,11 +15069,11 @@ snapshots:
 
   tinyrainbow@3.1.0: {}
 
-  tldts-core@7.4.4: {}
+  tldts-core@7.4.5: {}
 
-  tldts@7.4.4:
+  tldts@7.4.5:
     dependencies:
-      tldts-core: 7.4.4
+      tldts-core: 7.4.5
 
   to-regex-range@5.0.1:
     dependencies:
@@ -15090,7 +15086,7 @@ snapshots:
 
   tough-cookie@6.0.1:
     dependencies:
-      tldts: 7.4.4
+      tldts: 7.4.5
 
   tr46@6.0.0:
     dependencies:
@@ -15388,7 +15384,7 @@ snapshots:
       "@cloudflare/workerd-linux-arm64": 1.20260625.1
       "@cloudflare/workerd-windows-64": 1.20260625.1
 
-  wrangler@4.105.0(@cloudflare/workers-types@4.20260627.1):
+  wrangler@4.105.0(@cloudflare/workers-types@4.20260629.1):
     dependencies:
       "@cloudflare/kv-asset-handler": 0.5.0
       "@cloudflare/unenv-preset": 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260625.1)
@@ -15399,7 +15395,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20260625.1
     optionalDependencies:
-      "@cloudflare/workers-types": 4.20260627.1
+      "@cloudflare/workers-types": 4.20260629.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil

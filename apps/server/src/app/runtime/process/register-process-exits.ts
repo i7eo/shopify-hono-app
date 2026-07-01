@@ -1,4 +1,4 @@
-import { createProcessGracefulExit } from "@shamt/node-utils/graceful-exit";
+import { createProcessGracefulExit } from "@unimolecule/utils/node";
 import { getLoggerProvider } from "@/infra/provider";
 import { onAppShutdown } from "./lifecycle/shutdown";
 import type { AppEnv } from "@/typings";

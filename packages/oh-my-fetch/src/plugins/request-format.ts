@@ -3,7 +3,7 @@ import {
   formatToDateTime,
   isDateObject,
   isPlainObject,
-} from "@shamt/utils";
+} from "@unimolecule/utils";
 import type { DayjsLike, HttpPlugin } from "../utils/types";
 
 type DateTimeInput = Parameters<typeof formatToDateTime>[0];

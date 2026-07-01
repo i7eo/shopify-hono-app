@@ -1,4 +1,4 @@
-import { deserializeValue } from "@shamt/utils";
+import { deserializeValue } from "@unimolecule/utils";
 import { createMiddleware } from "hono/factory";
 import { DEFAULT_WEBHOOK_MAX_SIZE } from "@/constants";
 import { getShopifyConfigProvider } from "@/infra/provider";

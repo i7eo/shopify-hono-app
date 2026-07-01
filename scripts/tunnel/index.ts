@@ -1,5 +1,5 @@
 import { configSchema } from "@shamt/app-env";
-import { unifiedSpawn } from "@shamt/node-utils/unified-spawn";
+import { unifiedSpawn } from "@unimolecule/utils/node";
 import type { ChildProcess } from "node:child_process";
 
 // When using `shopify app dev --tunnel-url=...`, manually keep

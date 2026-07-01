@@ -1,4 +1,4 @@
-import { sha256Hex } from "@shamt/utils";
+import { sha256Hex } from "@unimolecule/utils";
 import { getAttachmentDisposition } from "@/utils";
 import type { BucketDownloadSigner, BucketDownloadSignInput } from "./shared";
 

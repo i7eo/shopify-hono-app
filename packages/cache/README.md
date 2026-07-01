@@ -31,7 +31,7 @@ Platform-specific stores such as Redis and Cloudflare KV should live in the appl
 - Lifecycle methods such as `connect` and `dispose` are implementation-specific and are not part of the base `Cache` contract.
 - Base methods throw `CacheMethodNotImplementedError` by default, so missing implementations fail early during development.
 - TTL values passed into the package are always handled as milliseconds.
-- Values are serialized at the cache boundary with JSON helpers from `@shamt/utils`, making the memory driver behave closer to string-based stores such as Redis and KV.
+- Values are serialized at the cache boundary with JSON helpers from `@unimolecule/utils`, making the memory driver behave closer to string-based stores such as Redis and KV.
 - Keys can be namespaced with a prefix. `MemoryCache` defaults to `cache:`;
   non-empty prefixes are normalized to end with `:`, and an empty prefix disables
   namespacing.

@@ -26,23 +26,25 @@ These packages are private application entry points.
 
 These packages provide reusable framework-neutral building blocks for the apps.
 
-| Package                                               | Version | Description                                                                |
-| ----------------------------------------------------- | ------- | -------------------------------------------------------------------------- |
-| [`@shamt/utils`](./packages/utils#readme)             | `0.0.0` | Shared utility functions for JSON, dates, guards, cookies, trees, and ids. |
-| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Base constants and Zod schemas for runtime-neutral environment config.     |
-| [`@shamt/app-env`](./packages/app-env#readme)         | `0.0.0` | App-specific env schema that composes `@shamt/envs` with Shopify fields.   |
-| [`@shamt/cache`](./packages/cache#readme)             | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.          |
-| [`@shamt/database`](./packages/database#readme)       | `0.0.0` | Shared Drizzle models, Drizzle-Zod schemas, and inferred database types.   |
-| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with explicit subpath entrypoints.     |
+| Package                                               | Version | Description                                                              |
+| ----------------------------------------------------- | ------- | ------------------------------------------------------------------------ |
+| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Base constants and Zod schemas for runtime-neutral environment config.   |
+| [`@shamt/app-env`](./packages/app-env#readme)         | `0.0.0` | App-specific env schema that composes `@shamt/envs` with Shopify fields. |
+| [`@shamt/cache`](./packages/cache#readme)             | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.        |
+| [`@shamt/database`](./packages/database#readme)       | `0.0.0` | Shared Drizzle models, Drizzle-Zod schemas, and inferred database types. |
+| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with explicit subpath entrypoints.   |
+
+External shared libraries such as `@unimolecule/utils` provide generic
+runtime-neutral and Node helper utilities used by app and package code.
 
 ## Architecture
 
 The dependency direction is intentionally one-way:
 
 ```text
-@shamt/utils
-  -> @shamt/envs
-  -> @shamt/app-env / @shamt/cache / @shamt/database / @shamt/oh-my-fetch
+@unimolecule/utils
+  -> @shamt/envs / @shamt/cache / @shamt/oh-my-fetch
+  -> @shamt/app-env / @shamt/database
   -> apps/server / apps/web
   -> Shopify Admin API / Shopify App Bridge / Cloudflare Workers
 ```

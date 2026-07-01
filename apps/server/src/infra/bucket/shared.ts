@@ -1,5 +1,5 @@
 import { DEFAULT_APP_BUCKET_PROVIDERS, DEFAULT_RUNTIMES } from "@shamt/app-env";
-import { sha256Hex } from "@shamt/utils";
+import { sha256Hex } from "@unimolecule/utils";
 import { internalServerError, payloadTooLargeError } from "@/shared/exceptions";
 import { getCloudflareTokenId } from "@/utils/cloudflare";
 import type { RuntimeConfig } from "@/infra/env";

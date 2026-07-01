@@ -153,12 +153,12 @@
   },
   "dependencies": {
     "@shamt/envs": "workspace:*",
-    "@shamt/utils": "workspace:*",
+    "@unimolecule/utils": "catalog:",
     "ky": "^2.0.2"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@unconfig/ts-config-latest": "catalog:dx",
+    "@unconfig/ts-config": "catalog:dx",
     "rolldown": "catalog:dx",
     "rolldown-plugin-dts": "catalog:dx",
     "typescript": "catalog:",

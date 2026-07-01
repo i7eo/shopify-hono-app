@@ -9,7 +9,7 @@
 - Keep this package runtime-neutral enough for shared packages, Node-like runtimes, and web-compatible runtimes.
 - Do not add Redis, Cloudflare KV, R2, D1, or app-specific storage clients here.
 - Platform-specific cache stores belong in the application layer and should extend the shared `Cache` contract.
-- Reuse JSON helpers from `@shamt/utils` for serialization boundaries.
+- Reuse JSON helpers from `@unimolecule/utils` for serialization boundaries.
 
 ## Implementation Rules
 

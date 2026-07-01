@@ -1,4 +1,4 @@
-import { sleep } from "@shamt/utils";
+import { sleep } from "@unimolecule/utils";
 import { getDatabaseUrl } from "@/infra/database/shared";
 import { consumeQueueBatch } from "./consumer";
 import { listQueueJobs, type QueueJobContext } from "./registry";

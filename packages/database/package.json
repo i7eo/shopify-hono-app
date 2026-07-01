@@ -98,7 +98,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@unconfig/ts-config-latest": "catalog:dx",
+    "@unconfig/ts-config": "catalog:dx",
     "drizzle-kit": "catalog:drizzle",
     "rolldown": "catalog:dx",
     "rolldown-plugin-dts": "catalog:dx",
