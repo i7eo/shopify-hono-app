@@ -3,7 +3,7 @@ import {
   isStandaloneShopifyAppMode,
 } from "@/utils/public-env";
 import { createClient, HttpRequestError } from "./client";
-import type { HttpRequestConfig } from "@shamt/oh-my-fetch";
+import type { HttpRequestConfig } from "@unimolecule/oh-my-fetch";
 
 export class ShopifyAuthRedirectError extends Error {
   override name = "ShopifyAuthRedirectError";

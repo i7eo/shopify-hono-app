@@ -9,8 +9,7 @@
     { "path": "./packages/app-env" },
     { "path": "./packages/cache" },
     { "path": "./packages/database" },
-    { "path": "./packages/envs" },
-    { "path": "./packages/oh-my-fetch" }
+    { "path": "./packages/envs" }
   ],
   "files": []
 }

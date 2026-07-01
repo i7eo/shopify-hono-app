@@ -1,8 +1,6 @@
 packages:
   - "apps/**"
   - "packages/**"
-  - "!packages/node-utils"
-  - "!packages/utils"
 
 nodeVersion: "26.2.0"
 engineStrict: true
@@ -34,9 +32,9 @@ catalog:
   "zod": "^4.4.3"
   "dayjs": "^1.11.21"
   "vite": "^8.1.0"
-  "@unimolecule/canon": "^0.1.1"
-  "@unimolecule/oh-my-fetch": "^0.1.1"
-  "@unimolecule/utils": "^0.1.1"
+  "@unimolecule/canon": "^0.1.2"
+  "@unimolecule/oh-my-fetch": "^0.1.2"
+  "@unimolecule/utils": "^0.1.2"
 
 catalogs:
   "dx":
@@ -167,9 +165,9 @@ minimumReleaseAgeExclude:
   - miniflare@4.20260616.0
   - wrangler@4.101.0
   - "@unconfig/ts-config@0.1.11"
-  - "@unimolecule/canon@0.1.0 || 0.1.1"
-  - "@unimolecule/oh-my-fetch@0.1.0 || 0.1.1"
-  - "@unimolecule/utils@0.1.0 || 0.1.1"
+  - "@unimolecule/canon@0.1.0 || 0.1.1 || 0.1.2"
+  - "@unimolecule/oh-my-fetch@0.1.0 || 0.1.1 || 0.1.2"
+  - "@unimolecule/utils@0.1.0 || 0.1.1 || 0.1.2"
 
 allowBuilds:
   esbuild: true

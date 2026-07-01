@@ -92,7 +92,7 @@ Node + R2 必需 env：
 使用 `APP_CLOUDFLARE_USER_TOKEN` + Cloudflare token verify API 的方式获取
 access id，并用 token hash 作为 secret access key。verify 请求通过
 `getCloudflareTokenId(config, token)` 发起，内部使用 `getClientProvider(config)`；
-`@shamt/oh-my-fetch` 在传入绝对 URL 时会绕过 client prefix/base URL，因此不会被
+`@unimolecule/oh-my-fetch` 在传入绝对 URL 时会绕过 client prefix/base URL，因此不会被
 `APP_API_PREFIX` 影响。详情参考：
 
 <https://developers.cloudflare.com/r2/api/tokens/#get-s3-api-credentials-from-an-api-token>

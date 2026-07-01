@@ -270,14 +270,14 @@ catalogs:
       specifier: ^26.0.1
       version: 26.0.1
     "@unimolecule/canon":
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.1.2
+      version: 0.1.2
     "@unimolecule/oh-my-fetch":
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.1.2
+      version: 0.1.2
     "@unimolecule/utils":
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.1.2
+      version: 0.1.2
     dayjs:
       specifier: ^1.11.21
       version: 1.11.21
@@ -463,13 +463,13 @@ importers:
         version: 0.1.11
       "@unimolecule/canon":
         specifier: "catalog:"
-        version: 0.1.1
+        version: 0.1.2
       "@unimolecule/oh-my-fetch":
         specifier: "catalog:"
-        version: 0.1.1
+        version: 0.1.2
       "@unimolecule/utils":
         specifier: "catalog:"
-        version: 0.1.1
+        version: 0.1.2
       czg:
         specifier: catalog:dx
         version: 1.13.1
@@ -567,18 +567,18 @@ importers:
       "@shamt/database":
         specifier: workspace:*
         version: link:../../packages/database
-      "@shamt/oh-my-fetch":
-        specifier: workspace:*
-        version: link:../../packages/oh-my-fetch
       "@shopify/shopify-api":
         specifier: ^13.1.0
         version: 13.1.0
       "@shopify/shopify-app-session-storage-drizzle":
         specifier: ^4.0.1
         version: 4.0.1(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0))(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0))
+      "@unimolecule/oh-my-fetch":
+        specifier: "catalog:"
+        version: 0.1.2
       "@unimolecule/utils":
         specifier: "catalog:"
-        version: 0.1.1
+        version: 0.1.2
       drizzle-orm:
         specifier: catalog:drizzle
         version: 0.45.2(@cloudflare/workers-types@4.20260629.1)(@types/pg@8.20.0)(pg@8.22.0)
@@ -649,9 +649,6 @@ importers:
       "@shamt/database":
         specifier: workspace:*
         version: link:../../packages/database
-      "@shamt/oh-my-fetch":
-        specifier: workspace:*
-        version: link:../../packages/oh-my-fetch
       "@shopify/app-bridge-react":
         specifier: ^4.2.11
         version: 4.2.11(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -667,9 +664,12 @@ importers:
       "@tanstack/react-router":
         specifier: ^1.170.16
         version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      "@unimolecule/oh-my-fetch":
+        specifier: "catalog:"
+        version: 0.1.2
       "@unimolecule/utils":
         specifier: "catalog:"
-        version: 0.1.1
+        version: 0.1.2
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -800,7 +800,7 @@ importers:
         version: link:../envs
       "@unimolecule/utils":
         specifier: "catalog:"
-        version: 0.1.1
+        version: 0.1.2
       lru-cache:
         specifier: ^11.5.1
         version: 11.5.1
@@ -879,37 +879,6 @@ importers:
       typescript:
         specifier: "catalog:"
         version: 6.0.3
-
-  packages/oh-my-fetch:
-    dependencies:
-      "@shamt/envs":
-        specifier: workspace:*
-        version: link:../envs
-      "@unimolecule/utils":
-        specifier: "catalog:"
-        version: 0.1.1
-      ky:
-        specifier: ^2.0.2
-        version: 2.0.2
-    devDependencies:
-      "@types/node":
-        specifier: "catalog:"
-        version: 26.0.1
-      "@unconfig/ts-config":
-        specifier: catalog:dx
-        version: 0.1.11
-      rolldown:
-        specifier: catalog:dx
-        version: 1.1.3
-      rolldown-plugin-dts:
-        specifier: catalog:dx
-        version: 0.26.0(rolldown@1.1.3)(typescript@6.0.3)
-      typescript:
-        specifier: "catalog:"
-        version: 6.0.3
-      vitest:
-        specifier: catalog:test
-        version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
 packages:
   "@algolia/abtesting@1.21.0":
@@ -4977,22 +4946,22 @@ packages:
         integrity: sha512-mUFwbeTqrVgDQxFveS+df2yfap6iuP20NAKAsBt5jDEoOTDew+zwLAOilHCeQJOVSvmgCX4ogqIrA0mnyr08yQ==,
       }
 
-  "@unimolecule/canon@0.1.1":
+  "@unimolecule/canon@0.1.2":
     resolution:
       {
-        integrity: sha512-qSEDoVGs494Io8znzVA6p+SKdYZ2xGyX4ELij+Yc2W4r/6VXrjHGM252hdn70q6iAOxRVGhKsXxrwSQcKMwUzQ==,
+        integrity: sha512-7u97Qf0qMraJQhuVw7YmUF+wFEaAQxeX0EQNz9qAO+/+4cOIavw+RTS3U1vdOQNaLqE1gGDRt284+cX2C2iE4Q==,
       }
 
-  "@unimolecule/oh-my-fetch@0.1.1":
+  "@unimolecule/oh-my-fetch@0.1.2":
     resolution:
       {
-        integrity: sha512-e3sqy6+sCAdtESn+ZBa/tRZki8KTGlYZ/jYXzBq2krACzILfvMwt4ntBu3VgsC6EVOjGXnbaSf7QUDPKIFzLHA==,
+        integrity: sha512-Iqcbu5KMo+ETCx1vV8e78/F+Gs4IBEREedgPQnl9Lns2f47IkvBErb3o34U+8kjwuG8csLsIDt2Ag2OkQQlZFQ==,
       }
 
-  "@unimolecule/utils@0.1.1":
+  "@unimolecule/utils@0.1.2":
     resolution:
       {
-        integrity: sha512-vMHoip5EdAup3qy71HYHPAKDANgkE4p3vhLf/ulJs0m6nx5QUehqmPnKDOSCQfjsUrPqgc6vwFc57GL/j2jmCw==,
+        integrity: sha512-WO2N+UhWl2/xNtq/Yhi1sKlu7S9qCh6wae8ly0gWfY7s4hhi+s61l3TkUFV7YSYl/O7iYX/bU1KHAnN7BTbf0A==,
       }
 
   "@vitejs/plugin-react@6.0.3":
@@ -12305,15 +12274,15 @@ snapshots:
 
   "@ungap/structured-clone@1.3.1": {}
 
-  "@unimolecule/canon@0.1.1": {}
+  "@unimolecule/canon@0.1.2": {}
 
-  "@unimolecule/oh-my-fetch@0.1.1":
+  "@unimolecule/oh-my-fetch@0.1.2":
     dependencies:
-      "@unimolecule/canon": 0.1.1
-      "@unimolecule/utils": 0.1.1
+      "@unimolecule/canon": 0.1.2
+      "@unimolecule/utils": 0.1.2
       ky: 2.0.2
 
-  "@unimolecule/utils@0.1.1":
+  "@unimolecule/utils@0.1.2":
     dependencies:
       "@manypkg/get-packages": 3.1.0
       dayjs: 1.11.21

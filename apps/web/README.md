@@ -120,7 +120,7 @@ Shopify app 后端 API 的浏览器侧 HTTP client 统一从
 import { shopifyClient, ShopifyAuthRedirectError } from "@/utils/client.shopify";
 ```
 
-- `shopifyClient`：基于 `@shamt/oh-my-fetch` 的 `createHttpClient().extend({ hooks })` 创建，保留 `.get()`、`.post()`、`.put()`、`.patch()`、`.delete()`、`.upload()` 和 `.request()` 等原生方法。
+- `shopifyClient`：基于 `@unimolecule/oh-my-fetch` 的 `createHttpClient().extend({ hooks })` 创建，保留 `.get()`、`.post()`、`.put()`、`.patch()`、`.delete()`、`.upload()` 和 `.request()` 等原生方法。
 - `ShopifyAuthRedirectError`：401 OAuth recovery 时抛出的业务错误，页面层可用它区分授权跳转状态。
 - `HttpRequestError`：从这里 re-export，便于测试或边界层判断底层 HTTP 错误。
 

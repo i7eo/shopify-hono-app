@@ -1,4 +1,4 @@
-import { createHttpClient } from "@shamt/oh-my-fetch/client";
+import { createHttpClient } from "@unimolecule/oh-my-fetch/client";
 import type { RuntimeConfig } from "@/infra/env";
 
 export function getClientEnvConfig(config: RuntimeConfig) {

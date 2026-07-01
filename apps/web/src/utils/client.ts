@@ -1,11 +1,11 @@
-import { createHttpClient } from "@shamt/oh-my-fetch/client";
-import { HttpRequestError } from "@shamt/oh-my-fetch/errors";
+import { createHttpClient } from "@unimolecule/oh-my-fetch/client";
+import { HttpRequestError } from "@unimolecule/oh-my-fetch/errors";
 import {
   DEFAULT_APP_API_PREFIX,
   DEFAULT_REQUEST_TIMEOUT,
 } from "@/utils/public-env";
 import { showToast } from "@/utils/toast";
-import type { HttpPlugin } from "@shamt/oh-my-fetch";
+import type { HttpPlugin } from "@unimolecule/oh-my-fetch";
 
 export { HttpRequestError };
 

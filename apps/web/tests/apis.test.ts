@@ -19,13 +19,13 @@ const createHttpClientMock = vi.hoisted(() =>
 const isEmbeddedShopifyAppMock = vi.hoisted(() => vi.fn(() => false));
 const isStandaloneShopifyAppModeMock = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock("@shamt/oh-my-fetch/client", () => {
+vi.mock("@unimolecule/oh-my-fetch/client", () => {
   return {
     createHttpClient: createHttpClientMock,
   };
 });
 
-vi.mock("@shamt/oh-my-fetch/errors", () => {
+vi.mock("@unimolecule/oh-my-fetch/errors", () => {
   class HttpRequestError extends Error {
     status?: number;
 
@@ -116,7 +116,7 @@ describe("shopify client", () => {
 
   it("shows status-specific toast messages from the base client plugin", async () => {
     const [{ HttpRequestError }] = await Promise.all([
-      import("@shamt/oh-my-fetch/errors"),
+      import("@unimolecule/oh-my-fetch/errors"),
       import("../src/utils/client.shopify"),
     ]);
     const options = createHttpClientMock.mock.calls.at(-1)?.[0];
@@ -173,7 +173,7 @@ describe("shopify client", () => {
   it("maps 401 errors to Shopify auth redirects and throttles repeat redirects", async () => {
     const [{ HttpRequestError }, { ShopifyAuthRedirectError }] =
       await Promise.all([
-        import("@shamt/oh-my-fetch/errors"),
+        import("@unimolecule/oh-my-fetch/errors"),
         import("../src/utils/client.shopify"),
       ]);
     const hooks = readShopifyClientHooks();
@@ -195,7 +195,7 @@ describe("shopify client", () => {
 
   it("keeps non-401 errors unchanged", async () => {
     const [{ HttpRequestError }] = await Promise.all([
-      import("@shamt/oh-my-fetch/errors"),
+      import("@unimolecule/oh-my-fetch/errors"),
       import("../src/utils/client.shopify"),
     ]);
     const hooks = readShopifyClientHooks();

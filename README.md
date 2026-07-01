@@ -26,16 +26,16 @@ These packages are private application entry points.
 
 These packages provide reusable framework-neutral building blocks for the apps.
 
-| Package                                               | Version | Description                                                              |
-| ----------------------------------------------------- | ------- | ------------------------------------------------------------------------ |
-| [`@shamt/envs`](./packages/envs#readme)               | `0.0.0` | Base constants and Zod schemas for runtime-neutral environment config.   |
-| [`@shamt/app-env`](./packages/app-env#readme)         | `0.0.0` | App-specific env schema that composes `@shamt/envs` with Shopify fields. |
-| [`@shamt/cache`](./packages/cache#readme)             | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.        |
-| [`@shamt/database`](./packages/database#readme)       | `0.0.0` | Shared Drizzle models, Drizzle-Zod schemas, and inferred database types. |
-| [`@shamt/oh-my-fetch`](./packages/oh-my-fetch#readme) | `0.0.0` | Workspace HTTP client built on `ky` with explicit subpath entrypoints.   |
+| Package                                         | Version | Description                                                              |
+| ----------------------------------------------- | ------- | ------------------------------------------------------------------------ |
+| [`@shamt/envs`](./packages/envs#readme)         | `0.0.0` | Base constants and Zod schemas for runtime-neutral environment config.   |
+| [`@shamt/app-env`](./packages/app-env#readme)   | `0.0.0` | App-specific env schema that composes `@shamt/envs` with Shopify fields. |
+| [`@shamt/cache`](./packages/cache#readme)       | `0.0.0` | Runtime-neutral cache contract with an LRU memory implementation.        |
+| [`@shamt/database`](./packages/database#readme) | `0.0.0` | Shared Drizzle models, Drizzle-Zod schemas, and inferred database types. |
 
-External shared libraries such as `@unimolecule/utils` provide generic
-runtime-neutral and Node helper utilities used by app and package code.
+External shared libraries such as `@unimolecule/utils` and
+`@unimolecule/oh-my-fetch` provide generic runtime-neutral utilities and the
+shared HTTP client used by app and package code.
 
 ## Architecture
 
@@ -43,8 +43,10 @@ The dependency direction is intentionally one-way:
 
 ```text
 @unimolecule/utils
-  -> @shamt/envs / @shamt/cache / @shamt/oh-my-fetch
-  -> @shamt/app-env / @shamt/database
+  -> @unimolecule/oh-my-fetch
+@shamt/envs
+  -> @shamt/app-env / @shamt/cache / @shamt/database
+shared packages + external libraries
   -> apps/server / apps/web
   -> Shopify Admin API / Shopify App Bridge / Cloudflare Workers
 ```
@@ -58,9 +60,9 @@ those base schemas with Shopify app fields such as `SHOPIFY_APP_MODE` and
 
 ### Key design decisions
 
-`@shamt/oh-my-fetch` wraps `ky` for consistent HTTP behavior across services:
-query serialization, body handling, timeout, retry, response parsing, schema
-validation, normalized request errors, and optional plugins imported from
+`@unimolecule/oh-my-fetch` wraps `ky` for consistent HTTP behavior across
+services: query serialization, body handling, timeout, retry, response parsing,
+schema validation, normalized request errors, and optional plugins imported from
 explicit subpath entrypoints.
 
 `apps/server` composes the shared packages with Hono, Shopify API libraries,

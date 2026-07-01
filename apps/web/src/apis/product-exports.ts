@@ -4,7 +4,7 @@ import type {
   InsertProductExport,
   SelectProductExport,
 } from "@shamt/database/sql-schemas/postgres";
-import type { HttpRequestConfig } from "@shamt/oh-my-fetch";
+import type { HttpRequestConfig } from "@unimolecule/oh-my-fetch";
 
 export type ProductExportStatus = SelectProductExport["status"];
 export type ProductExportTemplateCode = SelectProductExport["template"];

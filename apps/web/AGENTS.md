@@ -48,7 +48,7 @@ Common components:
 - Browser API calls should go through `src/utils/client.shopify.ts` and `src/apis/*`.
 - Do not duplicate authorization header logic, OAuth recovery, or redirect throttling in pages.
 - Page and route components should call business API functions rather than constructing raw fetch requests.
-- Reuse `@shamt/oh-my-fetch` and existing client hooks before adding client-specific request logic.
+- Reuse `@unimolecule/oh-my-fetch` and existing client hooks before adding client-specific request logic.
 - API schemas, types, enums, and status values that mirror database-backed records must come from `@shamt/database` when available.
 - API files may define browser-safe serialized response types, transport wrappers, or JSON-date adaptations locally when package types are not directly browser-safe.
 - Before adding local API schema/type/enum definitions, check `@shamt/database`, `@shamt/app-env`, and other semantic `packages/*` exports first.

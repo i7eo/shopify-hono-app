@@ -6,7 +6,7 @@ describe("infra providers", () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     vi.doUnmock("@/infra/env");
-    vi.doUnmock("@shamt/oh-my-fetch/client");
+    vi.doUnmock("@unimolecule/oh-my-fetch/client");
   });
 
   function stubRuntimeEnv(overrides: Record<string, unknown> = {}) {
@@ -70,7 +70,7 @@ describe("infra providers", () => {
       options,
       dispose: vi.fn(),
     }));
-    vi.doMock("@shamt/oh-my-fetch/client", () => ({
+    vi.doMock("@unimolecule/oh-my-fetch/client", () => ({
       createHttpClient,
     }));
 
@@ -102,7 +102,7 @@ describe("infra providers", () => {
       options,
       dispose: vi.fn(),
     }));
-    vi.doMock("@shamt/oh-my-fetch/client", () => ({
+    vi.doMock("@unimolecule/oh-my-fetch/client", () => ({
       createHttpClient,
     }));
 
@@ -144,7 +144,7 @@ describe("infra providers", () => {
       options,
       dispose: vi.fn(),
     }));
-    vi.doMock("@shamt/oh-my-fetch/client", () => ({
+    vi.doMock("@unimolecule/oh-my-fetch/client", () => ({
       createHttpClient,
     }));
 
