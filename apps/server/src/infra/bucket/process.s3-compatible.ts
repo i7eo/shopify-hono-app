@@ -31,8 +31,7 @@ export type S3CompatibleBucketOptions = {
  */
 export class S3CompatibleBucket implements Bucket {
   private clientPromise:
-    | Promise<import("@aws-sdk/client-s3").S3Client>
-    | undefined;
+    Promise<import("@aws-sdk/client-s3").S3Client> | undefined;
   private readonly partSizeBytes: number;
 
   constructor(

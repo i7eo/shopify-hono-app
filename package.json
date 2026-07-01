@@ -45,8 +45,6 @@
     "@types/node": "catalog:",
     "@unconfig/stylelint-config": "catalog:dx",
     "@unconfig/ts-config": "catalog:dx",
-    "@unimolecule/canon": "catalog:",
-    "@unimolecule/oh-my-fetch": "catalog:",
     "@unimolecule/utils": "catalog:",
     "czg": "catalog:dx",
     "eslint": "catalog:dx",

@@ -1,6 +1,5 @@
 // do not use `enum` in typescript, see: https://www.reddit.com/r/typescript/comments/1s3qhx6/i_will_stop_using_enum_in_typescript/
 // use const object to replace it:
-
 export const DEFAULT_ENVS = {
   DEVELOPMENT: "development",
   TEST: "test",

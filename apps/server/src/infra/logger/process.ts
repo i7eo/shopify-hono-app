@@ -30,11 +30,7 @@ type ProcessLogPaths = {
   directories: Record<ProcessLogPathLevel, string>;
 };
 type ProcessLoggerSinkName =
-  | "console"
-  | "warnFile"
-  | "errorFile"
-  | "warnDailyFile"
-  | "errorDailyFile";
+  "console" | "warnFile" | "errorFile" | "warnDailyFile" | "errorDailyFile";
 
 /**
  * Configure logger sinks for process runtimes such as Node.

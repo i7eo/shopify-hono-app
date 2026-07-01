@@ -47,6 +47,7 @@
     "@shamt/database": "workspace:*",
     "@shopify/shopify-api": "^13.1.0",
     "@shopify/shopify-app-session-storage-drizzle": "^4.0.1",
+    "@unimolecule/canon": "catalog:",
     "@unimolecule/oh-my-fetch": "catalog:",
     "@unimolecule/utils": "catalog:",
     "drizzle-orm": "catalog:drizzle",

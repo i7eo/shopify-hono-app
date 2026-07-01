@@ -2,12 +2,12 @@ import {
   appConfigSchema,
   cacheConfigSchema,
   databaseSchema,
-  envConfigSchema,
   extendConfigSchema,
   fileConfigSchema,
   logConfigSchema,
   redisSchema,
 } from "@shamt/envs";
+import { envConfigSchema } from "./_env";
 import { appEnvConfigSchema as $appConfigSchema } from "./app";
 import { bucketConfigSchema } from "./bucket";
 import { cloudflareConfigSchema } from "./cloudflare";

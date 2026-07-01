@@ -1,5 +1,18 @@
 import { z } from "@hono/zod-openapi";
-import { AppError } from "./error";
+import { AppError, type PaginationInput } from "@unimolecule/canon/http";
+
+export {
+  createCursorPagination,
+  createPagePagination,
+} from "@unimolecule/canon/http";
+export type {
+  CursorPagination,
+  PagePagination,
+  PaginatedPage,
+  Pagination,
+  PaginationInput,
+  PaginationMode,
+} from "@unimolecule/canon/http";
 
 export const PAGINATION_LIMIT_MAX = 100; // [30,50,100]
 export const PAGE_PAGINATION_MAX_PAGE = 50;
@@ -87,26 +100,7 @@ export const PaginationQuerySchema = z
     });
   });
 
-export type CursorPagination = z.infer<typeof CursorPaginationSchema>;
-export type PagePagination = z.infer<typeof PagePaginationSchema>;
-export type Pagination = z.infer<typeof PaginationSchema>;
 export type PaginationQuery = z.infer<typeof PaginationQuerySchema>;
-
-export type PaginationInput =
-  | {
-      cursor?: string;
-      limit: number;
-      mode: "cursor";
-    }
-  | {
-      limit: number;
-      mode: "page";
-      page: number;
-    };
-
-export type PaginatedPage = {
-  pagination: Pagination;
-};
 
 export type SeekCursor = {
   createdAt: Date;
@@ -147,34 +141,6 @@ export function readSeekCursor(cursor?: string): SeekCursor | null {
     message: "Invalid cursor.",
     expose: true,
   });
-}
-
-export function createCursorPagination(input: {
-  hasNext: boolean;
-  limit: number;
-  nextCursor?: string;
-}): CursorPagination {
-  return {
-    hasNext: input.hasNext,
-    limit: input.limit,
-    mode: "cursor",
-    nextCursor: input.nextCursor,
-  };
-}
-
-export function createPagePagination(input: {
-  hasNext: boolean;
-  limit: number;
-  page: number;
-  total: number;
-}): PagePagination {
-  return {
-    hasNext: input.hasNext,
-    limit: input.limit,
-    mode: "page",
-    page: input.page,
-    total: input.total,
-  };
 }
 
 export function toPaginationInput(

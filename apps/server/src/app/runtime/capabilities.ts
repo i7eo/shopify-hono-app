@@ -96,8 +96,7 @@ export function getRuntimeCapability<K extends RuntimeCapabilityName>(
   name: K,
 ): RuntimeCapabilityInstances[K] | undefined {
   return runtimeCapabilities.get(name) as
-    | RuntimeCapabilityInstances[K]
-    | undefined;
+    RuntimeCapabilityInstances[K] | undefined;
 }
 
 /**

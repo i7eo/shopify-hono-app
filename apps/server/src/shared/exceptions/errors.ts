@@ -1,4 +1,4 @@
-import { HTTP_STATUS_CODES } from "@shamt/app-env";
+import { HTTP_STATUS_CODES } from "@unimolecule/canon/http";
 import { AppError, type AppErrorOptions } from "@/shared/models";
 
 type ErrorOptions = Omit<AppErrorOptions, "message" | "status">;

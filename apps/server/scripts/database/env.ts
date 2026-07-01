@@ -13,6 +13,24 @@ export function requirePostgresUrl() {
   };
 }
 
+export function requireD1HttpCredentials() {
+  if (
+    !env.APP_CLOUDFLARE_WORKER_ACCOUNT_ID ||
+    !env.APP_DATABASE_D1_ID ||
+    !env.APP_CLOUDFLARE_USER_TOKEN
+  ) {
+    throw new Error(
+      "D1 HTTP tooling requires APP_CLOUDFLARE_WORKER_ACCOUNT_ID, APP_DATABASE_D1_ID, and APP_CLOUDFLARE_USER_TOKEN",
+    );
+  }
+
+  return {
+    accountId: env.APP_CLOUDFLARE_WORKER_ACCOUNT_ID,
+    databaseId: env.APP_DATABASE_D1_ID,
+    token: env.APP_CLOUDFLARE_USER_TOKEN,
+  };
+}
+
 export function requirePostgresSeedUrl() {
   requireSeedAllowed("PostgreSQL");
 

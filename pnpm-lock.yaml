@@ -270,11 +270,11 @@ catalogs:
       specifier: ^26.0.1
       version: 26.0.1
     "@unimolecule/canon":
-      specifier: ^0.1.2
-      version: 0.1.2
+      specifier: ^0.1.3
+      version: 0.1.3
     "@unimolecule/oh-my-fetch":
-      specifier: ^0.1.2
-      version: 0.1.2
+      specifier: ^0.1.4
+      version: 0.1.4
     "@unimolecule/utils":
       specifier: ^0.1.2
       version: 0.1.2
@@ -458,12 +458,6 @@ importers:
       "@unconfig/ts-config":
         specifier: catalog:dx
         version: 0.1.11
-      "@unimolecule/canon":
-        specifier: "catalog:"
-        version: 0.1.2
-      "@unimolecule/oh-my-fetch":
-        specifier: "catalog:"
-        version: 0.1.2
       "@unimolecule/utils":
         specifier: "catalog:"
         version: 0.1.2
@@ -570,9 +564,12 @@ importers:
       "@shopify/shopify-app-session-storage-drizzle":
         specifier: ^4.0.1
         version: 4.0.1(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.1.0))(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260630.1)(@types/pg@8.20.0)(pg@8.22.0))
+      "@unimolecule/canon":
+        specifier: "catalog:"
+        version: 0.1.3
       "@unimolecule/oh-my-fetch":
         specifier: "catalog:"
-        version: 0.1.2
+        version: 0.1.4
       "@unimolecule/utils":
         specifier: "catalog:"
         version: 0.1.2
@@ -660,7 +657,7 @@ importers:
         version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       "@unimolecule/oh-my-fetch":
         specifier: "catalog:"
-        version: 0.1.2
+        version: 0.1.4
       "@unimolecule/utils":
         specifier: "catalog:"
         version: 0.1.2
@@ -4906,16 +4903,16 @@ packages:
         integrity: sha512-mUFwbeTqrVgDQxFveS+df2yfap6iuP20NAKAsBt5jDEoOTDew+zwLAOilHCeQJOVSvmgCX4ogqIrA0mnyr08yQ==,
       }
 
-  "@unimolecule/canon@0.1.2":
+  "@unimolecule/canon@0.1.3":
     resolution:
       {
-        integrity: sha512-7u97Qf0qMraJQhuVw7YmUF+wFEaAQxeX0EQNz9qAO+/+4cOIavw+RTS3U1vdOQNaLqE1gGDRt284+cX2C2iE4Q==,
+        integrity: sha512-pp4JbSI6aGdXRZWOS5kDwizjJN3o+oAGdDsQfbPA5y1B3JkfaLah1YDQlV63HG4YlYVYpvzkpeusFYbVJyM7gA==,
       }
 
-  "@unimolecule/oh-my-fetch@0.1.2":
+  "@unimolecule/oh-my-fetch@0.1.4":
     resolution:
       {
-        integrity: sha512-Iqcbu5KMo+ETCx1vV8e78/F+Gs4IBEREedgPQnl9Lns2f47IkvBErb3o34U+8kjwuG8csLsIDt2Ag2OkQQlZFQ==,
+        integrity: sha512-wy5gNPbu43vevejBljqkIGv6buGKwcn/lLFRVxxoozO0+capmvruCGhaAMrM0nxznOkncFYYpMrgKPcHyvPpPQ==,
       }
 
   "@unimolecule/utils@0.1.2":
@@ -12312,11 +12309,11 @@ snapshots:
 
   "@ungap/structured-clone@1.3.1": {}
 
-  "@unimolecule/canon@0.1.2": {}
+  "@unimolecule/canon@0.1.3": {}
 
-  "@unimolecule/oh-my-fetch@0.1.2":
+  "@unimolecule/oh-my-fetch@0.1.4":
     dependencies:
-      "@unimolecule/canon": 0.1.2
+      "@unimolecule/canon": 0.1.3
       "@unimolecule/utils": 0.1.2
       ky: 2.0.2
 

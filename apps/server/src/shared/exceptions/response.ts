@@ -1,4 +1,5 @@
-import { DEFAULT_ENVS, HTTP_STATUS_CODES } from "@shamt/app-env";
+import { DEFAULT_ENVS } from "@shamt/app-env";
+import { HTTP_STATUS_CODES } from "@unimolecule/canon/http";
 import {
   createError,
   type AppError,

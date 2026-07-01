@@ -25,8 +25,7 @@ type RuntimeNotSupportedThrowOptions = RuntimeNotSupportedBaseOptions & {
 };
 
 export type RuntimeNotSupportedOptions =
-  | RuntimeNotSupportedReturnOptions
-  | RuntimeNotSupportedThrowOptions;
+  RuntimeNotSupportedReturnOptions | RuntimeNotSupportedThrowOptions;
 
 export function runtimeNotSupported(
   options: RuntimeNotSupportedThrowOptions,
