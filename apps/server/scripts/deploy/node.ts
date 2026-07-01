@@ -11,7 +11,7 @@ async function main() {
   const context = await getDeployContext();
 
   await executeCommand("pnpm", ["--dir", "apps/web", "run", "build"]);
-  await executeCommand("pnpm", ["--dir", "apps/server", "run", "node:build"]);
+  await executeCommand("pnpm", ["--dir", "apps/server", "run", "build"]);
 
   await Promise.all([writeDockerCompose(context), writeNginxConfig(context)]);
 

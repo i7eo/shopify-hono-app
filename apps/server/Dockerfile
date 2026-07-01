@@ -16,4 +16,4 @@ COPY apps/server/dist/process ./apps/server/dist/process
 
 WORKDIR /app/apps/server
 
-CMD ["pm2-runtime", "start", "./dist/process/esm/app/runtime/process/index.mjs", "--interpreter", "node", "--node-args=--import tsx", "--name", "server"]
+CMD ["pm2-runtime", "start", "./dist/process/index.mjs", "--interpreter", "node", "--name", "server"]

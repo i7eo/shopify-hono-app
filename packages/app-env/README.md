@@ -19,6 +19,25 @@ The root entry also re-exports `@shamt/envs`, so app code can import the
 composed schema and shared constants from one place when that keeps call sites
 clean.
 
+## Build Output
+
+The package builds with `tsdown --config ./build.config.ts`.
+
+| Published field / export | Output path                  |
+| ------------------------ | ---------------------------- |
+| `main`                   | `dist/index.cjs`             |
+| `module`                 | `dist/index.mjs`             |
+| `types`                  | `dist/index.d.mts`           |
+| `.` import               | `dist/index.mjs`             |
+| `.` require              | `dist/index.cjs`             |
+| `./constants` import     | `dist/constants/index.mjs`   |
+| `./constants` require    | `dist/constants/index.cjs`   |
+| `./constants` types      | `dist/constants/index.d.mts` |
+
+Source workspace exports continue to point at `src/*` for local TypeScript
+development. `publishConfig.exports` points at the built `dist/*` files and
+must stay aligned with tsdown's `.mjs`, `.cjs`, and `.d.mts` output.
+
 ## Schema
 
 `configSchema` combines:

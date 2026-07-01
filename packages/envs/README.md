@@ -9,6 +9,7 @@
 - [Static Env and Runtime Settings](#static-env-and-runtime-settings)
 - [Relation to @shamt/app-env](#relation-to-shamtapp-env)
 - [Inputs and Outputs](#inputs-and-outputs)
+- [Build Output](#build-output)
 - [Usage](#usage)
 - [Unit Conventions](#unit-conventions)
 
@@ -74,6 +75,26 @@ Outputs:
 - Zod schemas for app, cache, database URL, env, file, logger, and Redis configuration.
 - TypeScript inferred types such as `AppConfigSchema`, `EnvConfigSchema`, and `LogConfigSchema`.
 - Shared constants for HTTP status codes, response defaults, content types, runtime names, env names, request limits, timeouts, and size limits.
+
+## Build Output
+
+The package builds with `tsdown --config ./build.config.ts`.
+
+| Published field / export | Output path                  |
+| ------------------------ | ---------------------------- |
+| `main`                   | `dist/index.cjs`             |
+| `module`                 | `dist/index.mjs`             |
+| `types`                  | `dist/index.d.mts`           |
+| `.` import               | `dist/index.mjs`             |
+| `.` require              | `dist/index.cjs`             |
+| `./constants` import     | `dist/constants/index.mjs`   |
+| `./constants` require    | `dist/constants/index.cjs`   |
+| `./constants` types      | `dist/constants/index.d.mts` |
+
+The root entry no longer re-exports `./constants`; import constants through
+`@shamt/envs/constants` when a consumer needs only stable values. Source
+workspace exports point at `src/*`, while `publishConfig.exports` points at the
+built `dist/*` files.
 
 ## Usage
 

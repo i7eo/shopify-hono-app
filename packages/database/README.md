@@ -23,6 +23,30 @@ by Cloudflare D1.
 | `@shamt/database/sql-schemas/sqlite`   | SQLite/D1 Drizzle-Zod schemas          |
 | `@shamt/database/package.json`         | Package metadata                       |
 
+## Build Output
+
+The package builds with `tsdown --config ./build.config.ts` and keeps the
+runtime-neutral root, constants, model, and schema entrypoints as files under
+`dist`.
+
+| Published field / export                 | Output path example                   |
+| ---------------------------------------- | ------------------------------------- |
+| `main`                                   | `dist/index.cjs`                      |
+| `module`                                 | `dist/index.mjs`                      |
+| `types`                                  | `dist/index.d.mts`                    |
+| `@shamt/database/models/postgres`        | `dist/models/postgres/index.mjs`      |
+| `@shamt/database/models/postgres/*`      | `dist/models/postgres/*.mjs`          |
+| `@shamt/database/models/sqlite`          | `dist/models/sqlite/index.mjs`        |
+| `@shamt/database/sql-schemas/postgres`   | `dist/sql-schemas/postgres/index.mjs` |
+| `@shamt/database/sql-schemas/postgres/*` | `dist/sql-schemas/postgres/*.mjs`     |
+| `@shamt/database/sql-schemas/sqlite`     | `dist/sql-schemas/sqlite/index.mjs`   |
+
+Source workspace exports point at `src/*` for local TypeScript development.
+Published exports point at `dist/*`. Keep package subpath patterns explicit
+for the dialect directory, such as `./models/postgres/*`, instead of using
+recursive `**` targets; Node package exports replace `*` literally and must
+map to real tsdown output files.
+
 ## Models
 
 The package keeps PostgreSQL and SQLite/D1 models separate because the two

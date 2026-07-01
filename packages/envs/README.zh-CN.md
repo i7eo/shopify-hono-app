@@ -9,6 +9,7 @@
 - [静态 Env 与运行时设置](#静态-env-与运行时设置)
 - [与 @shamt/app-env 的关系](#与-shamtapp-env-的关系)
 - [输入与输出](#输入与输出)
+- [构建产物](#构建产物)
 - [使用方式](#使用方式)
 - [单位约定](#单位约定)
 
@@ -95,6 +96,25 @@ const config = configSchema.parse(process.env);
 - app、cache、database URL、env、file、logger、Redis 等配置的 Zod schema。
 - `AppConfigSchema`、`EnvConfigSchema`、`LogConfigSchema` 等 TypeScript 推导类型。
 - HTTP 状态码、响应默认值、content type、runtime 名称、env 名称、请求限制、超时时间、大小限制等共享常量。
+
+## 构建产物
+
+这个包通过 `tsdown --config ./build.config.ts` 构建。
+
+| 发布字段 / export     | 输出路径                     |
+| --------------------- | ---------------------------- |
+| `main`                | `dist/index.cjs`             |
+| `module`              | `dist/index.mjs`             |
+| `types`               | `dist/index.d.mts`           |
+| `.` import            | `dist/index.mjs`             |
+| `.` require           | `dist/index.cjs`             |
+| `./constants` import  | `dist/constants/index.mjs`   |
+| `./constants` require | `dist/constants/index.cjs`   |
+| `./constants` types   | `dist/constants/index.d.mts` |
+
+根入口不再重新导出 `./constants`；消费者只需要稳定常量时，应从
+`@shamt/envs/constants` 导入。workspace 源码 exports 仍指向 `src/*`，发布用
+`publishConfig.exports` 指向构建后的 `dist/*` 文件。
 
 ## 使用方式
 

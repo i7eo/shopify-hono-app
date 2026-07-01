@@ -1,23 +1,24 @@
 import process from "node:process";
-import { outputEntryBuilder } from "@unimolecule/utils/node";
 import { defineConfig } from "tsdown";
 
 export default defineConfig([
   {
-    entry: ["./src/index.ts"],
+    entry: ["./src/app/runtime/process/index.ts"],
     format: ["esm", "cjs"],
     platform: "node",
     dts: true,
     tsconfig: "./tsconfig.json",
+    outDir: "dist/process",
     watch: process.env.APP_ENV === "development",
+    shims: true,
   },
   {
-    entry: outputEntryBuilder("./src/constants"),
-    format: ["esm", "cjs"],
-    platform: "node",
+    entry: ["./src/app/runtime/isolate/cloudflare/index.ts"],
+    format: ["esm"],
+    platform: "neutral",
     dts: true,
-    tsconfig: "./tsconfig.node.json",
-    outDir: "dist/constants",
+    tsconfig: "./tsconfig.json",
+    outDir: "dist/isolate/cloudflare",
     watch: process.env.APP_ENV === "development",
     clean: false,
   },

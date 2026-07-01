@@ -142,19 +142,18 @@ Shopify frontend target 也不是 runtime capability。它和 `APP_RUNTIME`、`S
 
 ## 构建目标
 
-| 目标               | 构建配置                             | 输出目录                  |
-| ------------------ | ------------------------------------ | ------------------------- |
-| Node process       | `build.process.config.ts`            | `dist/process`            |
-| Cloudflare isolate | `build.isolate-cloudflare.config.ts` | `dist/isolate/cloudflare` |
+| 目标               | 构建配置          | 输出目录                  |
+| ------------------ | ----------------- | ------------------------- |
+| Node process       | `build.config.ts` | `dist/process`            |
+| Cloudflare isolate | `build.config.ts` | `dist/isolate/cloudflare` |
 
 对应脚本：
 
 ```bash
-pnpm --dir apps/server run node:build
-pnpm --dir apps/server run cf:build
+pnpm --dir apps/server run build
 ```
 
-两个脚本只清理自己的输出目录，因此可以先后构建并保留两套产物。
+`build` 使用 production env 运行 `bundle`。`bundle` 调用 tsdown，同一个配置同时构建 Node process 和 Cloudflare isolate 两个入口；process 目标会清理 `dist`，isolate 目标使用 `clean: false`，因此一次构建后会同时保留两套产物。Node Docker runtime 启动 `dist/process/index.mjs`。
 
 ## 部署入口
 

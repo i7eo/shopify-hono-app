@@ -43,34 +43,33 @@
 `apps/server` 的脚本按 runtime 分为 Node process 与 Cloudflare Workers 两组。
 本地 Shopify 联调通常由根目录 `pnpm dev` 或 `pnpm dev:tunnel` 间接启动。
 
-| Script               | Purpose                                                                                |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| `cf:type`            | 生成 Cloudflare Worker binding 类型到 `typings/cloudflare-worker-configuration.d.ts`。 |
-| `cf:dev`             | 读取 development env，用 Wrangler dev 启动 Cloudflare Worker runtime。                 |
-| `cf:build`           | 读取 production env，构建 Cloudflare isolate 产物到 `dist/isolate/cloudflare`。        |
-| `cf:deploy`          | 准备 Cloudflare 静态资源配置，批量写入 Wrangler secrets，然后执行 `wrangler deploy`。  |
-| `node:dev`           | 读取 development env，用 `tsx watch` 启动 Node process runtime。                       |
-| `node:build`         | 读取 production env，构建 Node process 产物到 `dist/process`。                         |
-| `node:deploy`        | 运行 Node 部署脚本，生成 Compose/Nginx 并部署 Docker + PM2 runtime。                   |
-| `build`              | 依次运行 `cf:build` 和 `node:build`。                                                  |
-| `db:push:pg`         | 使用 development env push PostgreSQL schema。                                          |
-| `db:push:d1`         | 使用 development env push D1 schema。                                                  |
-| `db:generate:pg`     | 生成 PostgreSQL migration。                                                            |
-| `db:generate:d1`     | 生成 D1 migration。                                                                    |
-| `db:migrate:pg`      | 使用 production env 执行 PostgreSQL migration。                                        |
-| `db:migrate:d1`      | 使用 Wrangler 对远端 D1 执行 migration。                                               |
-| `db:seed:dev:pg`     | 写入 development PostgreSQL seed 数据。                                                |
-| `db:seed:prod:pg`    | 显式确认后写入 production PostgreSQL seed 数据。                                       |
-| `db:seed:dev:d1`     | 写入 development 远端 D1 seed 数据。                                                   |
-| `db:seed:prod:d1`    | 显式确认后写入 production 远端 D1 seed 数据。                                          |
-| `test`               | 运行 Vitest。                                                                          |
-| `test:coverage`      | 运行 Vitest coverage。                                                                 |
-| `test:coverage:view` | 打开 coverage HTML 报告。                                                              |
-| `format`             | 格式化 server workspace 内的 JS/TS/Markdown/JSON 文件。                                |
-| `lint`               | 修复 server workspace 内的 ESLint 问题。                                               |
-| `clean`              | 并行运行 server workspace 清理任务。                                                   |
-| `clean:cache`        | 删除 `dist`。                                                                          |
-| `clean:deps`         | 删除 `node_modules`。                                                                  |
+| Script               | Purpose                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `cf:type`            | 生成 Cloudflare Worker binding 类型到 `typings/cloudflare-worker-configuration.d.ts`。    |
+| `cf:dev`             | 读取 development env，用 Wrangler dev 启动 Cloudflare Worker runtime。                    |
+| `cf:deploy`          | 准备 Cloudflare 静态资源配置，批量写入 Wrangler secrets，然后执行 `wrangler deploy`。     |
+| `node:dev`           | 读取 development env，用 `tsx watch` 启动 Node process runtime。                          |
+| `node:deploy`        | 运行 Node 部署脚本，生成 Compose/Nginx 并部署 Docker + PM2 runtime。                      |
+| `bundle`             | 使用 `tsdown --config ./build.config.ts` 构建两套 runtime 产物。                          |
+| `build`              | 读取 production env 后运行 `bundle`，输出到 `dist/process` 与 `dist/isolate/cloudflare`。 |
+| `db:push:pg`         | 使用 development env push PostgreSQL schema。                                             |
+| `db:push:d1`         | 使用 development env push D1 schema。                                                     |
+| `db:generate:pg`     | 生成 PostgreSQL migration。                                                               |
+| `db:generate:d1`     | 生成 D1 migration。                                                                       |
+| `db:migrate:pg`      | 使用 production env 执行 PostgreSQL migration。                                           |
+| `db:migrate:d1`      | 使用 Wrangler 对远端 D1 执行 migration。                                                  |
+| `db:seed:dev:pg`     | 写入 development PostgreSQL seed 数据。                                                   |
+| `db:seed:prod:pg`    | 显式确认后写入 production PostgreSQL seed 数据。                                          |
+| `db:seed:dev:d1`     | 写入 development 远端 D1 seed 数据。                                                      |
+| `db:seed:prod:d1`    | 显式确认后写入 production 远端 D1 seed 数据。                                             |
+| `test`               | 运行 Vitest。                                                                             |
+| `test:coverage`      | 运行 Vitest coverage。                                                                    |
+| `test:coverage:view` | 打开 coverage HTML 报告。                                                                 |
+| `format`             | 格式化 server workspace 内的 JS/TS/Markdown/JSON 文件。                                   |
+| `lint`               | 修复 server workspace 内的 ESLint 问题。                                                  |
+| `clean`              | 并行运行 server workspace 清理任务。                                                      |
+| `clean:cache`        | 删除 `dist`。                                                                             |
+| `clean:deps`         | 删除 `node_modules`。                                                                     |
 
 数据库命令不会由根目录 `pnpm dev:tunnel` 或 `pnpm deploy` 自动执行。启动、部署前的 schema 同步、migration 和 seed 时机见 [database.md](./docs/reference/database.md#development-and-deployment-lifecycle)。
 
@@ -127,8 +126,8 @@ pnpm --dir apps/server run node:deploy
 `cf:deploy` 先运行 `scripts/deploy/cloudflare.ts` 写入 Worker assets 配置，
 再执行 `wrangler secret bulk ../../.env.production && wrangler deploy`。
 `node:deploy` 运行 `scripts/deploy/node.ts`，构建 web/server 产物，生成
-`docker-compose.yml` 与 `nginx.conf`，然后通过 Docker、PM2 runtime 和
-同机 Nginx 完成部署。
+`docker-compose.yml` 与 `nginx.conf`，Docker 内的 PM2 runtime 启动
+`dist/process/index.mjs`，然后通过同机 Nginx 完成部署。
 
 ## 维护原则
 

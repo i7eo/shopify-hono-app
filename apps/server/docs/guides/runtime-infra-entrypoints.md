@@ -135,8 +135,7 @@ requireConfiguredCloudflareBinding(
 ```bash
 rg "await import\\([\"']\\./(process|isolate)[\"']\\)" apps/server/src/infra
 rg "backgroundBucketFactory|createDatabase\\(|createQueueProducer\\(|createScheduler\\(" apps/server/src
-pnpm --dir apps/server run cf:build
-pnpm --dir apps/server run node:build
+pnpm --dir apps/server run build
 ```
 
-`cf:build` 不应出现来自 `infra/*/process.ts` 的 Node 内置模块 unresolved warning。
+`build` 会同时输出 `dist/process` 与 `dist/isolate/cloudflare`。Cloudflare isolate 构建不应出现来自 `infra/*/process.ts` 的 Node 内置模块 unresolved warning。

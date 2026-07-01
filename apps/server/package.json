@@ -11,12 +11,11 @@
   "scripts": {
     "cf:type": "wrangler types ./typings/cloudflare-worker-configuration.d.ts",
     "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev --port \"$BACKEND_PORT\" --env development --env-file ../../.env.development --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\"",
-    "cf:build": "rimraf dist/isolate/cloudflare && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.isolate-cloudflare.config.ts",
     "cf:deploy": "node --env-file=../../.env.production --import tsx ./scripts/deploy/cloudflare.ts && wrangler secret bulk ../../.env.production --env production && wrangler deploy --env production",
     "node:dev": "APP__SERVER_PORT=\"$BACKEND_PORT\" SHOPIFY_APP_URL=\"${APP_URL:-$HOST}\" tsx watch --env-file=../../.env.development ./src/app/runtime/process/index.ts",
-    "node:build": "rimraf dist/process && node --env-file=../../.env.production ./node_modules/rolldown/bin/cli.mjs --config ./build.process.config.ts",
     "node:deploy": "node --env-file=../../.env.production --import tsx ./scripts/deploy/node.ts",
-    "build": "pnpm cf:build && pnpm node:build",
+    "bundle": "tsdown --config ./build.config.ts",
+    "build": "node --env-file=../../.env.production --run bundle",
     "db:push:pg": "node --env-file=../../.env.development ./node_modules/drizzle-kit/bin.cjs push --config ./drizzle.pg.config.ts",
     "db:push:d1": "node --env-file=../../.env.development ./node_modules/drizzle-kit/bin.cjs push --config ./drizzle.d1.config.ts",
     "db:generate:pg": "drizzle-kit generate --config ./drizzle.pg.generate.config.ts",
@@ -37,7 +36,7 @@
     "clean:deps": "rimraf node_modules"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1075.0",
+    "@aws-sdk/client-s3": "^3.1076.0",
     "@hono/node-server": "^2.0.6",
     "@hono/zod-openapi": "^1.4.0",
     "@hono/zod-validator": "^0.8.0",
@@ -65,8 +64,7 @@
     "@unconfig/ts-config": "catalog:dx",
     "@vitest/coverage-v8": "catalog:test",
     "drizzle-kit": "catalog:drizzle",
-    "rolldown": "catalog:dx",
-    "rolldown-plugin-dts": "catalog:dx",
+    "tsdown": "catalog:dx",
     "tsx": "catalog:dx",
     "typescript": "catalog:",
     "vitest": "catalog:test",
