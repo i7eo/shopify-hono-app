@@ -132,8 +132,8 @@ process runtime 还有进程级异常入口：
 Queue job 和 scheduler task 的重复注册属于启动期不变量错误：
 
 ```ts
-throw new Error(`Queue job already registered: ${job.name}`);
-throw new Error(`Scheduler task already registered: ${task.name}`);
+throwError(`Queue job already registered: ${job.name}`);
+throwError(`Scheduler task already registered: ${task.name}`);
 ```
 
 这类错误通常发生在 `registerJobs()` 或模块 bootstrap 阶段。它不走

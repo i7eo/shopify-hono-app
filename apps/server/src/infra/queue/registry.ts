@@ -1,3 +1,4 @@
+import { throwAppServerError as throwError } from "../../../internal";
 import type { QueueMessage } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
@@ -37,7 +38,7 @@ const queueJobs = new Map<string, QueueJobDefinition>();
 
 export function registerQueueJob(job: QueueJobDefinition): void {
   if (queueJobs.has(job.name)) {
-    throw new Error(`Queue job already registered: ${job.name}`);
+    throwError(`Queue job already registered: ${job.name}`);
   }
 
   queueJobs.set(job.name, job);

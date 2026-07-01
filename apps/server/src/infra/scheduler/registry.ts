@@ -1,3 +1,4 @@
+import { throwAppServerError as throwError } from "../../../internal";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 
@@ -22,7 +23,7 @@ const schedulerTasks = new Map<string, SchedulerTaskDefinition>();
 
 export function registerSchedulerTask(task: SchedulerTaskDefinition): void {
   if (schedulerTasks.has(task.name)) {
-    throw new Error(`Scheduler task already registered: ${task.name}`);
+    throwError(`Scheduler task already registered: ${task.name}`);
   }
 
   schedulerTasks.set(task.name, task);

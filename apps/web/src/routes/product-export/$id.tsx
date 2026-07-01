@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Loading } from "@/components/loading";
+import { throwAppWebError as throwError } from "../../../internal";
 import { ProductExportEditor } from "./-components/editor";
 import { productExportDetailQueryOptions } from "./-queries";
 
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/product-export/$id")({
     );
 
     if (!response.data) {
-      throw new Error("Product export response did not include export data");
+      throwError("Product export response did not include export data");
     }
 
     return response.data;

@@ -1,6 +1,6 @@
 import { configSchema, DEFAULT_RUNTIMES } from "@shamt/app-env";
 import { executeCommand } from "@unimolecule/utils/node";
-import { throwError } from "../utils";
+import { throwRepositoryError as throwError } from "../utils";
 
 /**
  * Dispatch the runtime-specific deployment owned by apps/server.
@@ -23,7 +23,7 @@ async function main() {
     return;
   }
 
-  throwError("deploy", `Unsupported APP_RUNTIME: ${config.APP_RUNTIME}`);
+  throwError(`Unsupported APP_RUNTIME: ${config.APP_RUNTIME}`);
 }
 
 main().catch((error: unknown) => {

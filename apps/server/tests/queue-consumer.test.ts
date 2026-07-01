@@ -11,6 +11,7 @@ import {
 } from "@/infra/queue/isolate";
 import { resetQueueJobs } from "@/infra/queue/registry";
 import { getQueueEnvConfig, getQueueJobName } from "@/infra/queue/shared";
+import { throwAppServerError as throwError } from "../internal";
 
 const context = {
   logger: {
@@ -151,7 +152,7 @@ describe("queue batch consumer", () => {
       // eslint-disable-next-line require-await
       handler: async (payload) => {
         if (payload.id === "bad") {
-          throw new Error("bad payload");
+          throwError("bad payload");
         }
       },
       name: "test:single",
@@ -194,7 +195,7 @@ describe("queue batch consumer", () => {
     registerQueueJob({
       // eslint-disable-next-line require-await
       batchHandler: async () => {
-        throw new Error("batch failed");
+        throwError("batch failed");
       },
       mode: "batch",
       name: "test:batch",

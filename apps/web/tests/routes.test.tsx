@@ -9,7 +9,10 @@ import {
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/utils/client.query";
-import type { ProductExportStatus } from "@/apis/product-exports";
+import type {
+  ProductExport,
+  ProductExportStatus,
+} from "@/apis/product-exports";
 
 const fetchProductsMock = vi.hoisted(() => vi.fn());
 const fetchShopInfoMock = vi.hoisted(() => vi.fn());
@@ -38,7 +41,7 @@ vi.mock("@/apis/shopify", () => ({
   fetchProducts: fetchProductsMock,
   fetchShopInfo: fetchShopInfoMock,
   ShopifyAuthRedirectError: class ShopifyAuthRedirectError extends Error {
-    static [Symbol.hasInstance](instance: unknown) {
+    static override [Symbol.hasInstance](instance: unknown) {
       return (
         instance instanceof Error &&
         instance.name === "ShopifyAuthRedirectError"
@@ -173,7 +176,7 @@ describe("route components", () => {
     globalThis.shopify = {
       loading: vi.fn(),
       toast: { show: vi.fn() },
-    } as unknown as ShopifyGlobal;
+    } as unknown as NonNullable<typeof globalThis.shopify>;
     vi.stubGlobal("__PUBLIC_ENV__", {
       APP_FILE_MAX_SIZE: 1024,
       APP_FILE_UPLOAD_MULTIPLE_SIZE: 2,
@@ -501,9 +504,11 @@ describe("route components", () => {
           return 1 as unknown as ReturnType<typeof setInterval>;
         }
 
-        return nativeSetInterval(handler, timeout, ...args) as ReturnType<
-          typeof setInterval
-        >;
+        return nativeSetInterval(
+          handler,
+          timeout,
+          ...args,
+        ) as unknown as ReturnType<typeof setInterval>;
       },
     );
     const { Route } = await import("../src/routes/product-export");
@@ -738,9 +743,7 @@ function findElementByAttribute(
   );
 }
 
-function createListResponse(
-  result: ReturnType<typeof createProductExportRecord>[],
-) {
+function createListResponse(result: ProductExport[]) {
   return {
     data: {
       pagination: {
@@ -757,7 +760,7 @@ function createProductExportRecord(overrides: {
   id: string;
   name: string;
   status: ProductExportStatus;
-}) {
+}): ProductExport {
   return {
     bucketKey:
       overrides.status === "ready"
@@ -781,6 +784,7 @@ function createProductExportRecord(overrides: {
     shopifyBulkOperationStatus: null,
     shopifySessionId: null,
     status: overrides.status,
+    template: "basic",
     updatedAt: "2026-06-18T12:01:00.000Z",
   };
 }

@@ -16,6 +16,7 @@ import {
 } from "@/app/runtime/capabilities";
 import { DEFAULT_SIGNED_DOWNLOAD_URL_EXPIRE } from "@/constants";
 import { createSeekCursor } from "@/shared/models";
+import { throwAppServerError as throwError } from "../internal";
 import { runtimeConfig } from "./shopify/test-utils";
 import type {
   FileDownloadResolver,
@@ -221,7 +222,7 @@ describe("file service", () => {
     const store = createMemoryMetadataStore();
     const bucket = createMemoryBucket({
       put: () => {
-        throw new Error("write failed");
+        throwError("write failed");
       },
     });
     const c = createServiceContext({ bucket, store });

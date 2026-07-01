@@ -4,6 +4,7 @@ import { createBucketDownloadSigner } from "@/infra/bucket";
 import { createIsolateBucket } from "@/infra/bucket/isolate";
 import { getProcessBucket } from "@/infra/bucket/process";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
+import { throwAppServerError as throwError } from "../internal";
 import { runtimeConfig } from "./shopify/test-utils";
 
 const objects = new Map<string, Uint8Array>();
@@ -544,7 +545,7 @@ function createR2Binding(): R2Bucket {
             orderedParts.map((part) => {
               const value = uploadParts.get(part.partNumber);
               if (!value) {
-                throw new Error(`Missing upload part ${part.partNumber}`);
+                throwError(`Missing upload part ${part.partNumber}`);
               }
 
               return value;
@@ -597,7 +598,7 @@ async function getFirstR2MultipartUpload(
 ): Promise<TestR2MultipartUpload> {
   const result = vi.mocked(bucket.createMultipartUpload).mock.results[0];
   if (!result || result.type !== "return") {
-    throw new Error("Expected createMultipartUpload to be called");
+    throwError("Expected createMultipartUpload to be called");
   }
 
   return (await result.value) as TestR2MultipartUpload;

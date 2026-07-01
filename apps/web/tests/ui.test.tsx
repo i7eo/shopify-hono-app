@@ -1,7 +1,30 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Button, buttonVariants } from "../src/components/ui/button";
+import {
+  Button as GeneratedButton,
+  buttonVariants as generatedButtonVariants,
+} from "../src/components/ui/button";
 import { cn } from "../src/utils/cn";
+import type { ComponentType, ReactNode } from "react";
+
+type ButtonVariant =
+  "default" | "destructive" | "ghost" | "link" | "outline" | "secondary";
+type ButtonSize = "default" | "icon" | "lg" | "sm";
+
+interface TestButtonProps {
+  asChild?: boolean;
+  children?: ReactNode;
+  className?: string;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
+}
+
+const Button = GeneratedButton as ComponentType<TestButtonProps>;
+const buttonVariants = generatedButtonVariants as (options?: {
+  className?: string;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
+}) => string;
 
 describe("cn", () => {
   it("merges conditional classes and resolves Tailwind conflicts", () => {

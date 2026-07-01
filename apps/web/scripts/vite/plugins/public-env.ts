@@ -2,6 +2,7 @@ import {
   PUBLIC_ENV_GLOBAL_NAME,
   SENSITIVE_ENV_KEY_IDENTIFIERS,
 } from "../../../constants";
+import { throwAppWebError as throwError } from "../../../internal";
 import type { ConfigSchema } from "@shamt/app-env";
 import type { Plugin } from "vite";
 
@@ -52,7 +53,7 @@ export function publicEnvPlugin({
  */
 function validateGlobalName(globalName: string) {
   if (!/^[$A-Z_][$\w]*$/i.test(globalName)) {
-    throw new Error(`Invalid public env global name: ${globalName}`);
+    throwError("apps/web", `Invalid public env global name: ${globalName}`);
   }
 }
 

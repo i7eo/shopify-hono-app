@@ -1,5 +1,6 @@
 import { DEFAULT_SHOPIFY_APP_MODES, type ConfigSchema } from "@shamt/app-env";
 import { escape as escapeHTML } from "@unimolecule/utils";
+import { throwAppWebError as throwError } from "../../../internal";
 import type { Plugin } from "vite";
 
 interface HtmlPluginOptions {
@@ -23,7 +24,8 @@ export function htmlPlugin({
     enforce: "pre",
     transformIndexHtml(html) {
       if (!resolvedShopifyApiKey) {
-        throw new Error(
+        throwError(
+          "apps/web",
           "SHOPIFY_API_KEY or SHOPIFY_APP_KEY is required to render apps/web/index.html",
         );
       }

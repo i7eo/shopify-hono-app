@@ -1,35 +1,14 @@
+import { z } from "zod";
 import {
-  appConfigSchema,
-  cacheConfigSchema,
-  databaseSchema,
-  extendConfigSchema,
-  fileConfigSchema,
-  logConfigSchema,
-  redisSchema,
-} from "@shamt/envs";
-import { envConfigSchema } from "./_env";
-import { appEnvConfigSchema as $appConfigSchema } from "./app";
-import { bucketConfigSchema } from "./bucket";
-import { cloudflareConfigSchema } from "./cloudflare";
-import { databaseConfigSchema } from "./database";
-import { queueConfigSchema } from "./queue";
-import { schedulerConfigSchema } from "./scheduler";
-import type { z } from "zod";
+  DEFAULT_ENV,
+  DEFAULT_ENVS,
+  DEFAULT_RUNTIME,
+  DEFAULT_RUNTIMES,
+} from "../constants";
 
-export const configSchema = extendConfigSchema(
-  appConfigSchema,
-  $appConfigSchema,
-)
-  .extend(cacheConfigSchema.shape)
-  .extend(databaseSchema.shape)
-  .extend(envConfigSchema.shape)
-  .extend(logConfigSchema.shape)
-  .extend(redisSchema.shape)
-  .extend(fileConfigSchema.shape)
-  .extend(bucketConfigSchema.shape)
-  .extend(cloudflareConfigSchema.shape)
-  .extend(databaseConfigSchema.shape)
-  .extend(queueConfigSchema.shape)
-  .extend(schedulerConfigSchema.shape);
+export const envConfigSchema = z.object({
+  APP_ENV: z.enum(DEFAULT_ENVS).default(DEFAULT_ENV),
+  APP_RUNTIME: z.enum(DEFAULT_RUNTIMES).default(DEFAULT_RUNTIME),
+});
 
-export type ConfigSchema = z.infer<typeof configSchema>;
+export type EnvConfigSchema = z.infer<typeof envConfigSchema>;

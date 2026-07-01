@@ -72,7 +72,7 @@
 - Before a user-requested push or release-prep workflow, update or generate English and Chinese README files when package behavior changed.
 - Use `README.md` for English and `README.zh-CN.md` for Chinese when both are present.
 - Store repository-level decisions and task-oriented documentation in `docs/guides/`; store package or app-specific guide material under that workspace's `docs/guides/`.
-- Store descriptions, explanations, and usage manuals in `docs/reference/` or the closest workspace `docs/reference/`.
+- Store descriptions, explanations, and usage manuals in `docs/references/` or the closest workspace `docs/references/`.
 - Store ongoing notes or backlog items in `docs/notes/` or the closest workspace `docs/notes/`.
 
 ## Generated Files And Secrets
@@ -108,4 +108,5 @@ pnpm -F @shamt/web build
 - For package code changes, run that package's test or build script when present.
 - For `apps/server`, prefer focused Vitest coverage for runtime, infra, middleware, and Shopify behavior.
 - For `apps/web`, verify build or test when changing routing, env injection, API clients, or UI behavior.
+- When a workspace has tests under a local `tests/` directory, keep a `tests/tsconfig.json` next to those tests. Base it on the owning workspace tsconfig, set `noEmit`, include test runner and runtime types, include test file extensions used by that workspace, and verify with `tsc -p tests/tsconfig.json --noEmit` before treating test TypeScript errors as fixed.
 - For documentation-only changes, inspect the rendered Markdown structure mentally or with file reads; tests are not required unless docs generation scripts changed.

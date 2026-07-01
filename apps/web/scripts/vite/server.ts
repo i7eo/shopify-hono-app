@@ -1,3 +1,4 @@
+import { throwAppWebError as throwError } from "../../internal";
 import { createViteAllowedHosts } from "./allowed-hosts";
 import { createViteProxy } from "./proxy";
 import type { ConfigSchema } from "@shamt/app-env";
@@ -40,7 +41,7 @@ function readPort(value: string | undefined, name: string) {
   const port = Number(value);
 
   if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
-    throw new Error(`Invalid ${name}: ${value}`);
+    throwError("apps/web", `Invalid ${name}: ${value}`);
   }
 
   return port;

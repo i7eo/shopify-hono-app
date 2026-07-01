@@ -52,6 +52,15 @@ vi.mock("@/utils/public-env", () => ({
   isStandaloneShopifyAppMode: isStandaloneShopifyAppModeMock,
 }));
 
+interface ShopifyClientPlugin {
+  beforeError: (error: Error) => Error;
+  name: string;
+}
+
+interface ShopifyClientOptions {
+  plugins: ShopifyClientPlugin[];
+}
+
 interface ShopifyClientHooks {
   afterResponse: <T>(response: T) => T;
   beforeError: (error: Error) => Error;
@@ -64,6 +73,10 @@ interface ShopifyClientHooks {
     headers: Headers;
     signal?: AbortSignal;
   }>;
+}
+
+interface ShopifyClientExtendOptions {
+  hooks: ShopifyClientHooks;
 }
 
 describe("shopify client", () => {
@@ -119,8 +132,9 @@ describe("shopify client", () => {
       import("@unimolecule/oh-my-fetch/errors"),
       import("../src/utils/client.shopify"),
     ]);
-    const options = createHttpClientMock.mock.calls.at(-1)?.[0];
+    const options = readCreateHttpClientOptions();
     const plugin = options.plugins[0];
+    if (!plugin) throw new Error("Expected a Shopify client plugin.");
     const error = new HttpRequestError("missing", { status: 404 });
 
     expect(plugin.beforeError(error)).toBe(error);
@@ -392,5 +406,19 @@ describe("product export api", () => {
 });
 
 function readShopifyClientHooks() {
-  return extendMock.mock.calls.at(-1)?.[0].hooks as ShopifyClientHooks;
+  const calls = extendMock.mock.calls as unknown as [
+    ShopifyClientExtendOptions,
+  ][];
+  const options = calls.at(-1)?.[0];
+  if (!options) throw new Error("Expected Shopify client hooks.");
+  return options.hooks;
+}
+
+function readCreateHttpClientOptions() {
+  const calls = createHttpClientMock.mock.calls as unknown as [
+    ShopifyClientOptions,
+  ][];
+  const options = calls.at(-1)?.[0];
+  if (!options) throw new Error("Expected Shopify client options.");
+  return options;
 }

@@ -5,6 +5,7 @@ import {
   getRuntimeCapability,
 } from "@/app/runtime/capabilities";
 import { getRuntimeConfig } from "@/infra/env";
+import { throwAppServerError as throwError } from "../internal";
 import { runtimeConfig } from "./shopify/test-utils";
 import type { FileRecord } from "@/app/modules/file/types";
 
@@ -81,7 +82,7 @@ describe("file download runtime capability", () => {
     expect(r2.get).not.toHaveBeenCalled();
 
     if (download?.type !== "redirect") {
-      throw new Error("Expected a redirect download");
+      throwError("Expected a redirect download");
     }
 
     const url = new URL(download.url);

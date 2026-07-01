@@ -1,5 +1,6 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { throwAppServerError as throwError } from "../../internal";
 import { createMockContext, expectAppError, runtimeConfig } from "./test-utils";
 
 describe("Shopify session storage", () => {
@@ -29,6 +30,7 @@ describe("Shopify session storage", () => {
     const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
+    //@ts-ignore
     setRuntimeCapability("databaseFactory", () => createDatabase());
     const context = createMockContext({
       vars: {
@@ -69,6 +71,7 @@ describe("Shopify session storage", () => {
     const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
+    //@ts-ignore
     setRuntimeCapability("databaseFactory", () => createDatabase());
     const context = createMockContext({
       vars: {
@@ -246,7 +249,7 @@ describe("verifySessionToken middleware", () => {
       getShopifyConfigProvider: vi.fn(() => ({
         session: {
           decodeSessionToken: vi.fn(() => {
-            throw new Error("bad token");
+            throwError("bad token");
           }),
         },
       })),
@@ -380,7 +383,7 @@ describe("tokenExchange middleware", () => {
     vi.doMock("@/app/modules/shopify/session", () => ({
       loadActiveShopifyOnlineSession: vi.fn(() => undefined),
       exchangeShopifyOnlineSession: vi.fn(() => {
-        throw new Error("Token exchange did not return an access token");
+        throwError("Token exchange did not return an access token");
       }),
       setShopifySessionContext: vi.fn(),
     }));

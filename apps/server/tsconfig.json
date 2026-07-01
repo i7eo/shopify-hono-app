@@ -11,6 +11,7 @@
     "outDir": "./dist"
   },
   "include": [
+    "./internal/**/*",
     "./scripts/**/*",
     "./src/**/*",
     "./**/*.json",

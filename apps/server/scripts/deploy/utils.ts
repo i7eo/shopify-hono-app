@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { deserializeValue, serializeValue } from "@unimolecule/utils";
+import { throwAppServerError as throwError } from "../../internal";
 import { root } from "./constants";
 
 /**
@@ -10,7 +11,7 @@ export async function readJsonFile<T>(filePath: string): Promise<T> {
   const value = deserializeValue<T>(await readFile(filePath, "utf8"));
 
   if (value === undefined) {
-    throw new Error(`Invalid JSON file: ${path.relative(root, filePath)}`);
+    throwError(`Invalid JSON file: ${path.relative(root, filePath)}`);
   }
 
   return value;
@@ -34,21 +35,4 @@ export function sanitizePackageName(name: string) {
     .toLowerCase();
 
   return normalized;
-}
-
-/**
- * Error type used by scripts to prefix failures with a scope.
- */
-class AppServerScriptError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AppServerScriptError";
-  }
-}
-
-/**
- * Throw a scoped script error and stop execution.
- */
-export function throwError(scope: string, message: string): never {
-  throw new AppServerScriptError(`[${scope}] ${message}`);
 }

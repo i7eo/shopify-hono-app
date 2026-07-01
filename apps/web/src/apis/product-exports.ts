@@ -1,4 +1,5 @@
 import { shopifyClient } from "@/utils/client.shopify";
+import { throwAppWebError as throwError } from "../../internal";
 import type { ApiResponse, JsonSerializedDates } from "@/typings/json-api";
 import type {
   InsertProductExport,
@@ -163,7 +164,7 @@ export async function downloadProductExportFile(
   const data = target.data;
 
   if (!data?.url) {
-    throw new Error("Download response did not include a URL");
+    throwError("Download response did not include a URL");
   }
 
   if (data.type === "redirect") {

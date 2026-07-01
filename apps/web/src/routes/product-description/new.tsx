@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { uploadFile } from "@/apis/files";
-// import type { SelectFile } from "@shamt/database";
+import { throwAppWebError as throwError } from "../../../internal";
 
 export const Route = createFileRoute("/product-description/new")({
   component: NewProductExport,
@@ -44,7 +44,7 @@ function NewProductExport() {
       );
       const uploadedFiles = responses.map((response) => response.data);
       if (uploadedFiles.some((file) => !file)) {
-        throw new Error("Upload response did not include file metadata");
+        throwError("Upload response did not include file metadata");
       }
 
       form.reset();

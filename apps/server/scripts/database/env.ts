@@ -1,11 +1,10 @@
 import { DEFAULT_ENVS } from "@shamt/app-env";
 import { env } from "@/app/runtime/process/env";
+import { throwAppServerError as throwError } from "../../internal";
 
 export function requirePostgresUrl() {
   if (!env.APP_DATABASE_URL) {
-    throw new Error(
-      "APP_DATABASE_URL is required for PostgreSQL database tooling",
-    );
+    throwError("APP_DATABASE_URL is required for PostgreSQL database tooling");
   }
 
   return {
@@ -19,7 +18,7 @@ export function requireD1HttpCredentials() {
     !env.APP_DATABASE_D1_ID ||
     !env.APP_CLOUDFLARE_USER_TOKEN
   ) {
-    throw new Error(
+    throwError(
       "D1 HTTP tooling requires APP_CLOUDFLARE_WORKER_ACCOUNT_ID, APP_DATABASE_D1_ID, and APP_CLOUDFLARE_USER_TOKEN",
     );
   }
@@ -41,7 +40,7 @@ export function requireD1SeedTarget() {
   requireSeedAllowed("D1");
 
   if (!env.APP_DATABASE_D1_BINDING) {
-    throw new Error("APP_DATABASE_D1_BINDING is required for D1 seed");
+    throwError("APP_DATABASE_D1_BINDING is required for D1 seed");
   }
 
   return {
@@ -56,8 +55,6 @@ function requireSeedAllowed(target: string) {
     env.APP_ENV === DEFAULT_ENVS.PRODUCTION &&
     process.env.CONFIRM_PROD_SEED !== "true"
   ) {
-    throw new Error(
-      `Production ${target} seed requires CONFIRM_PROD_SEED=true`,
-    );
+    throwError(`Production ${target} seed requires CONFIRM_PROD_SEED=true`);
   }
 }

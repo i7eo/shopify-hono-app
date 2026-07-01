@@ -10,7 +10,12 @@
     "emitDeclarationOnly": true,
     "outDir": "./dist"
   },
-  "include": ["./src/**/*", "./**/*.json", "./**/typings/**/*"],
+  "include": [
+    "./internal/**/*",
+    "./src/**/*",
+    "./**/*.json",
+    "./**/typings/**/*"
+  ],
   "exclude": [
     "**/__tests__/**",
     "**/tests/**",

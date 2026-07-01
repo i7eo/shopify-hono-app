@@ -2,6 +2,7 @@ import {
   isEmbeddedShopifyApp,
   isStandaloneShopifyAppMode,
 } from "@/utils/public-env";
+import { throwAppWebError as throwError } from "../../internal";
 import { createClient, HttpRequestError } from "./client";
 import type { HttpRequestConfig } from "@unimolecule/oh-my-fetch";
 
@@ -101,7 +102,7 @@ function readSessionToken() {
   const idToken = globalThis.shopify?.idToken;
 
   if (!idToken) {
-    throw new Error("Shopify App Bridge session token API is unavailable");
+    throwError("Shopify App Bridge session token API is unavailable");
   }
 
   return idToken();
