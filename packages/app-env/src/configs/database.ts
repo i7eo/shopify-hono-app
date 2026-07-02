@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_APP_DATABASE_PROVIDERS } from "./../constants/database";
+import { DEFAULT_APP_DATABASE_PROVIDERS } from "../constants";
 
 export const databaseConfigSchema = z.object({
   APP_DATABASE_PROVIDER: z.enum(DEFAULT_APP_DATABASE_PROVIDERS).optional(),

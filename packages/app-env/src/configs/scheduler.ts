@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_APP_SCHEDULER_PROVIDERS } from "./../constants/scheduler";
+import { DEFAULT_APP_SCHEDULER_PROVIDERS } from "../constants";
 
 export const schedulerConfigSchema = z.object({
   APP_SCHEDULER_PROVIDER: z.enum(DEFAULT_APP_SCHEDULER_PROVIDERS).optional(),

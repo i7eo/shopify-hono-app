@@ -8284,12 +8284,6 @@ packages:
     peerDependencies:
       pg: ">=8.0"
 
-  pg-protocol@1.14.0:
-    resolution:
-      {
-        integrity: sha512-n5taZ1kO3s9ngDTVxsEznOqCyToTgz0FLuPq0B33COy5pPpuWJpY3/2oRBVETuOgzdqRXfWpM9HIhp2LBBT1BA==,
-      }
-
   pg-protocol@1.15.0:
     resolution:
       {
@@ -12172,7 +12166,7 @@ snapshots:
   "@types/pg@8.20.0":
     dependencies:
       "@types/node": 26.0.1
-      pg-protocol: 1.14.0
+      pg-protocol: 1.15.0
       pg-types: 2.2.0
 
   "@types/react-dom@19.2.3(@types/react@19.2.17)":
@@ -14444,8 +14438,6 @@ snapshots:
   pg-pool@3.14.0(pg@8.22.0):
     dependencies:
       pg: 8.22.0
-
-  pg-protocol@1.14.0: {}
 
   pg-protocol@1.15.0: {}
 

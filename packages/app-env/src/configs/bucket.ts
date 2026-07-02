@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_APP_BUCKET_PROVIDERS } from "./../constants/bucket";
+import { DEFAULT_APP_BUCKET_PROVIDERS } from "../constants";
 
 export const bucketConfigSchema = z.object({
   APP_BUCKET_PROVIDER: z.enum(DEFAULT_APP_BUCKET_PROVIDERS).optional(),
