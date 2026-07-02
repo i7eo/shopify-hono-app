@@ -4,7 +4,7 @@ import type { PaginatedPage, PaginationInput } from "@/shared/models";
 import type {
   SelectProductExport,
   SelectProductExportPart,
-} from "@shamt/database/sql-schemas/postgres";
+} from "@shamt/database/types";
 
 export type ProductExportRecord = SelectProductExport;
 export type ProductExportPartRecord = SelectProductExportPart;

@@ -1,6 +1,6 @@
 import { shopifyClient } from "@/utils/client.shopify";
 import type { ApiResponse, JsonSerializedDates } from "@/typings/json-api";
-import type { SelectFile } from "@shamt/database";
+import type { SelectFile } from "@shamt/database/types";
 
 export type FileResource = JsonSerializedDates<
   SelectFile,

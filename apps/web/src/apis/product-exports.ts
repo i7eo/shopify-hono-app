@@ -4,7 +4,7 @@ import type { ApiResponse, JsonSerializedDates } from "@/typings/json-api";
 import type {
   InsertProductExport,
   SelectProductExport,
-} from "@shamt/database/sql-schemas/postgres";
+} from "@shamt/database/types";
 import type { HttpRequestConfig } from "@unimolecule/oh-my-fetch";
 
 export type ProductExportStatus = SelectProductExport["status"];

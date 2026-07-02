@@ -1,5 +1,5 @@
 import type { PaginatedPage, PaginationInput } from "@/shared/models";
-import type { SelectReference } from "@shamt/database/sql-schemas/postgres";
+import type { SelectReference } from "@shamt/database/types";
 
 export type ReferenceRecord = SelectReference;
 

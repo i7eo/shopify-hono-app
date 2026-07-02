@@ -1,5 +1,4 @@
 import process from "node:process";
-import { outputEntryBuilder } from "@unimolecule/utils/node";
 import { defineConfig } from "tsdown";
 
 export default defineConfig([
@@ -9,16 +8,7 @@ export default defineConfig([
     platform: "node",
     dts: true,
     tsconfig: "./tsconfig.json",
+    unbundle: true,
     watch: process.env.APP_ENV === "development",
-  },
-  {
-    entry: outputEntryBuilder("./src/constants"),
-    format: ["esm", "cjs"],
-    platform: "node",
-    dts: true,
-    tsconfig: "./tsconfig.node.json",
-    outDir: "dist/constants",
-    watch: process.env.APP_ENV === "development",
-    clean: false,
   },
 ]);

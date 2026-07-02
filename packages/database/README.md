@@ -13,39 +13,38 @@ by Cloudflare D1.
 
 ## Exports
 
-| Entry                                  | Purpose                                |
-| -------------------------------------- | -------------------------------------- |
-| `@shamt/database`                      | Models, Drizzle-Zod schemas, and types |
-| `@shamt/database/constants`            | Shared database-domain constants       |
-| `@shamt/database/models/postgres`      | PostgreSQL Drizzle table models        |
-| `@shamt/database/models/sqlite`        | SQLite/D1 Drizzle table models         |
-| `@shamt/database/sql-schemas/postgres` | PostgreSQL Drizzle-Zod schemas         |
-| `@shamt/database/sql-schemas/sqlite`   | SQLite/D1 Drizzle-Zod schemas          |
-| `@shamt/database/package.json`         | Package metadata                       |
+| Entry                          | Purpose                                         |
+| ------------------------------ | ----------------------------------------------- |
+| `@shamt/database/constants`    | Shared database-domain constants                |
+| `@shamt/database/models`       | All Drizzle table models                        |
+| `@shamt/database/models/*`     | Dialect Drizzle table models                    |
+| `@shamt/database/schemas`      | All Drizzle-Zod validation schemas              |
+| `@shamt/database/schemas/*`    | Dialect insert/update/select schemas            |
+| `@shamt/database/types`        | Dialect-neutral app-facing database shape types |
+| `@shamt/database/package.json` | Package metadata                                |
+
+The package intentionally has no root `@shamt/database` export. Import from a
+specific boundary so consumers do not accidentally depend on every table,
+schema, and type.
 
 ## Build Output
 
 The package builds with `tsdown --config ./build.config.ts` and keeps the
-runtime-neutral root, constants, model, and schema entrypoints as files under
-`dist`.
+constants, model, schema, and type entrypoints as files under `dist`.
 
-| Published field / export                 | Output path example                   |
-| ---------------------------------------- | ------------------------------------- |
-| `main`                                   | `dist/index.cjs`                      |
-| `module`                                 | `dist/index.mjs`                      |
-| `types`                                  | `dist/index.d.mts`                    |
-| `@shamt/database/models/postgres`        | `dist/models/postgres/index.mjs`      |
-| `@shamt/database/models/postgres/*`      | `dist/models/postgres/*.mjs`          |
-| `@shamt/database/models/sqlite`          | `dist/models/sqlite/index.mjs`        |
-| `@shamt/database/sql-schemas/postgres`   | `dist/sql-schemas/postgres/index.mjs` |
-| `@shamt/database/sql-schemas/postgres/*` | `dist/sql-schemas/postgres/*.mjs`     |
-| `@shamt/database/sql-schemas/sqlite`     | `dist/sql-schemas/sqlite/index.mjs`   |
+| Published export            | Output path example        |
+| --------------------------- | -------------------------- |
+| `@shamt/database/constants` | `dist/constants/index.mjs` |
+| `@shamt/database/models`    | `dist/models/index.mjs`    |
+| `@shamt/database/models/*`  | `dist/models/*/index.mjs`  |
+| `@shamt/database/schemas`   | `dist/schemas/index.mjs`   |
+| `@shamt/database/schemas/*` | `dist/schemas/*/index.mjs` |
+| `@shamt/database/types`     | `dist/types/index.mjs`     |
 
 Source workspace exports point at `src/*` for local TypeScript development.
-Published exports point at `dist/*`. Keep package subpath patterns explicit
-for the dialect directory, such as `./models/postgres/*`, instead of using
-recursive `**` targets; Node package exports replace `*` literally and must
-map to real tsdown output files.
+Published exports point at `dist/*`. The package exposes only boundary-level
+entrypoints; file-level model or schema paths are internal implementation
+details.
 
 ## Models
 
@@ -193,42 +192,43 @@ Use these exports instead of duplicating status or template arrays in app code.
 
 ## Zod Schemas
 
-The package exports Drizzle-Zod schemas for inserts and selects:
+The package exports Drizzle-Zod schemas for inserts, updates, and selects:
 
 ```ts
 import {
   insertPostgresFileSchema,
-  insertPostgresProductExportPartSchema,
-  insertPostgresProductExportSchema,
-  insertPostgresReferenceSchema,
-  insertPostgresShopifySessionSchema,
-  insertSqliteFileSchema,
-  insertSqliteProductExportPartSchema,
-  insertSqliteProductExportSchema,
-  insertSqliteReferenceSchema,
-  insertSqliteShopifySessionSchema,
   selectPostgresFileSchema,
-  selectPostgresProductExportPartSchema,
-  selectPostgresProductExportSchema,
-  selectPostgresReferenceSchema,
-  selectPostgresShopifySessionSchema,
+  updatePostgresFileSchema,
+} from "@shamt/database/schemas/postgres";
+import {
+  insertSqliteFileSchema,
   selectSqliteFileSchema,
-  selectSqliteProductExportPartSchema,
-  selectSqliteProductExportSchema,
-  selectSqliteReferenceSchema,
-  selectSqliteShopifySessionSchema,
-} from "@shamt/database";
+  updateSqliteFileSchema,
+} from "@shamt/database/schemas/sqlite";
 ```
 
-It also exports inferred types such as `InsertFile`, `SelectFile`,
-`InsertSqliteFile`, `SelectSqliteFile`, `InsertProductExport`,
-`SelectProductExport`, `InsertProductExportPart`, `SelectProductExportPart`,
-`InsertSqliteProductExport`, `SelectSqliteProductExport`,
-`InsertSqliteProductExportPart`, `SelectSqliteProductExportPart`,
-`InsertReference`, `SelectReference`, `InsertSqliteReference`,
-`SelectSqliteReference`, `InsertPostgresShopifySession`,
-`SelectPostgresShopifySession`, `InsertSqliteShopifySession`, and
-`SelectSqliteShopifySession`.
+Dialect schema entrypoints export dialect-prefixed inferred types such as
+`InsertPostgresFile`, `UpdatePostgresFile`, `SelectPostgresFile`,
+`InsertSqliteFile`, `UpdateSqliteFile`, and `SelectSqliteFile`. These types are
+derived from the exported Zod schemas.
+
+## Types
+
+`@shamt/database/types` exports dialect-neutral aliases for app and web code
+that should not care which database provider backs the app:
+
+```ts
+import type {
+  InsertProductExport,
+  SelectFile,
+  SelectProductExport,
+  UpdateReference,
+} from "@shamt/database/types";
+```
+
+These aliases are generated from the canonical PostgreSQL schema types. They
+avoid hand-written frontend contract shapes while keeping `apps/web` away from
+the low-level PostgreSQL and SQLite entrypoints.
 
 ## Usage
 
@@ -283,10 +283,12 @@ Use models in queries:
 import { postgresFiles } from "@shamt/database/models/postgres";
 import { eq } from "drizzle-orm";
 
-const rows = await db
-  .select()
-  .from(postgresFiles)
-  .where(eq(postgresFiles.shopDomain, "example.myshopify.com"));
+function listFiles() {
+  return db
+    .select()
+    .from(postgresFiles)
+    .where(eq(postgresFiles.shopDomain, "example.myshopify.com"));
+}
 ```
 
 ## Boundaries
@@ -294,6 +296,8 @@ const rows = await db
 - This package is schema-only.
 - Runtime strategy belongs in apps, such as `apps/server/src/infra/database`.
 - Migrations are generated from app-owned Drizzle config.
+- Models are Drizzle table definitions; schemas are Drizzle-Zod validation
+  schemas; types are dialect-neutral aliases for app-facing database shapes.
 - File metadata has PostgreSQL and SQLite/D1 schemas.
 - Product export metadata, part metadata, and template code values live in this
   package.

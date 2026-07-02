@@ -16,13 +16,13 @@
 
 - Keep PostgreSQL and SQLite/D1 models separate when dialect behavior differs.
 - Preserve explicit handling of dates, booleans, enums, bigint/integer modes, and timestamp storage for each dialect.
-- Keep PostgreSQL exports under `models/postgres` and `sql-schemas/postgres`.
-- Keep SQLite/D1 exports under `models/sqlite` and `sql-schemas/sqlite`.
+- Keep PostgreSQL exports under `models/postgres` and `schemas/postgres`.
+- Keep SQLite/D1 exports under `models/sqlite` and `schemas/sqlite`.
 
 ## Type And API Rules
 
-- Export table models, insert/select schemas, and inferred types from stable entrypoints.
-- Put reusable public type aliases in `types.ts` only when they are shared beyond generated model inference.
+- Export table models and insert/update/select schemas from stable dialect entrypoints.
+- Export dialect-neutral app-facing aliases from `types` when consumers should not care which database provider backs the app.
 - Avoid app-specific names unless the schema is intentionally app-owned and documented.
 - Add JSDoc and README examples for non-obvious table or schema usage.
 

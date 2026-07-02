@@ -10,6 +10,7 @@ function readWorkspaceFile(path: string) {
 
 async function readPackageJson(path: string) {
   return JSON.parse(await readWorkspaceFile(path)) as {
+    exports?: Record<string, unknown>;
     publishConfig?: {
       main?: string;
       module?: string;
@@ -56,9 +57,9 @@ describe("build output contracts", () => {
     const packageJson = await readPackageJson(path);
     const publishConfig = packageJson.publishConfig;
 
-    expect(publishConfig?.main).toMatch(/\.cjs$/);
-    expect(publishConfig?.module).toMatch(/\.mjs$/);
-    expect(publishConfig?.types).toMatch(/\.d\.mts$/);
+    if (publishConfig?.main) expect(publishConfig.main).toMatch(/\.cjs$/);
+    if (publishConfig?.module) expect(publishConfig.module).toMatch(/\.mjs$/);
+    if (publishConfig?.types) expect(publishConfig.types).toMatch(/\.d\.mts$/);
     const exportConditionValues = collectExportConditionValues(
       publishConfig?.exports ?? {},
     );
@@ -67,5 +68,28 @@ describe("build output contracts", () => {
     expect(exportConditionValues).not.toContainEqual(
       expect.stringMatching(/\.js$/),
     );
+  });
+
+  test("database package exposes only stable boundary entrypoints", async () => {
+    const packageJson = await readPackageJson("packages/database/package.json");
+    const exportKeys = Object.keys(packageJson.exports ?? {});
+    const publishExportKeys = Object.keys(
+      packageJson.publishConfig?.exports ?? {},
+    );
+
+    expect(exportKeys).toEqual([
+      "./constants",
+      "./models",
+      "./models/*",
+      "./schemas",
+      "./schemas/*",
+      "./types",
+      "./package.json",
+    ]);
+    expect(publishExportKeys).toEqual(exportKeys);
+    expect(exportKeys).not.toContain(".");
+    expect(exportKeys.join("\n")).not.toContain("sql-schemas");
+    expect(exportKeys).not.toContain("./models/postgres/*");
+    expect(exportKeys).not.toContain("./schemas/postgres/*");
   });
 });

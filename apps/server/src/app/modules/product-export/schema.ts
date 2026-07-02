@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import { PRODUCT_EXPORT_STATUS_VALUES } from "@shamt/database/models/postgres";
-import { selectPostgresProductExportSchema } from "@shamt/database/sql-schemas/postgres";
+import { PRODUCT_EXPORT_STATUS_VALUES } from "@shamt/database/constants";
+import { selectPostgresProductExportSchema } from "@shamt/database/schemas/postgres";
 import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 import { PRODUCT_EXPORT_TEMPLATE_CODES } from "./templates";
 import { PRODUCT_EXPORT_STATUSES } from "./utils";

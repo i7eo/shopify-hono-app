@@ -1,6 +1,6 @@
 import type { RuntimeConfig } from "@/infra/env";
 import type { PaginatedPage, PaginationInput } from "@/shared/models";
-import type { SelectFile } from "@shamt/database/sql-schemas/postgres";
+import type { SelectFile } from "@shamt/database/types";
 import type { Context } from "hono";
 
 export type FileStatus = SelectFile["status"];

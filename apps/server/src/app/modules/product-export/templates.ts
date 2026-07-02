@@ -1,4 +1,4 @@
-import { PRODUCT_EXPORT_TEMPLATE_CODE_VALUES } from "@shamt/database/models/postgres";
+import { PRODUCT_EXPORT_TEMPLATE_CODE_VALUES } from "@shamt/database/constants";
 
 export const PRODUCT_EXPORT_TEMPLATE_CODES =
   PRODUCT_EXPORT_TEMPLATE_CODE_VALUES;

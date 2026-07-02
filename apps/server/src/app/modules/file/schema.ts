@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { selectPostgresFileSchema } from "@shamt/database/sql-schemas/postgres";
+import { selectPostgresFileSchema } from "@shamt/database/schemas/postgres";
 import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 
 export const FileStatusSchema = selectPostgresFileSchema.shape.status;

@@ -1,9 +1,12 @@
 import process from "node:process";
+import { outputEntryBuilder } from "@unimolecule/utils/node";
 import { defineConfig } from "tsdown";
 
 export default defineConfig([
   {
-    entry: ["./src/index.ts"],
+    entry: outputEntryBuilder("./src", {
+      entries: "index",
+    }),
     format: ["esm", "cjs"],
     platform: "node",
     dts: true,

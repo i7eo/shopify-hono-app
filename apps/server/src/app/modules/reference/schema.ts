@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { selectPostgresReferenceSchema } from "@shamt/database/sql-schemas/postgres";
+import { selectPostgresReferenceSchema } from "@shamt/database/schemas/postgres";
 import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 
 export const ReferenceSchema = selectPostgresReferenceSchema
