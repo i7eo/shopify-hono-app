@@ -1,7 +1,13 @@
 import { writeFile } from "node:fs/promises";
 import { ensureSuffix } from "@unimolecule/utils";
 import { executeCommand } from "@unimolecule/utils/node";
-import { dockerComposePath, nginxConfPath, webDistDir } from "./constants";
+import {
+  dockerComposePath,
+  nginxConfPath,
+  serverDir,
+  webDir,
+  webDistDir,
+} from "./constants";
 import { getDeployContext, type DeployContext } from "./shared";
 
 /**
@@ -10,8 +16,8 @@ import { getDeployContext, type DeployContext } from "./shared";
 async function main() {
   const context = await getDeployContext();
 
-  await executeCommand("pnpm", ["--dir", "apps/web", "run", "build"]);
-  await executeCommand("pnpm", ["--dir", "apps/server", "run", "build"]);
+  await executeCommand("pnpm", ["--dir", webDir, "run", "build"]);
+  await executeCommand("pnpm", ["--dir", serverDir, "run", "build"]);
 
   await Promise.all([writeDockerCompose(context), writeNginxConfig(context)]);
 

@@ -16,6 +16,7 @@
     "dev:prepare": "run-s \"dev:prepare:**\"",
     "dev:prepare:shopify": "node --env-file=./.env.development --import tsx ./scripts/write-shopify-file/index.ts",
     "dev:prepare:wrangler": "node --env-file=./.env.development --import tsx ./scripts/write-wrangler-file/index.ts",
+    "dev:prepare:shopify-toml": "shopify app config use shopify.app.toml",
     "app:dev": "shopify app dev",
     "dev": "pnpm dev:prepare && pnpm app:dev",
     "dev:tunnel": "pnpm dev:prepare && node --env-file=./.env.development --import tsx ./scripts/tunnel/index.ts",

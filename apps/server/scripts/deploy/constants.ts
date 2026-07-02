@@ -9,6 +9,7 @@ if (!root) {
 }
 
 export const serverDir = path.resolve(root, "apps/server");
+export const webDir = path.resolve(root, "apps/web");
 export const webDistDir = path.resolve(root, "apps/web/dist");
 export const dockerComposePath = path.resolve(serverDir, "docker-compose.yml");
 export const nginxConfPath = path.resolve(serverDir, "nginx.conf");

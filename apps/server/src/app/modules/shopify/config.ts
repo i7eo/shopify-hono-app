@@ -11,7 +11,7 @@ import type { Logger } from "@/infra/logger";
 import "@shopify/shopify-api/adapters/web-api";
 
 const apiVersions: Record<string, ApiVersion> = {
-  "2026-04": ApiVersion.April26,
+  "2026-07": ApiVersion.July26,
 };
 
 export function getShopifyEnvConfig(config: RuntimeConfig) {
