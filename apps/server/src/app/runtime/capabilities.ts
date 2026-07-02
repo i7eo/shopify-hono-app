@@ -7,20 +7,32 @@ import type { LoggerSetupOptions } from "@/infra/logger/shared";
 import type { QueueConsumer, QueueProducer } from "@/infra/queue";
 import type { Scheduler } from "@/infra/scheduler";
 import type { AppEnv } from "@/typings";
+import type { RuntimeUnsupportedResult } from "@/utils/runtime";
+import type {
+  ProcessDiskUsageCheckResult,
+  ProcessMemoryUsageCheckResult,
+} from "@unimolecule/utils/node";
 import type { Context } from "hono";
 
 export type RuntimeLoggerSetup = (
   config: RuntimeConfig,
   options: LoggerSetupOptions,
 ) => Promise<void>;
-export type ModuleHealthDiskCheckResult = {
-  path?: string;
+export type ModuleHealthRuntimeResult = {
   runtime: string;
-  status: "ok" | "unsupported";
 };
-export type ModuleHealthProcessDiskChecker = (
+export type ModuleHealthDiskCheckResult =
+  | (ProcessDiskUsageCheckResult & ModuleHealthRuntimeResult)
+  | RuntimeUnsupportedResult;
+export type ModuleHealthMemoryCheckResult =
+  | (ProcessMemoryUsageCheckResult & ModuleHealthRuntimeResult)
+  | RuntimeUnsupportedResult;
+export type ModuleHealthDiskChecker = (
   context: Context<AppEnv>,
 ) => Promise<ModuleHealthDiskCheckResult> | ModuleHealthDiskCheckResult;
+export type ModuleHealthMemoryChecker = (
+  context: Context<AppEnv>,
+) => Promise<ModuleHealthMemoryCheckResult> | ModuleHealthMemoryCheckResult;
 export type RuntimeEnvSourceResolver = (
   context: Context<AppEnv>,
 ) => Record<string, unknown>;
@@ -48,9 +60,13 @@ export interface RuntimeCapabilityInstances {
   runtimeLoggerSetup: RuntimeLoggerSetup;
   runtimeEnvSourceResolver: RuntimeEnvSourceResolver;
   /**
-   * Module Health: checks process disk access when the runtime can touch disk.
+   * Module Health: checks disk usage when the runtime can expose it.
    */
-  moduleHealthProcessDiskChecker: ModuleHealthProcessDiskChecker;
+  moduleHealthDiskChecker: ModuleHealthDiskChecker;
+  /**
+   * Module Health: checks memory usage when the runtime can expose it.
+   */
+  moduleHealthMemoryChecker: ModuleHealthMemoryChecker;
   /**
    * Infra Database: returns the runtime-specific Drizzle database client.
    */

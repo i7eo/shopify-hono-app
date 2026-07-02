@@ -1,6 +1,6 @@
 # Database
 
-`apps/server/src/infra/database` 是 Shopify session storage 和 file metadata 共用的 runtime-aware database 层。它通过 `databaseFactory` capability 暴露 Drizzle client，让业务模块不直接关心 Node PostgreSQL 与 Cloudflare D1 的平台差异。
+`apps/server/src/infra/database` 是 Shopify session storage、file metadata 和 database health 共用的 runtime-aware database 层。它通过 `databaseFactory` capability 暴露 Drizzle client 和 database adapter check，让业务模块不直接关心 Node PostgreSQL 与 Cloudflare D1 的平台差异。
 
 ## Provider 矩阵
 
@@ -39,9 +39,9 @@ apps/server/src/infra/database/process.ts
 apps/server/src/infra/database/shared.ts
 ```
 
-数据库连接会缓存在 process runtime 中，并在 runtime capability disposer 中释放。
+数据库连接会缓存在 process runtime 中，并在 runtime capability disposer 中释放。adapter 的 `check()` 复用同一个 `pg.Pool` 执行 `select 1`，用于 `/health/database` 验证应用账号、连接池和 SQL 执行链路。
 
-`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database factory；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database factory。process PostgreSQL 可以缓存连接；isolate D1 当前以 request binding 为边界，disposer 是 no-op。
+`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database factory；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database factory。process PostgreSQL 可以缓存连接；isolate D1 当前以 request binding 为边界，disposer 是 no-op。两种 runtime 的 database health 都只做最小 `select 1` 检查，不依赖业务表或 migration 状态。
 
 ### Cloudflare + D1
 
@@ -70,6 +70,8 @@ APP_DATABASE_D1_ID=...
 ```
 
 runtime capability 会通过 `APP_DATABASE_D1_BINDING` 动态读取 `c.env[binding]`。
+
+D1 adapter 的 `check()` 复用同一个 Worker D1 binding 执行 `select 1`。这和 PostgreSQL health 使用同一语义：证明当前应用 runtime adapter 可以通过实际 SQL 查询访问数据库，而不是只做外部网络连通性检测。
 
 ## Schema 与迁移目录
 

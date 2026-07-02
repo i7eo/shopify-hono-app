@@ -1,14 +1,19 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import {
+  getDatabaseCheckErrorMessage,
+  getDatabaseCheckLatencyMs,
   getDatabaseEnvConfig,
   getDatabaseUrl,
   postgresDatabaseSchema,
+  type DatabaseHealthCheckResult,
   type PostgresDatabaseSchema,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Pool } from "pg";
 
 export type ProcessPostgresDatabase = {
+  check: () => Promise<DatabaseHealthCheckResult>;
   db: NodePgDatabase<PostgresDatabaseSchema>;
   dialect: "postgres";
   dispose: () => Promise<void>;
@@ -53,12 +58,45 @@ export async function createProcessDatabase(
   const pool = new Pool({ connectionString: getDatabaseUrl(config) });
 
   return {
+    check: () => checkProcessDatabase(pool, config),
     db: drizzle({ client: pool, schema: postgresDatabaseSchema }),
     dialect: "postgres",
     dispose: () => pool.end(),
     provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
     runtime: config.APP_RUNTIME,
   };
+}
+
+/**
+ * Runs the process database health check through the same pg pool used by app
+ * repositories.
+ */
+async function checkProcessDatabase(
+  pool: Pool,
+  config: RuntimeConfig,
+): Promise<DatabaseHealthCheckResult> {
+  const start = performance.now();
+
+  try {
+    await pool.query("select 1");
+
+    return {
+      dialect: "postgres",
+      latencyMs: getDatabaseCheckLatencyMs(start),
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      runtime: config.APP_RUNTIME,
+      status: "ok",
+    };
+  } catch (error) {
+    return {
+      dialect: "postgres",
+      latencyMs: getDatabaseCheckLatencyMs(start),
+      message: getDatabaseCheckErrorMessage(error),
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      runtime: config.APP_RUNTIME,
+      status: "error",
+    };
+  }
 }
 
 /**

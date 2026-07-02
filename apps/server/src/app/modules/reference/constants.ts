@@ -3,8 +3,8 @@ import { getEnvProvider } from "@/infra/provider";
 
 const env = getEnvProvider();
 
-export const apiPath = `/${env.APP_API_PREFIX}/reference`;
-export const tag = `${capitalize(env.APP_API_PREFIX)} - Reference`;
+export const apiPath = `/${env.APP_API_PREFIX}/references`;
+export const tag = `${capitalize(env.APP_API_PREFIX)} - References`;
 export const tags = [tag];
 
 export const REFERENCE_NAMESPACES = {

@@ -33,8 +33,8 @@ catalog:
   "dayjs": "^1.11.21"
   "vite": "^8.1.2"
   "@unimolecule/canon": "^0.1.3"
-  "@unimolecule/oh-my-fetch": "^0.1.4"
-  "@unimolecule/utils": "^0.1.3"
+  "@unimolecule/oh-my-fetch": "^0.1.6"
+  "@unimolecule/utils": "^0.1.4"
 
 catalogs:
   "dx":
@@ -165,8 +165,8 @@ minimumReleaseAgeExclude:
   - wrangler@4.101.0
   - "@unconfig/ts-config@0.1.11"
   - "@unimolecule/canon@0.1.0 || 0.1.1 || 0.1.2 || 0.1.3"
-  - "@unimolecule/oh-my-fetch@0.1.0 || 0.1.1 || 0.1.2 || 0.1.4"
-  - "@unimolecule/utils@0.1.0 || 0.1.1 || 0.1.2 || 0.1.3"
+  - "@unimolecule/oh-my-fetch@0.1.0 || 0.1.1 || 0.1.2 || 0.1.4 || 0.1.6"
+  - "@unimolecule/utils@0.1.0 || 0.1.1 || 0.1.2 || 0.1.3 || 0.1.4"
 
 allowBuilds:
   esbuild: true

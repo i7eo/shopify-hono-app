@@ -137,9 +137,11 @@ async function hmacBytes(
   key: string | Uint8Array,
   message: string,
 ): Promise<Uint8Array> {
+  const keyData =
+    typeof key === "string" ? new TextEncoder().encode(key) : copyBytes(key);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
-    typeof key === "string" ? new TextEncoder().encode(key) : key,
+    keyData,
     {
       hash: "SHA-256",
       name: "HMAC",
@@ -154,6 +156,10 @@ async function hmacBytes(
   );
 
   return new Uint8Array(signature);
+}
+
+function copyBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(bytes);
 }
 
 async function hmacHex(key: Uint8Array, message: string): Promise<string> {

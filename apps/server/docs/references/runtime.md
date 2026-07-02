@@ -29,7 +29,8 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 
 - `runtimeLoggerSetup`
 - `runtimeEnvSourceResolver`
-- `moduleHealthProcessDiskChecker`
+- `moduleHealthDiskChecker`
+- `moduleHealthMemoryChecker`
 - `databaseFactory`
 - `bucketFactory`
 - `queueProducerFactory`
@@ -47,7 +48,7 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 - `src/infra/queue`
 - `src/infra/scheduler`
 
-共享业务代码只读取 capability，不直接 import Node-only 或 Cloudflare-only 实现。这样可以保护 Cloudflare bundle 的 import graph。
+共享业务代码只读取 capability，不直接 import Node-only 或 Cloudflare-only 实现。health/disk 与 health/memory 也遵循这条边界：Node process runtime 通过 `@unimolecule/utils/node` 读取进程磁盘与内存指标，Cloudflare isolate runtime 对这两项返回 `unsupported`。`/healths` 聚合 endpoint 复用 disk、memory、network、database 和 reserved redis 的单项检查结果；只有单项返回 `error` 时才把整体状态标记为 `error`。这样可以保护 Cloudflare bundle 的 import graph。
 
 database、bucket、queue 和 scheduler 各自还保留自己的 infra index，但 index
 只导出共享契约、类型、registry 或 runtime-neutral helper。process/isolate
@@ -62,7 +63,7 @@ binding 为边界，当前 disposer 是预留 no-op。
 
 ### Database Factory
 
-`databaseFactory` 是 file module 与 Shopify session storage 的统一数据库入口。各模块只接收 Drizzle database result，再在自己的模块内选择对应 store 或 adapter，不再注册独立的 module-specific database capability。
+`databaseFactory` 是 file module、Shopify session storage 与 health/database 的统一数据库入口。各模块只接收 Drizzle database result，再在自己的模块内选择对应 store 或 adapter，不再注册独立的 module-specific database capability。health/database 调用 database adapter 的 `check()`，由具体 runtime 通过 `select 1` 验证最小 SQL 查询链路。
 
 当前策略：
 

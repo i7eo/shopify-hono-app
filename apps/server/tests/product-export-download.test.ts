@@ -7,7 +7,7 @@ import { runtimeConfig } from "./shopify/test-utils";
 import type { FileDownloadResolver } from "@/app/modules/file/types";
 import type { downloadProductExport } from "@/app/modules/product-export/service";
 import type { ProductExportRecord } from "@/app/modules/product-export/types";
-import type { Database } from "@/infra/database";
+import type { ProcessDatabase } from "@/infra/database/process";
 
 const findByIdMock = vi.hoisted(() => vi.fn());
 
@@ -456,12 +456,24 @@ function createDownloadRouteContext() {
   };
 }
 
-function createTestDatabase(): Database {
+function createTestDatabase(): ProcessDatabase {
+  const check: ProcessDatabase["check"] = () =>
+    Promise.resolve({
+      dialect: "postgres",
+      latencyMs: 0,
+      provider: "postgres",
+      runtime: "node",
+      status: "ok",
+    });
+
   return {
-    db: {},
+    check,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Drizzle client is not used by this controller test.
+    db: {} as ProcessDatabase["db"],
     dialect: "postgres",
     provider: "postgres",
     runtime: "node",
+    dispose: vi.fn(() => Promise.resolve()),
   };
 }
 

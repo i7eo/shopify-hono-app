@@ -43,7 +43,8 @@ runtime capability 负责注入平台相关能力：
 
 - `runtimeLoggerSetup`
 - `runtimeEnvSourceResolver`
-- `moduleHealthProcessDiskChecker`
+- `moduleHealthDiskChecker`
+- `moduleHealthMemoryChecker`
 - `databaseFactory`
 - `bucketFactory`
 - `queueProducerFactory`
@@ -51,7 +52,7 @@ runtime capability 负责注入平台相关能力：
 - `schedulerFactory`
 - `moduleFileDownloadResolverFactory`
 
-共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。文件模块与 Shopify session storage 都通过统一的 `databaseFactory` 获取 Drizzle client，各模块再在自己的业务边界内实现 repository/adapter。
+共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。health/disk 与 health/memory 通过 capability 暴露运行时指标：Node 使用 `@unimolecule/utils/node` 的 disk/memory helper，Cloudflare isolate 返回 unsupported。`/healths` 聚合 endpoint 复用 disk、memory、network、database 和 reserved redis 的单项检查结果；unsupported/reserved 不会单独让整体状态失败，单项 `error` 才会让整体返回 `error`。文件模块、Shopify session storage 与 health/database 都通过统一的 `databaseFactory` 获取 database adapter；health/database 调用 adapter `check()` 执行 `select 1`，其他模块再在自己的业务边界内实现 repository/adapter。
 file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream 或 R2 signed redirect；Node 与 Cloudflare runtime 共用 R2 SigV4 signer。product-export 等异步模块通过 `queueProducerFactory` 投递小 payload，通过 queue/scheduler registry 注册 handler。
 
 对应文件：
@@ -205,8 +206,6 @@ Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则�
 
 典型文件：
 
-- `src/app/runtime/process/utils/disk.ts`
-- `src/app/runtime/process/utils/net.ts`
 - `src/app/runtime/process/capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/capabilities.ts`
 - `src/infra/logger/process.ts`

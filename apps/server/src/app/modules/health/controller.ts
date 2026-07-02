@@ -8,19 +8,20 @@ import {
   getRedisHealthRoute,
 } from "./meta";
 import {
+  checkDatabaseHealth,
   checkDiskHealth,
   checkMemoryHealth,
   checkNetworkHealth,
-  getHealthStatus,
+  getHealths,
   getReservedHealthStatus,
 } from "./service";
 import type { AppOpenAPI } from "@/app/bootstrap/register-openapi";
 
 export function registerHealthController(app: AppOpenAPI) {
-  app.openapi(getHealthRoute, (c) =>
+  app.openapi(getHealthRoute, async (c) =>
     c.json(
       createResponse({
-        data: getHealthStatus(),
+        data: await getHealths(c),
         requestId: c.get("requestId"),
       }),
       200,
@@ -37,10 +38,10 @@ export function registerHealthController(app: AppOpenAPI) {
     ),
   );
 
-  app.openapi(getMemoryHealthRoute, (c) =>
+  app.openapi(getMemoryHealthRoute, async (c) =>
     c.json(
       createResponse({
-        data: checkMemoryHealth(c.get("runtimeEnv")),
+        data: await checkMemoryHealth(c),
         requestId: c.get("requestId"),
       }),
       200,
@@ -57,10 +58,10 @@ export function registerHealthController(app: AppOpenAPI) {
     ),
   );
 
-  app.openapi(getDatabaseHealthRoute, (c) =>
+  app.openapi(getDatabaseHealthRoute, async (c) =>
     c.json(
       createResponse({
-        data: getReservedHealthStatus("database"),
+        data: await checkDatabaseHealth(c),
         requestId: c.get("requestId"),
       }),
       200,

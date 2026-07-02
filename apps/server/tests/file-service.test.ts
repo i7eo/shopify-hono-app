@@ -497,15 +497,37 @@ function createMemoryFilesDatabase(
     }),
   };
 
+  if (provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+    return {
+      check: () =>
+        Promise.resolve({
+          dialect: "sqlite",
+          latencyMs: 0,
+          provider,
+          runtime: "cloudflare",
+          status: "ok" as const,
+        }),
+      db: db as never,
+      dialect: "sqlite",
+      provider,
+      runtime: "cloudflare",
+    };
+  }
+
   return {
+    check: () =>
+      Promise.resolve({
+        dialect: "postgres",
+        latencyMs: 0,
+        provider,
+        runtime: runtimeConfig.APP_RUNTIME,
+        status: "ok" as const,
+      }),
     db: db as never,
-    dialect:
-      provider === DEFAULT_APP_DATABASE_PROVIDERS.D1 ? "sqlite" : "postgres",
+    dialect: "postgres",
+    dispose: () => Promise.resolve(),
     provider,
-    runtime:
-      provider === DEFAULT_APP_DATABASE_PROVIDERS.D1
-        ? "cloudflare"
-        : runtimeConfig.APP_RUNTIME,
+    runtime: runtimeConfig.APP_RUNTIME,
   };
 }
 
@@ -610,6 +632,7 @@ type SqlPredicate =
       field: keyof FileRecord;
       operator: "is null";
     };
+type SqlValuePredicate = Extract<SqlPredicate, { value: unknown }>;
 
 function collectSqlPredicates(value: unknown): SqlPredicate[] {
   if (!isSqlLike(value)) return [];
@@ -702,24 +725,31 @@ function toSqlOperator(value: unknown): SqlPredicate["operator"] | undefined {
 
 function toCursorSeek(predicates: SqlPredicate[]) {
   const createdAtBefore = predicates.find(
-    (predicate) =>
+    (predicate): predicate is SqlValuePredicate =>
       predicate.field === "createdAt" && predicate.operator === "<",
   );
   const createdAtEqual = predicates.find(
-    (predicate) =>
+    (predicate): predicate is SqlValuePredicate =>
       predicate.field === "createdAt" && predicate.operator === "=",
   );
   const idBefore = predicates.find(
-    (predicate) => predicate.field === "id" && predicate.operator === "<",
+    (predicate): predicate is SqlValuePredicate =>
+      predicate.field === "id" && predicate.operator === "<",
   );
 
   if (!createdAtBefore || !createdAtEqual || !idBefore) return;
+
+  const seekPredicates: SqlPredicate[] = [
+    createdAtBefore,
+    createdAtEqual,
+    idBefore,
+  ];
 
   return {
     createdAtBefore,
     createdAtEqual,
     idBefore,
-    predicates: [createdAtBefore, createdAtEqual, idBefore],
+    predicates: seekPredicates,
   };
 }
 

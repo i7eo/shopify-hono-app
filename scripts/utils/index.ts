@@ -31,4 +31,11 @@ export function throwRepositoryError(
   throw new RepositoryError(`[${scope}] ${message}`);
 }
 
+/**
+ * Throw a scoped script error with scope-first call sites.
+ */
+export function throwError(scope: string, message: string): never {
+  throwRepositoryError(message, scope);
+}
+
 export { isObject, serializeValue } from "@unimolecule/utils";

@@ -2,30 +2,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorSchema, ResponseSchema } from "@/shared/models";
 import { apiPath, tags } from "./constants";
 
-const HealthStatusSchema = z.enum(["ok", "unsupported", "reserved"]);
-
-export const HealthDataSchema = z.object({
-  status: z.literal("ok").openapi({
-    description: "Server health status.",
-    example: "ok",
-  }),
-});
-export const getHealthRoute = createRoute({
-  method: "get",
-  path: apiPath,
-  tags,
-  summary: "Health check",
-  description: "Check whether the server is running.",
-  responses: {
-    200: {
-      description: "Server is healthy.",
-      content: {
-        "application/json": {
-          schema: ResponseSchema(HealthDataSchema),
-        },
-      },
-    },
-  },
+const HealthStatusSchema = z.enum(["ok", "error", "unsupported", "reserved"]);
+const HealthChecksSchema = z.record(z.string(), z.unknown()).openapi({
+  description: "Runtime-specific threshold check details.",
 });
 
 export const DiskHealthDataSchema = z.object({
@@ -44,6 +23,31 @@ export const DiskHealthDataSchema = z.object({
   path: z.string().optional().openapi({
     description: "Checked filesystem path when disk access is supported.",
     example: "/app",
+  }),
+  totalBytes: z.number().int().optional().openapi({
+    description: "Total filesystem size in bytes.",
+    example: 107374182400,
+  }),
+  freeBytes: z.number().int().optional().openapi({
+    description: "Free filesystem bytes.",
+    example: 64424509440,
+  }),
+  availableBytes: z.number().int().optional().openapi({
+    description: "Available filesystem bytes for unprivileged users.",
+    example: 60129542144,
+  }),
+  usedBytes: z.number().int().optional().openapi({
+    description: "Used filesystem bytes.",
+    example: 42949672960,
+  }),
+  usedPercent: z.number().optional().openapi({
+    description: "Used filesystem ratio from 0 to 1.",
+    example: 0.4,
+  }),
+  checks: HealthChecksSchema.optional(),
+  message: z.string().optional().openapi({
+    description: "Runtime-specific disk check failure message.",
+    example: "Module health disk checker capability is not registered",
   }),
 });
 export const getDiskHealthRoute = createRoute({
@@ -97,6 +101,11 @@ export const MemoryHealthDataSchema = z.object({
     description: "ArrayBuffer memory in bytes.",
     example: 1048576,
   }),
+  checks: HealthChecksSchema.optional(),
+  message: z.string().optional().openapi({
+    description: "Runtime-specific memory check message.",
+    example: "heap used bytes 200000000 exceeds 150000000",
+  }),
 });
 export const getMemoryHealthRoute = createRoute({
   method: "get",
@@ -138,6 +147,32 @@ export const NetworkHealthDataSchema = z.object({
     example: 42.5,
   }),
 });
+export const NetworkHealthErrorDataSchema = z.object({
+  status: z.literal("error").openapi({
+    description: "Network check error status.",
+    example: "error",
+  }),
+  target: z.literal("network").openapi({
+    description: "Health check target.",
+    example: "network",
+  }),
+  reachable: z.literal(false).openapi({
+    description: "Whether the network target responded successfully.",
+    example: false,
+  }),
+  latencyMs: z.number().optional().openapi({
+    description: "Measured request latency in milliseconds.",
+    example: 42.5,
+  }),
+  message: z.string().openapi({
+    description: "Runtime-specific network check failure message.",
+    example: "fetch failed",
+  }),
+});
+export const AggregatedNetworkHealthDataSchema = z.union([
+  NetworkHealthDataSchema,
+  NetworkHealthErrorDataSchema,
+]);
 export const getNetworkHealthRoute = createRoute({
   method: "get",
   path: `${apiPath}/network`,
@@ -172,26 +207,105 @@ export const getNetworkHealthRoute = createRoute({
   },
 });
 
+export const DatabaseHealthDataSchema = z.object({
+  status: z.enum(["ok", "error"]).openapi({
+    description: "Database check status.",
+    example: "ok",
+  }),
+  target: z.literal("database").openapi({
+    description: "Health check target.",
+    example: "database",
+  }),
+  runtime: z.string().openapi({
+    description: "Application runtime used for this check.",
+    example: "node",
+  }),
+  provider: z.string().optional().openapi({
+    description: "Database provider used for this check.",
+    example: "postgres",
+  }),
+  dialect: z.enum(["postgres", "sqlite"]).optional().openapi({
+    description: "SQL dialect used for this check.",
+    example: "postgres",
+  }),
+  latencyMs: z.number().optional().openapi({
+    description: "Measured database check latency in milliseconds.",
+    example: 4.2,
+  }),
+  message: z.string().optional().openapi({
+    description: "Runtime-specific database check failure message.",
+    example: "connection refused",
+  }),
+});
+export const getDatabaseHealthRoute = createRoute({
+  method: "get",
+  path: `${apiPath}/database`,
+  tags,
+  summary: "Database health check",
+  description:
+    "Check database connectivity through the active runtime adapter.",
+  responses: {
+    200: {
+      description: "Database health result.",
+      content: {
+        "application/json": {
+          schema: ResponseSchema(DatabaseHealthDataSchema),
+        },
+      },
+    },
+  },
+});
+
 export const ReservedHealthDataSchema = z.object({
   status: z.literal("reserved").openapi({
     description: "Reserved health check status.",
     example: "reserved",
   }),
-  target: z.enum(["database", "redis"]).openapi({
+  target: z.enum(["redis"]).openapi({
     description: "Reserved health check target.",
-    example: "database",
+    example: "redis",
   }),
 });
-export const getDatabaseHealthRoute = createReservedHealthRoute(
-  `${apiPath}/database`,
-  "Database health check",
-  "Reserved database health check endpoint.",
-);
 export const getRedisHealthRoute = createReservedHealthRoute(
   `${apiPath}/redis`,
   "Redis health check",
   "Reserved Redis health check endpoint.",
 );
+
+const HealthAggregateChecksSchema = z.object({
+  disk: DiskHealthDataSchema,
+  memory: MemoryHealthDataSchema,
+  network: AggregatedNetworkHealthDataSchema,
+  database: DatabaseHealthDataSchema,
+  redis: ReservedHealthDataSchema,
+});
+export const HealthDataSchema = z.object({
+  status: z.enum(["ok", "error"]).openapi({
+    description: "Aggregated server health status.",
+    example: "ok",
+  }),
+  checks: HealthAggregateChecksSchema.openapi({
+    description: "Aggregated health check results by target.",
+  }),
+});
+export const getHealthRoute = createRoute({
+  method: "get",
+  path: apiPath,
+  tags,
+  summary: "Health check",
+  description: "Check server health by aggregating all health targets.",
+  responses: {
+    200: {
+      description: "Aggregated health result.",
+      content: {
+        "application/json": {
+          schema: ResponseSchema(HealthDataSchema),
+        },
+      },
+    },
+  },
+});
+
 function createReservedHealthRoute(
   routePath: string,
   summary: string,

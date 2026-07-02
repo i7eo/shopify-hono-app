@@ -1,14 +1,18 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { internalServerError } from "@/shared/exceptions";
 import {
+  getDatabaseCheckErrorMessage,
+  getDatabaseCheckLatencyMs,
   getDatabaseEnvConfig,
   sqliteDatabaseSchema,
+  type DatabaseHealthCheckResult,
   type SqliteDatabaseSchema,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 
 export type IsolateD1Database = {
+  check: () => Promise<DatabaseHealthCheckResult>;
   db: DrizzleD1Database<SqliteDatabaseSchema>;
   dialect: "sqlite";
   provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.D1;
@@ -29,12 +33,47 @@ export async function createIsolateDatabase(
   getDatabaseEnvConfig(config);
 
   const { drizzle } = await import("drizzle-orm/d1");
+  const d1 = requireD1(options.d1);
+
   return {
-    db: drizzle(requireD1(options.d1), { schema: sqliteDatabaseSchema }),
+    check: () => checkIsolateDatabase(d1, config),
+    db: drizzle(d1, { schema: sqliteDatabaseSchema }),
     dialect: "sqlite",
     provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
     runtime: config.APP_RUNTIME,
   };
+}
+
+/**
+ * Runs the isolate database health check through the same D1 binding used by
+ * app repositories.
+ */
+async function checkIsolateDatabase(
+  d1: D1Database,
+  config: RuntimeConfig,
+): Promise<DatabaseHealthCheckResult> {
+  const start = performance.now();
+
+  try {
+    await d1.prepare("select 1").first();
+
+    return {
+      dialect: "sqlite",
+      latencyMs: getDatabaseCheckLatencyMs(start),
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: config.APP_RUNTIME,
+      status: "ok",
+    };
+  } catch (error) {
+    return {
+      dialect: "sqlite",
+      latencyMs: getDatabaseCheckLatencyMs(start),
+      message: getDatabaseCheckErrorMessage(error),
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: config.APP_RUNTIME,
+      status: "error",
+    };
+  }
 }
 
 /**

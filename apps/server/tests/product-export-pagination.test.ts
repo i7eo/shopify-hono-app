@@ -184,8 +184,17 @@ function createMemoryExportsDatabase(): Database {
   };
 
   return {
+    check: () =>
+      Promise.resolve({
+        dialect: "postgres" as const,
+        latencyMs: 0,
+        provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+        runtime: "node" as const,
+        status: "ok" as const,
+      }),
     db: db as never,
     dialect: "postgres",
+    dispose: () => Promise.resolve(),
     provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
     runtime: "node",
   };
@@ -261,6 +270,7 @@ type SqlPredicate =
       field: keyof ProductExportRecord;
       operator: "is null";
     };
+type SqlValuePredicate = Extract<SqlPredicate, { value: unknown }>;
 
 function collectSqlPredicates(value: unknown): SqlPredicate[] {
   if (!isSqlLike(value)) return [];
@@ -377,45 +387,59 @@ function toSqlOperator(value: unknown): SqlPredicate["operator"] | undefined {
 
 function toCursorSeek(predicates: SqlPredicate[]) {
   const createdAtBefore = predicates.find(
-    (predicate) =>
+    (predicate): predicate is SqlValuePredicate =>
       predicate.field === "createdAt" && predicate.operator === "<",
   );
   const createdAtEqual = predicates.find(
-    (predicate) =>
+    (predicate): predicate is SqlValuePredicate =>
       predicate.field === "createdAt" && predicate.operator === "=",
   );
   const idBefore = predicates.find(
-    (predicate) => predicate.field === "id" && predicate.operator === "<",
+    (predicate): predicate is SqlValuePredicate =>
+      predicate.field === "id" && predicate.operator === "<",
   );
 
   if (!createdAtBefore || !createdAtEqual || !idBefore) return;
+
+  const seekPredicates: SqlPredicate[] = [
+    createdAtBefore,
+    createdAtEqual,
+    idBefore,
+  ];
 
   return {
     createdAtBefore,
     createdAtEqual,
     idBefore,
-    predicates: [createdAtBefore, createdAtEqual, idBefore],
+    predicates: seekPredicates,
   };
 }
 
 function toRecoverableSeek(predicates: SqlPredicate[]) {
   const updatedAtAfter = predicates.find(
-    (predicate) =>
+    (predicate): predicate is SqlValuePredicate =>
       predicate.field === "updatedAt" && predicate.operator === ">",
   );
   const updatedAtEqual = predicates.find(
-    (predicate) =>
+    (predicate): predicate is SqlValuePredicate =>
       predicate.field === "updatedAt" && predicate.operator === "=",
   );
   const idAfter = predicates.find(
-    (predicate) => predicate.field === "id" && predicate.operator === ">",
+    (predicate): predicate is SqlValuePredicate =>
+      predicate.field === "id" && predicate.operator === ">",
   );
 
   if (!updatedAtAfter || !updatedAtEqual || !idAfter) return;
 
+  const seekPredicates: SqlPredicate[] = [
+    updatedAtAfter,
+    updatedAtEqual,
+    idAfter,
+  ];
+
   return {
     idAfter,
-    predicates: [updatedAtAfter, updatedAtEqual, idAfter],
+    predicates: seekPredicates,
     updatedAtAfter,
     updatedAtEqual,
   };

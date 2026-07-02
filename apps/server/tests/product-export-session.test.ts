@@ -12,7 +12,7 @@ describe("product export Shopify session ownership", () => {
     const record = createProductExportRecord({ updatedAt: now });
     const update = vi.fn();
     const store = createProductExportRepository({ update });
-    const client: ShopifyClient = {
+    const client = {
       request: vi.fn().mockResolvedValue({
         data: {
           bulkOperationRunQuery: {
@@ -24,7 +24,7 @@ describe("product export Shopify session ownership", () => {
           },
         },
       }),
-    };
+    } as unknown as ShopifyClient;
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-18T12:05:00.000Z"));

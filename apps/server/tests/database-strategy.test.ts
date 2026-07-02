@@ -10,7 +10,8 @@ import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { runtimeConfig } from "./shopify/test-utils";
 
 const poolEnd = vi.fn(() => Promise.resolve());
-const poolInstances: Array<{ connectionString: string | undefined }> = [];
+const poolQuery = vi.fn(() => Promise.resolve({ rows: [{ ok: 1 }] }));
+const poolInstances: Array<{ connectionString?: string }> = [];
 
 vi.mock("pg", () => ({
   Pool: vi.fn(function Pool(input: { connectionString?: string }) {
@@ -18,6 +19,7 @@ vi.mock("pg", () => ({
 
     return {
       end: poolEnd,
+      query: poolQuery,
     };
   }),
 }));
@@ -196,6 +198,49 @@ describe("database runtime strategy", () => {
 
     await disposeProcessDatabase();
   });
+
+  it("checks node postgres with select 1", async () => {
+    await disposeProcessDatabase();
+
+    const database = await getProcessDatabase({
+      ...runtimeConfig,
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      APP_DATABASE_URL: "postgresql://health",
+      APP_RUNTIME: "node",
+    });
+
+    await expect(database.check()).resolves.toMatchObject({
+      dialect: "postgres",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      runtime: "node",
+      status: "ok",
+    });
+    expect(poolQuery).toHaveBeenCalledWith("select 1");
+
+    await disposeProcessDatabase();
+  });
+
+  it("checks cloudflare d1 with select 1", async () => {
+    const d1 = createD1Binding();
+    const database = await createIsolateDatabase(
+      {
+        ...runtimeConfig,
+        APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+        APP_RUNTIME: "cloudflare",
+      } as RuntimeConfig,
+      {
+        d1,
+      },
+    );
+
+    await expect(database.check()).resolves.toMatchObject({
+      dialect: "sqlite",
+      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      runtime: "cloudflare",
+      status: "ok",
+    });
+    expect(d1.prepare).toHaveBeenCalledWith("select 1");
+  });
 });
 
 function createD1Binding(): D1Database {
@@ -207,24 +252,26 @@ function createD1Binding(): D1Database {
         count: 0,
         duration: 0,
       }),
-    prepare: () =>
-      ({
-        all: () =>
-          Promise.resolve({
-            meta: {},
-            results: [],
-            success: true,
-          }),
-        bind() {
-          return this;
-        },
-        first: () => Promise.resolve(null),
-        raw: () => Promise.resolve([]),
-        run: () =>
-          Promise.resolve({
-            meta: {},
-            success: true,
-          }),
-      }) as unknown as D1PreparedStatement,
+    prepare: vi.fn(
+      () =>
+        ({
+          all: () =>
+            Promise.resolve({
+              meta: {},
+              results: [],
+              success: true,
+            }),
+          bind() {
+            return this;
+          },
+          first: () => Promise.resolve(null),
+          raw: () => Promise.resolve([]),
+          run: () =>
+            Promise.resolve({
+              meta: {},
+              success: true,
+            }),
+        }) as unknown as D1PreparedStatement,
+    ),
   } as unknown as D1Database;
 }

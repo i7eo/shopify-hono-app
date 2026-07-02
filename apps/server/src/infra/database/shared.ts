@@ -29,6 +29,13 @@ export type DatabaseRuntimeStrategy = {
   provider: RuntimeConfig["APP_DATABASE_PROVIDER"];
   runtime: RuntimeConfig["APP_RUNTIME"];
 };
+export type DatabaseDialect = "postgres" | "sqlite";
+export type DatabaseHealthCheckResult = DatabaseRuntimeStrategy & {
+  dialect: DatabaseDialect;
+  latencyMs: number;
+  message?: string;
+  status: "error" | "ok";
+};
 
 /**
  * Returns the configured database strategy and rejects runtime/provider pairs
@@ -111,4 +118,18 @@ export function getDatabaseUrl(config: RuntimeConfig): string {
   }
 
   return url;
+}
+
+/**
+ * Converts an unknown database health check failure into a public message.
+ */
+export function getDatabaseCheckErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Database check failed";
+}
+
+/**
+ * Returns a stable millisecond duration with two decimal places.
+ */
+export function getDatabaseCheckLatencyMs(start: number): number {
+  return Math.round((performance.now() - start) * 100) / 100;
 }

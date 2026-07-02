@@ -3,6 +3,6 @@ import { getEnvProvider } from "@/infra/provider";
 
 const env = getEnvProvider();
 
-export const apiPath = `/${env.APP_API_PREFIX}/health`;
-export const tag = `${capitalize(env.APP_API_PREFIX)} - Health`;
+export const apiPath = `/${env.APP_API_PREFIX}/healths`;
+export const tag = `${capitalize(env.APP_API_PREFIX)} - Healths`;
 export const tags = [tag];

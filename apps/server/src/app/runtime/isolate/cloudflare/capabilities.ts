@@ -1,8 +1,5 @@
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
-import {
-  setRuntimeCapability,
-  type ModuleHealthDiskCheckResult,
-} from "@/app/runtime/capabilities";
+import { setRuntimeCapability } from "@/app/runtime/capabilities";
 import { createBucketDownloadSigner } from "@/infra/bucket";
 import {
   createIsolateBucket,
@@ -44,7 +41,8 @@ export function registerCloudflareIsolateRuntimeCapabilities() {
     "runtimeEnvSourceResolver",
     (c) => c.env as unknown as Record<string, unknown>,
   );
-  setRuntimeCapability("moduleHealthProcessDiskChecker", isolateNotSupport);
+  setRuntimeCapability("moduleHealthDiskChecker", isolateNotSupport);
+  setRuntimeCapability("moduleHealthMemoryChecker", isolateNotSupport);
   setRuntimeCapability(
     "databaseFactory",
     (context) => getDatabase(context),
@@ -185,7 +183,7 @@ function disposeSchedulerCapability() {
 /**
  * Returns an unsupported health result for isolate capabilities without support.
  */
-function isolateNotSupport(c: Context<AppEnv>): ModuleHealthDiskCheckResult {
+function isolateNotSupport(c: Context<AppEnv>) {
   return runtimeNotSupported({
     runtime: c.get("runtimeEnv").APP_RUNTIME,
   });

@@ -1,9 +1,9 @@
-import { checkProcessDiskAccess } from "@unimolecule/utils/node";
-import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import {
-  setRuntimeCapability,
-  type ModuleHealthDiskCheckResult,
-} from "@/app/runtime/capabilities";
+  checkProcessDiskUsage,
+  checkProcessMemoryUsage,
+} from "@unimolecule/utils/node";
+import { BucketFileDownloadResolver } from "@/app/modules/file/download";
+import { setRuntimeCapability } from "@/app/runtime/capabilities";
 import { createBucketDownloadSigner } from "@/infra/bucket";
 import { disposeProcessBucket, getProcessBucket } from "@/infra/bucket/process";
 import {
@@ -21,9 +21,6 @@ import {
   createProcessScheduler,
   disposeProcessScheduler,
 } from "@/infra/scheduler/process";
-import { runtimeNotSupported } from "@/utils/runtime";
-import type { AppEnv } from "@/typings";
-import type { Context } from "hono";
 
 /**
  * Registers Node process implementations for runtime and module capabilities.
@@ -33,13 +30,20 @@ import type { Context } from "hono";
 export function registerProcessRuntimeCapabilities() {
   setRuntimeCapability("runtimeLoggerSetup", setupProcessLogger);
   setRuntimeCapability("runtimeEnvSourceResolver", () => process.env);
-  setRuntimeCapability("moduleHealthProcessDiskChecker", async (c) => {
-    const path = await checkProcessDiskAccess();
+  setRuntimeCapability("moduleHealthDiskChecker", async (c) => {
+    const result = await checkProcessDiskUsage();
 
     return {
-      status: "ok",
+      ...result,
       runtime: c.get("runtimeEnv").APP_RUNTIME,
-      path,
+    };
+  });
+  setRuntimeCapability("moduleHealthMemoryChecker", (c) => {
+    const result = checkProcessMemoryUsage();
+
+    return {
+      ...result,
+      runtime: c.get("runtimeEnv").APP_RUNTIME,
     };
   });
   setRuntimeCapability(
@@ -110,15 +114,4 @@ function disposeQueueConsumerCapability() {
  */
 function disposeSchedulerCapability() {
   return disposeProcessScheduler();
-}
-
-/**
- * Returns an unsupported health result for process capabilities without support.
- */
-export function processNotSupport(
-  c: Context<AppEnv>,
-): ModuleHealthDiskCheckResult {
-  return runtimeNotSupported({
-    runtime: c.get("runtimeEnv").APP_RUNTIME,
-  });
 }

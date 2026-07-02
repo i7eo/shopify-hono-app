@@ -104,6 +104,8 @@ function createR2Binding(): R2Bucket {
     createMultipartUpload: vi.fn(),
     delete: vi.fn(),
     get: vi.fn(),
+    head: vi.fn(),
+    list: vi.fn(),
     put: vi.fn(),
     resumeMultipartUpload: vi.fn(),
   };
