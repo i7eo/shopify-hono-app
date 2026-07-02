@@ -7,14 +7,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
-
-export const FILE_STATUS_VALUES = [
-  "uploading",
-  "available",
-  "expired",
-  "deleted",
-  "failed",
-] as const;
+import { FILE_STATUS_VALUES } from "../../constants";
 
 export const fileStatusEnum = pgEnum("file_status", FILE_STATUS_VALUES);
 

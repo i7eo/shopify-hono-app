@@ -2,7 +2,7 @@ import { DEFAULT_RUNTIMES } from "@shamt/app-env";
 import {
   PRODUCT_EXPORT_PART_STATUS_VALUES,
   PRODUCT_EXPORT_STATUS_VALUES,
-} from "@shamt/database/models/postgres";
+} from "@shamt/database/constants";
 import { internalServerError } from "@/shared/exceptions";
 import { PRODUCT_EXPORT_JSONL_CHUNK_BYTES } from "./queue/constants";
 import type { ProductExportJobPayload } from "./queue";

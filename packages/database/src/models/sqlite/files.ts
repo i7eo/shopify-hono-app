@@ -1,7 +1,16 @@
+import {
+  DEFAULT_APP_BUCKET_PROVIDERS,
+  type DEFAULT_APP_BUCKET_PROVIDERS_VALUES,
+} from "@shamt/app-env/constants";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { FILE_STATUS_VALUES } from "../postgres/files";
+import { FILE_STATUS_VALUES } from "../../constants";
 
-const FILE_BUCKET_PROVIDER_VALUES = ["memory", "r2"] as const;
+const FILE_BUCKET_PROVIDER_VALUES = Object.values(
+  DEFAULT_APP_BUCKET_PROVIDERS,
+) as [
+  DEFAULT_APP_BUCKET_PROVIDERS_VALUES,
+  ...DEFAULT_APP_BUCKET_PROVIDERS_VALUES[],
+];
 
 export const sqliteFiles = sqliteTable(
   "files",

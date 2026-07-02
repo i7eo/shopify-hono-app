@@ -13,11 +13,6 @@ import {
   PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
 } from "../../constants";
 import { postgresShopifySessions } from "./shopify-sessions";
-export {
-  PRODUCT_EXPORT_PART_STATUS_VALUES,
-  PRODUCT_EXPORT_STATUS_VALUES,
-  PRODUCT_EXPORT_TEMPLATE_CODE_VALUES,
-} from "../../constants";
 
 export const productExportStatusEnum = pgEnum(
   "product_export_status",
