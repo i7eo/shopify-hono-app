@@ -1,18 +1,17 @@
-import { providerDisposers, providers } from "./constants";
+import { resetClientProvider } from "./client";
+import { resetEnvProvider } from "./env";
+import { resetLoggerProvider } from "./logger";
+import { resetShopifyProvider } from "./shopify";
 
 /**
- * Dispose every registered provider and clear the provider registry.
+ * Dispose every typed provider slot.
  * Call this during application shutdown or test teardown.
  */
-export async function disposeProviders(): Promise<void> {
-  const disposers = Array.from(providerDisposers.values());
-
-  for (const dispose of disposers) {
-    await dispose();
-  }
-
-  providers.clear();
-  providerDisposers.clear();
+export async function providersDispose(): Promise<void> {
+  resetClientProvider();
+  resetShopifyProvider();
+  await resetLoggerProvider();
+  resetEnvProvider();
 }
 
 export * from "./client";

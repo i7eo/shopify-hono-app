@@ -1,5 +1,5 @@
 import { DEFAULT_SHOPIFY_APP_MODES, type ConfigSchema } from "@shamt/app-env";
-import { escape as escapeHTML } from "@unimolecule/utils";
+import { escape as escapeHtml } from "@unimolecule/utils";
 import { throwAppWebError as throwError } from "../../../internal";
 import type { Plugin } from "vite";
 
@@ -31,7 +31,7 @@ export function htmlPlugin({
       }
 
       return html
-        .replaceAll("%SHOPIFY_APP_FRONTEND_NAME%", escapeHTML(appName))
+        .replaceAll("%SHOPIFY_APP_FRONTEND_NAME%", escapeHtml(appName))
         .replaceAll(
           "%SHOPIFY_APP_FRONTEND_HEAD%",
           renderShopifyHead({
@@ -53,9 +53,9 @@ function renderShopifyHead(options: {
   mode: string;
 }) {
   return [
-    `<meta name="app-runtime" content="${escapeHTML(options.appRuntime)}" />`,
-    `<meta name="shopify-api-key" content="${escapeHTML(options.apiKey)}" />`,
-    `<meta name="shopify-app-mode" content="${escapeHTML(options.mode)}" />`,
+    `<meta name="app-runtime" content="${escapeHtml(options.appRuntime)}" />`,
+    `<meta name="shopify-api-key" content="${escapeHtml(options.apiKey)}" />`,
+    `<meta name="shopify-app-mode" content="${escapeHtml(options.mode)}" />`,
     ...renderAppBridgeScript(options.mode),
     `<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>`,
   ].join("\n    ");

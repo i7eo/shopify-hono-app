@@ -1,7 +1,8 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
-import { createDatabaseFilesRepository } from "@/app/modules/file/repositories/database";
+import { createPostgresFilesRepository } from "@/app/modules/file/repositories/database/postgres";
+import { createSqliteFilesRepository } from "@/app/modules/file/repositories/database/sqlite";
 import {
   createFile,
   createFiles,
@@ -10,18 +11,17 @@ import {
   getFile,
   listFiles,
 } from "@/app/modules/file/service";
-import {
-  disposeRuntimeCapabilities,
-  setRuntimeCapability,
-} from "@/app/runtime/capabilities";
 import { DEFAULT_SIGNED_DOWNLOAD_URL_EXPIRE } from "@/constants";
 import { createSeekCursor } from "@/shared/models";
 import { throwAppServerError as throwError } from "../internal";
-import { runtimeConfig } from "./shopify/test-utils";
+import {
+  createMockRuntimeCapabilities,
+  runtimeConfig,
+} from "./shopify/test-utils";
+import type { FilesRepository } from "@/app/modules/file/repositories/database";
 import type {
   FileDownloadResolver,
   FileRecord,
-  FilesRepository,
 } from "@/app/modules/file/types";
 import type {
   Bucket,
@@ -35,7 +35,6 @@ import type { RuntimeConfig } from "@/infra/env";
 describe("file service", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    return disposeRuntimeCapabilities();
   });
 
   it("creates, downloads, and deletes a file through runtime capabilities", async () => {
@@ -379,8 +378,11 @@ function createServiceContext(options: {
   store?: TestFilesRepository;
   runtimeEnv?: RuntimeConfig;
 }) {
-  const database =
-    options.database ?? options.store?.database ?? createMemoryFilesDatabase();
+  const runtimeEnv = options.runtimeEnv ?? runtimeConfig;
+  const store =
+    options.store ??
+    createMemoryMetadataStore(runtimeEnv.APP_DATABASE_PROVIDER);
+  const database = options.database ?? store.database;
   const bucket = options.bucket ?? createMemoryBucket();
   const resolver =
     options.resolver ??
@@ -393,13 +395,21 @@ function createServiceContext(options: {
       ),
     } satisfies FileDownloadResolver);
 
-  setRuntimeCapability("databaseFactory", () => database);
-  setRuntimeCapability("bucketFactory", () => bucket);
-  setRuntimeCapability("moduleFileDownloadResolverFactory", () => resolver);
+  const runtimeCapabilities = createMockRuntimeCapabilities({
+    database: () => database,
+    databaseRepositories: {
+      files: () => store,
+    },
+    bucket: () => bucket,
+    file: {
+      downloadResolver: () => resolver,
+    },
+  });
 
   const context: Pick<Parameters<typeof createFile>[0], "get"> = {
     get: (key: string) => {
-      if (key === "runtimeEnv") return options.runtimeEnv ?? runtimeConfig;
+      if (key === "runtimeEnv") return runtimeEnv;
+      if (key === "runtimeCapabilities") return runtimeCapabilities;
       if (key === "requestId") return "req_test";
       return;
     },
@@ -416,7 +426,10 @@ function createMemoryMetadataStore(
   provider: Database["provider"] = DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
 ): TestFilesRepository {
   const database = createMemoryFilesDatabase(provider);
-  const store = createDatabaseFilesRepository(database);
+  const store =
+    provider === DEFAULT_APP_DATABASE_PROVIDERS.D1
+      ? createSqliteFilesRepository(database as never)
+      : createPostgresFilesRepository(database as never);
 
   return Object.assign(store, { database });
 }

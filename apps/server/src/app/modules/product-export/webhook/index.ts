@@ -1,3 +1,4 @@
+import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
 import { createResponse } from "@/shared/models";
 import {
   parseNullableDate,
@@ -32,7 +33,9 @@ export async function handleProductExportBulkOperationFinishWebhook(
 ) {
   const webhook = c.var.webhook;
   const payload = parseBulkOperationFinishWebhookPayload(webhook.payload);
-  const logger = c.get("runtimeLogger");
+  const logger = await getLoggerProvider(
+    getEnvProvider(c.get("runtimeEnv") ?? c.env),
+  );
 
   if (!payload) {
     logger.warn(

@@ -5,8 +5,11 @@ import type { RuntimeConfig } from "@/infra/env";
  */
 export function getLoggerEnvConfig(config: RuntimeConfig) {
   return {
-    expire: config.APP_LOGGER_EXPIRE,
-    level: config.APP_LOGGER_LEVEL,
-    maxSize: config.APP_LOGGER_MAX_SIZE,
+    APP_ENV: config.APP_ENV,
+    APP_LOGGER_DIR: config.APP_LOGGER_DIR,
+    APP_LOGGER_EXPIRE: config.APP_LOGGER_EXPIRE,
+    APP_LOGGER_LEVEL: config.APP_LOGGER_LEVEL,
+    APP_LOGGER_MAX_SIZE: config.APP_LOGGER_MAX_SIZE,
+    APP_RUNTIME: config.APP_RUNTIME,
   };
 }

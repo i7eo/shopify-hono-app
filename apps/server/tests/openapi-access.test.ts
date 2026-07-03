@@ -2,8 +2,12 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerOpenAPI } from "@/app/bootstrap/register-openapi";
+import { setupProcessLogger } from "@/infra/logger/process";
+import { registerProcessLoggerSetup } from "@/infra/provider/logger";
 import { runtimeConfig } from "./shopify/test-utils";
 import type { AppEnv } from "@/typings";
+
+registerProcessLoggerSetup(setupProcessLogger);
 
 function createOpenAPIApp(options: { enabled?: boolean } = {}) {
   const app = new OpenAPIHono<AppEnv>();

@@ -2,7 +2,7 @@ import {
   DEFAULT_APP_ACCOUNT_SESSION_COOKIE,
   DEFAULT_APP_ACCOUNT_SESSION_EXPIRE,
 } from "@/constants";
-import { getShopifyConfigProvider } from "@/infra/provider";
+import { getEnvProvider, getShopifyConfigProvider } from "@/infra/provider";
 import { unauthorizedError } from "@/shared/exceptions";
 import { getShopifySessionStorage } from "../session-storage";
 import type { AppEnv } from "@/typings";
@@ -42,10 +42,9 @@ export function commitShopifyAccountSession(
   c: Context<AppEnv>,
   accountSession: ShopifyAccountSession,
 ): string {
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const secure =
-    new URL(c.get("runtimeEnv").SHOPIFY_APP_URL).protocol === "https:"
-      ? "; Secure"
-      : "";
+    new URL(config.SHOPIFY_APP_URL).protocol === "https:" ? "; Secure" : "";
 
   return (
     [
@@ -77,7 +76,9 @@ export async function loadShopifySessionForAccount(
     throw unauthorizedError("Invalid app account session");
   }
 
-  const shopify = await getShopifyConfigProvider(c.get("runtimeEnv"));
+  const shopify = await getShopifyConfigProvider(
+    getEnvProvider(c.get("runtimeEnv") ?? c.env),
+  );
   if (!session.isActive(shopify.config.scopes)) {
     throw unauthorizedError("Inactive app account session");
   }

@@ -14,8 +14,6 @@ import {
 } from "./constants";
 
 interface WranglerConfig {
-  name: string;
-  main: string;
   compatibility_date: string;
   compatibility_flags: string[];
   observability: {
@@ -25,6 +23,7 @@ interface WranglerConfig {
 }
 
 interface WranglerEnvironmentConfig {
+  name?: string;
   main?: string;
   r2_buckets?: R2BucketBinding[];
   d1_databases?: D1DatabaseBinding[];
@@ -77,8 +76,6 @@ export function renderWranglerConfig(
   const environment = renderWranglerEnvironment(config);
 
   return {
-    name: config.APP_CLOUDFLARE_WORKER_NAME,
-    main: DEVELOPMENT_ENTRY_PATH,
     compatibility_date: "2026-06-05",
     compatibility_flags: ["nodejs_compat"],
     observability: {
@@ -99,8 +96,16 @@ function renderWranglerEnvironment(
   const schedulerProvider = getSchedulerProvider(config);
   const environment: WranglerEnvironmentConfig = {};
 
-  if (config.APP_ENV === DEFAULT_ENVS.PRODUCTION) {
-    environment.main = PRODUCTION_ENTRY_PATH;
+  if (config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE) {
+    environment.name = config.APP_CLOUDFLARE_WORKER_NAME;
+
+    if (config.APP_ENV === DEFAULT_ENVS.DEVELOPMENT) {
+      environment.main = DEVELOPMENT_ENTRY_PATH;
+    }
+
+    if (config.APP_ENV === DEFAULT_ENVS.PRODUCTION) {
+      environment.main = PRODUCTION_ENTRY_PATH;
+    }
   }
 
   if (bucketProvider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {

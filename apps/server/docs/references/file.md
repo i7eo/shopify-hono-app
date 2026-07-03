@@ -157,15 +157,15 @@ pnpm --dir apps/server run db:seed:dev:d1
 
 file module 使用这些 runtime capabilities：
 
-| Capability                          | 作用                         |
-| ----------------------------------- | ---------------------------- |
-| `databaseFactory`                   | 创建通用 Drizzle database    |
-| `bucketFactory`                     | 创建通用 object bucket       |
-| `moduleFileDownloadResolverFactory` | 解析 stream 或 redirect 下载 |
+| Capability                                         | 作用                                 |
+| -------------------------------------------------- | ------------------------------------ |
+| `runtimeCapabilities.databaseRepositories.files()` | 创建当前 runtime 的 files repository |
+| `runtimeCapabilities.bucket()`                     | 创建通用 object bucket               |
+| `runtimeCapabilities.file.downloadResolver()`      | 解析 stream 或 redirect 下载         |
 
-file module 会在业务逻辑内通过 `databaseFactory` 创建 Drizzle-backed files repository。Node 当前支持 PostgreSQL/D1 database、bucket factory、memory stream / R2 signed redirect 下载 resolver。
+file module 会在业务逻辑内通过 `runtimeCapabilities.databaseRepositories.files()` 获取 Drizzle-backed files repository。Node runtime 在 capability creator 中绑定 PostgreSQL repository；Cloudflare runtime 在 capability creator 中绑定 SQLite/D1 repository。Node 当前支持 PostgreSQL database、memory/R2 bucket、memory stream / R2 signed redirect 下载 resolver。
 
-Cloudflare 当前注册 PostgreSQL/D1 database factory、R2 binding bucket factory 和 R2 signed redirect 下载 resolver。file module 可消费 PostgreSQL 或 D1 database。development 的 R2 binding 需要与 D1 一样保持 `remote: true`，否则写入会进入 Wrangler 本地 R2 模拟，但下载 resolver 生成的 signed URL 会指向远端 R2，最终表现为业务接口成功而 R2 返回 `NoSuchKey`。file module 当前没有模块专属后台 dispatcher；后续过期清理、对象删除重试等后台工作应注册到通用 queue/scheduler infra。
+Cloudflare 当前通过 request-scoped capabilities 使用 D1 database、R2 binding bucket 和 R2 signed redirect 下载 resolver。development 的 R2 binding 需要与 D1 一样保持 `remote: true`，否则写入会进入 Wrangler 本地 R2 模拟，但下载 resolver 生成的 signed URL 会指向远端 R2，最终表现为业务接口成功而 R2 返回 `NoSuchKey`。file module 当前没有模块专属后台 dispatcher；后续过期清理、对象删除重试等后台工作应注册到通用 queue/scheduler infra。
 
 ## 下载与删除
 

@@ -120,7 +120,7 @@ type QueueEnqueueOptions = {
 
 ## Producer
 
-业务代码不要直接 import `pg-boss` 或 Cloudflare Queue binding，而是通过 `queueProducerFactory` capability 获取 producer。
+业务代码不要直接 import `pg-boss` 或 Cloudflare Queue binding，而是通过 `runtimeCapabilities.queue.producer()` 获取 producer。
 
 接口：
 
@@ -223,11 +223,12 @@ consumeQueueBatch(batch, context);
 Node 启动时从 runtime capability 取得 consumer：
 
 ```ts
-const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
-const queueConsumer = await queueConsumerFactory?.(env);
+const runtimeCapabilities = runtimeCapabilityNode({ logger, runtimeEnv: env });
+const queueConsumer = await runtimeCapabilities.queue.consumer();
 
 await queueConsumer?.start({
   logger,
+  runtimeCapabilities,
   runtimeEnv: env,
 });
 ```
@@ -243,7 +244,7 @@ await queueConsumer?.start({
 5. 成功调用 `boss.complete(...)`。
 6. 失败调用 `boss.fail(...)`，由 `pg-boss` 负责重试。
 
-shutdown 时由 `disposeRuntimeCapabilities()` 调用 queue consumer disposer。
+shutdown 时由 `runtimeCapabilityNodeDispose()` 停止 queue consumer 并释放 queue producer。
 queue producer 和 consumer 都有 dispose 入口。process 侧会停止/释放缓存的
 `pg-boss` 实例；isolate 侧 producer/consumer 当前以 event/request binding 为边界，
 `disposeIsolateQueueProducer()` 和 `disposeIsolateQueueConsumer()` 是预留 no-op。
@@ -255,8 +256,12 @@ Cloudflare Worker export 增加：
 ```ts
 export default {
   async queue(batch, env) {
-    const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
-    const queueConsumer = await queueConsumerFactory?.(context.runtimeEnv);
+    const runtimeCapabilities = runtimeCapabilityCloudflareQueue({
+      env,
+      logger: context.logger,
+      runtimeEnv: context.runtimeEnv,
+    });
+    const queueConsumer = await runtimeCapabilities.consumer();
 
     await queueConsumer?.consume(batch, context);
   },

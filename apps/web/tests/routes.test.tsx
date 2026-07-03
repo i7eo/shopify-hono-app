@@ -689,10 +689,7 @@ describe("route components", () => {
     );
     expect(sectionHeading("Export defaults")).toBeTruthy();
     expect(sectionHeading("Description generation")).toBeTruthy();
-    expect(consoleInfo).toHaveBeenCalledWith(
-      "Settings form data",
-      expect.any(Object),
-    );
+    expect(consoleInfo).not.toHaveBeenCalled();
   });
 });
 

@@ -1,9 +1,9 @@
 import { shopifyClient } from "@/utils/client.shopify";
 import type { ApiResponse, JsonSerializedDates } from "@/typings/json-api";
-import type { SelectFile } from "@shamt/database/types";
+import type { SelectPostgresFile } from "@shamt/database/entities";
 
 export type FileResource = JsonSerializedDates<
-  SelectFile,
+  SelectPostgresFile,
   "createdAt" | "deletedAt" | "expiresAt" | "updatedAt"
 >;
 

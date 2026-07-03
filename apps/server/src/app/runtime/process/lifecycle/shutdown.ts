@@ -1,7 +1,7 @@
-import { disposeRuntimeCapabilities } from "@/app/runtime/capabilities";
-import { disposeProviders } from "@/infra/provider";
+import { runtimeCapabilityNodeDispose } from "@/app/runtime/process/runtime-capabilities";
+import { providersDispose } from "@/infra/provider";
 
 export async function onAppShutdown() {
-  await disposeRuntimeCapabilities();
-  await disposeProviders();
+  await runtimeCapabilityNodeDispose();
+  await providersDispose();
 }

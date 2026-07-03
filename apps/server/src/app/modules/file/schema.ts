@@ -23,15 +23,15 @@ export const FileSchema = selectPostgresFileSchema
       description: "Uploaded file MIME type.",
       example: "application/pdf",
     }),
-    createdAt: z.string().datetime().openapi({
+    createdAt: z.iso.datetime().openapi({
       description: "File creation timestamp.",
       example: "2026-06-13T12:00:00.000Z",
     }),
-    deletedAt: z.string().datetime().nullable().openapi({
+    deletedAt: z.iso.datetime().nullable().openapi({
       description: "File deletion timestamp.",
       example: null,
     }),
-    expiresAt: z.string().datetime().openapi({
+    expiresAt: z.iso.datetime().openapi({
       description: "File expiration timestamp.",
       example: "2026-06-14T12:00:00.000Z",
     }),

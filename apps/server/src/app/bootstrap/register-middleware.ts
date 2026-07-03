@@ -6,8 +6,10 @@ import {
   emojiFaviconMiddleware,
   loggerMiddleware,
   requestMiddleware,
+  runtimeCapabilitiesMiddleware,
   runtimeEnvMiddleware,
   runtimeLoggerMiddleware,
+  type RuntimeCapabilitiesCreator,
 } from "@/shared/middlewares";
 import type { AppEnv } from "@/typings";
 import type { Hono } from "hono";
@@ -15,7 +17,12 @@ import type { Hono } from "hono";
 /**
  * Global middleware registration.
  */
-export function registerMiddleware(app: Hono<AppEnv>) {
+export function registerMiddleware(
+  app: Hono<AppEnv>,
+  options: {
+    createRuntimeCapabilities?: RuntimeCapabilitiesCreator;
+  } = {},
+) {
   const env = getEnvProvider();
   const apiPrefix = `/${env.APP_API_PREFIX}`;
   const apiFilesPath = `${apiPrefix}/files`;
@@ -25,6 +32,10 @@ export function registerMiddleware(app: Hono<AppEnv>) {
   app.use("*", requestId());
   app.use("*", runtimeEnvMiddleware());
   app.use("*", runtimeLoggerMiddleware());
+  app.use(
+    "*",
+    runtimeCapabilitiesMiddleware(options.createRuntimeCapabilities),
+  );
   app.use(
     /** must be after runtimeLoggerMiddleware, avoid logger reset */
     loggerMiddleware({

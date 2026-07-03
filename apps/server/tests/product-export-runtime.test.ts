@@ -3,13 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const findSessionsByShop = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/modules/shopify/session-storage/database", () => ({
-  createDatabaseShopifySessionStorage: vi.fn(() => ({
-    findSessionsByShop,
-  })),
-}));
-
 vi.mock("@/infra/provider", () => ({
+  getEnvProvider: vi.fn((rawEnv) => rawEnv),
   getShopifyConfigProvider: vi.fn(() => ({
     clients: {
       Graphql: vi.fn(),
@@ -45,7 +40,7 @@ describe("product export runtime Shopify client", () => {
           APP_DATABASE_PROVIDER: "postgres",
           APP_RUNTIME: "node",
         } as never,
-        {} as never,
+        { findSessionsByShop } as never,
         "test-shop.myshopify.com",
       ),
     ).rejects.toMatchObject({

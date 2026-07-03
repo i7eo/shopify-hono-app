@@ -3,16 +3,53 @@ import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import {
   getPageOffset,
   getReferenceListCursor,
+  resolvePageTotalFromRows,
   toReferencesPage,
 } from "./shared";
+import type { ReferenceRepository } from ".";
 import type {
   ReferenceCodeLookup,
   ReferenceListInput,
   ReferenceLookup,
   ReferenceRecord,
-  ReferenceRepository,
 } from "../../types";
 import type { D1DatabaseClient } from "@/infra/database";
+
+type SqliteReferenceDatabase = D1DatabaseClient | Promise<D1DatabaseClient>;
+
+/**
+ * Creates a SQLite/D1-backed reference repository from a runtime database
+ * capability.
+ */
+export function createSqliteReferenceRepository(
+  database: SqliteReferenceDatabase,
+): ReferenceRepository {
+  const dbPromise = Promise.resolve(database);
+
+  return {
+    async create(record): Promise<void> {
+      return createSqliteReference(await dbPromise, record);
+    },
+    async delete(input): Promise<void> {
+      return deleteSqliteReference(await dbPromise, input);
+    },
+    async findByCode(input) {
+      return findSqliteReferenceByCode(await dbPromise, input);
+    },
+    async findByCodeIncludingDeleted(input) {
+      return findSqliteReferenceByCodeIncludingDeleted(await dbPromise, input);
+    },
+    async findById(input) {
+      return findSqliteReferenceById(await dbPromise, input);
+    },
+    async list(input) {
+      return listSqliteReferences(await dbPromise, input);
+    },
+    async update(record): Promise<void> {
+      return updateSqliteReference(await dbPromise, record);
+    },
+  };
+}
 
 export async function createSqliteReference(
   database: D1DatabaseClient,
@@ -112,7 +149,9 @@ export async function listSqliteReferences(
       : await query;
   const total =
     input.pagination.mode === "page"
-      ? await countSqliteReferences(database, where)
+      ? await resolvePageTotalFromRows(rows, input.pagination, () =>
+          countSqliteReferences(database, where),
+        )
       : undefined;
 
   return toReferencesPage(rows, input, total);
@@ -201,13 +240,3 @@ async function countSqliteReferences(
 
   return Number(row?.total ?? 0);
 }
-
-export const sqliteReferenceRepository = {
-  create: createSqliteReference,
-  delete: deleteSqliteReference,
-  findByCode: findSqliteReferenceByCode,
-  findByCodeIncludingDeleted: findSqliteReferenceByCodeIncludingDeleted,
-  findById: findSqliteReferenceById,
-  list: listSqliteReferences,
-  update: updateSqliteReference,
-} satisfies Record<keyof ReferenceRepository, unknown>;

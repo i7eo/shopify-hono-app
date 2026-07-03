@@ -1,7 +1,7 @@
 import { deserializeValue } from "@unimolecule/utils";
 import { createMiddleware } from "hono/factory";
 import { DEFAULT_WEBHOOK_MAX_SIZE } from "@/constants";
-import { getShopifyConfigProvider } from "@/infra/provider";
+import { getEnvProvider, getShopifyConfigProvider } from "@/infra/provider";
 import {
   badRequestError,
   payloadTooLargeError,
@@ -15,7 +15,7 @@ import type { WebhookValidation } from "@shopify/shopify-api";
  */
 export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
   const rawBody = await readLimitedBody(c.req.raw, DEFAULT_WEBHOOK_MAX_SIZE);
-  const config = c.get("runtimeEnv");
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const shopify = await getShopifyConfigProvider(config);
   const validation = await shopify.webhooks.validate({
     rawRequest: c.req.raw,

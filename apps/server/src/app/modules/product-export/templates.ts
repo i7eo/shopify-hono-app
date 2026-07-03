@@ -29,21 +29,10 @@ export const PRODUCT_EXPORT_TEMPLATES = [
   },
 ] as const satisfies ProductExportTemplate[];
 
-export const DEFAULT_PRODUCT_EXPORT_TEMPLATE: ProductExportTemplateCode =
-  "basic";
-
 export function listProductExportTemplates(): ProductExportTemplate[] {
   return PRODUCT_EXPORT_TEMPLATES.map((template) => ({
     code: template.code,
     fields: [...template.fields],
     label: template.label,
   }));
-}
-
-export function isProductExportTemplateCode(
-  value: string,
-): value is ProductExportTemplateCode {
-  return PRODUCT_EXPORT_TEMPLATE_CODES.includes(
-    value as ProductExportTemplateCode,
-  );
 }

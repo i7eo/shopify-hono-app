@@ -22,15 +22,15 @@ export const ProductExportSchema = selectPostgresProductExportSchema
         description: "Bucket provider used to store the generated CSV file.",
         example: "r2",
       }),
-    completedAt: z.string().datetime().nullable().openapi({
+    completedAt: z.iso.datetime().nullable().openapi({
       description: "Completion timestamp.",
       example: null,
     }),
-    createdAt: z.string().datetime().openapi({
+    createdAt: z.iso.datetime().openapi({
       description: "Creation timestamp.",
       example: "2026-06-18T12:00:00.000Z",
     }),
-    deletedAt: z.string().datetime().nullable().openapi({
+    deletedAt: z.iso.datetime().nullable().openapi({
       description: "Soft deletion timestamp.",
       example: null,
     }),
@@ -64,7 +64,7 @@ export const ProductExportSchema = selectPostgresProductExportSchema
       description: "Product export file template code.",
       example: "basic",
     }),
-    updatedAt: z.string().datetime().openapi({
+    updatedAt: z.iso.datetime().openapi({
       description: "Update timestamp.",
       example: "2026-06-18T12:00:00.000Z",
     }),

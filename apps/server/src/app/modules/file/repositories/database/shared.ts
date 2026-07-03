@@ -1,12 +1,12 @@
 import {
   createSeekCursor,
-  readSeekCursor,
+  getSeekListCursor,
+  toPaginatedRowsPage,
   type SeekCursor,
 } from "@/shared/models";
-import { toPaginatedRowsPage } from "@/utils/pagination";
 import type { FileListInput, FileRecord, FilesPage } from "../../types";
 
-export { getPageOffset } from "@/utils/pagination";
+export { getPageOffset, resolvePageTotalFromRows } from "@/shared/models";
 
 export function toFilesPage(
   rows: FileRecord[],
@@ -34,7 +34,5 @@ export function createFileCursor(file?: FileRecord): string | undefined {
 }
 
 export function getListCursor(input: FileListInput): SeekCursor | null {
-  if (input.pagination.mode !== "cursor") return null;
-
-  return readSeekCursor(input.pagination.cursor);
+  return getSeekListCursor(input);
 }

@@ -31,10 +31,10 @@
       "import": "./src/schemas/*/index.ts",
       "require": "./src/schemas/*/index.ts"
     },
-    "./types": {
-      "types": "./src/types/index.ts",
-      "import": "./src/types/index.ts",
-      "require": "./src/types/index.ts"
+    "./entities": {
+      "types": "./src/entities/index.ts",
+      "import": "./src/entities/index.ts",
+      "require": "./src/entities/index.ts"
     },
     "./package.json": "./package.json"
   },
@@ -68,10 +68,10 @@
         "import": "./dist/schemas/*/index.mjs",
         "require": "./dist/schemas/*/index.cjs"
       },
-      "./types": {
-        "types": "./dist/types/index.d.mts",
-        "import": "./dist/types/index.mjs",
-        "require": "./dist/types/index.cjs"
+      "./entities": {
+        "types": "./dist/entities/index.d.mts",
+        "import": "./dist/entities/index.mjs",
+        "require": "./dist/entities/index.cjs"
       },
       "./package.json": "./package.json"
     }

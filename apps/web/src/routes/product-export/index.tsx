@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Empty } from "@/components/empty";
 import { Offline } from "@/components/errors";
 import { Loading } from "@/components/loading";
@@ -45,6 +45,16 @@ function ProductExportIndex() {
         : false,
   });
   const productExports = productExportsQuery.data?.data?.result ?? [];
+  const productExportById = useMemo(
+    () =>
+      new Map(
+        productExports.map((productExport) => [
+          productExport.id,
+          productExport,
+        ]),
+      ),
+    [productExports],
+  );
   const deletingProductExportId = deleteMutation.isPending
     ? deleteMutation.variables
     : undefined;
@@ -52,37 +62,67 @@ function ProductExportIndex() {
     ? downloadMutation.variables?.id
     : undefined;
 
+  const handleDownload = useCallback(
+    (productExportId: string) => {
+      const productExport = productExportById.get(productExportId);
+      if (!productExport) return;
+
+      setLoading(true);
+      downloadMutation
+        .mutateAsync(productExport)
+        .then(() => {
+          showToast("Product export download started.");
+        })
+        .catch((error: unknown) => {
+          showToast(getErrorMessage(error), { isError: true });
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    },
+    [downloadMutation, productExportById],
+  );
+
+  const handleRequestDelete = useCallback(
+    (productExportId: string) => {
+      const productExport = productExportById.get(productExportId);
+      if (productExport) setProductExportToDelete(productExport);
+    },
+    [productExportById],
+  );
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!productExportToDelete || deletingProductExportId) return;
+
+    setLoading(true);
+    deleteMutation
+      .mutateAsync(productExportToDelete.id)
+      .then(() => {
+        showToast("Product export deleted.");
+        setProductExportToDelete(undefined);
+      })
+      .catch((error: unknown) => {
+        showToast(getErrorMessage(error), { isError: true });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [deleteMutation, deletingProductExportId, productExportToDelete]);
+
+  const handleCancelDelete = useCallback(() => {
+    setProductExportToDelete(undefined);
+  }, []);
+
+  const errorMessage = useMemo(
+    () =>
+      productExportsQuery.error
+        ? getErrorMessage(productExportsQuery.error)
+        : "",
+    [productExportsQuery.error],
+  );
+
   if (!isOnline) {
     return <Offline scope="page" />;
-  }
-
-  async function handleDownload(productExport: ProductExport) {
-    setLoading(true);
-
-    try {
-      await downloadMutation.mutateAsync(productExport);
-      showToast("Product export download started.");
-    } catch (error) {
-      showToast(getErrorMessage(error), { isError: true });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDelete(productExport: ProductExport) {
-    if (deletingProductExportId) return;
-
-    setLoading(true);
-
-    try {
-      await deleteMutation.mutateAsync(productExport.id);
-      showToast("Product export deleted.");
-      setProductExportToDelete(undefined);
-    } catch (error) {
-      showToast(getErrorMessage(error), { isError: true });
-    } finally {
-      setLoading(false);
-    }
   }
 
   if (productExportsQuery.isLoading) {
@@ -94,9 +134,6 @@ function ProductExportIndex() {
       />
     );
   }
-
-  const errorMessage =
-    productExportsQuery.error && getErrorMessage(productExportsQuery.error);
 
   return (
     <s-page heading="Product export">
@@ -131,69 +168,16 @@ function ProductExportIndex() {
               <s-table-header>Actions</s-table-header>
             </s-table-header-row>
             <s-table-body>
-              {productExports.map((productExport) => {
-                const status = getStatusDisplay(productExport.status);
-                const canDownload = productExport.status === "ready";
-                const isDownloading =
-                  downloadingProductExportId === productExport.id;
-                const isDeleting = deletingProductExportId === productExport.id;
-
-                return (
-                  <s-table-row key={productExport.id}>
-                    <s-table-cell>
-                      <s-link href={`/product-export/${productExport.id}`}>
-                        {productExport.name}
-                      </s-link>
-                    </s-table-cell>
-                    <s-table-cell>
-                      {formatDateTime(productExport.createdAt)}
-                    </s-table-cell>
-                    <s-table-cell>
-                      {formatCount(productExport.objectCount)}
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-badge tone={status.tone}>{status.label}</s-badge>
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-stack direction="inline" gap="small-200">
-                        <s-button
-                          accessibilityLabel={`Download ${productExport.name}`}
-                          disabled={!canDownload || isDownloading}
-                          icon="download"
-                          loading={isDownloading}
-                          variant="secondary"
-                          onClick={() => {
-                            handleDownload(productExport).catch(
-                              (error: unknown) => {
-                                showToast(getErrorMessage(error), {
-                                  isError: true,
-                                });
-                              },
-                            );
-                          }}
-                        >
-                          Download
-                        </s-button>
-                        <s-button
-                          accessibilityLabel={`Delete ${productExport.name}`}
-                          command="--show"
-                          commandFor="delete-product-export-modal"
-                          disabled={Boolean(deletingProductExportId)}
-                          icon="delete"
-                          loading={isDeleting}
-                          tone="critical"
-                          variant="secondary"
-                          onClick={() => {
-                            setProductExportToDelete(productExport);
-                          }}
-                        >
-                          Delete
-                        </s-button>
-                      </s-stack>
-                    </s-table-cell>
-                  </s-table-row>
-                );
-              })}
+              {productExports.map((productExport) => (
+                <ProductExportRow
+                  key={productExport.id}
+                  deletingProductExportId={deletingProductExportId}
+                  downloadingProductExportId={downloadingProductExportId}
+                  onDownload={handleDownload}
+                  onRequestDelete={handleRequestDelete}
+                  productExport={productExport}
+                />
+              ))}
             </s-table-body>
           </s-table>
         </s-section>
@@ -213,15 +197,7 @@ function ProductExportIndex() {
           tone="critical"
           commandFor="delete-product-export-modal"
           command="--hide"
-          onClick={() => {
-            if (!productExportToDelete) return;
-
-            handleDelete(productExportToDelete).catch((error: unknown) => {
-              showToast(getErrorMessage(error), {
-                isError: true,
-              });
-            });
-          }}
+          onClick={handleConfirmDelete}
           disabled={
             !productExportToDelete ||
             Boolean(
@@ -238,9 +214,7 @@ function ProductExportIndex() {
           variant="secondary"
           commandFor="delete-product-export-modal"
           command="--hide"
-          onClick={() => {
-            setProductExportToDelete(undefined);
-          }}
+          onClick={handleCancelDelete}
         >
           Cancel
         </s-button>
@@ -248,6 +222,75 @@ function ProductExportIndex() {
     </s-page>
   );
 }
+
+type ProductExportRowProps = {
+  deletingProductExportId?: string;
+  downloadingProductExportId?: string;
+  onDownload: (productExportId: string) => void;
+  onRequestDelete: (productExportId: string) => void;
+  productExport: ProductExport;
+};
+
+const ProductExportRow = memo(function ProductExportRow({
+  deletingProductExportId,
+  downloadingProductExportId,
+  onDownload,
+  onRequestDelete,
+  productExport,
+}: ProductExportRowProps) {
+  const status = getStatusDisplay(productExport.status);
+  const canDownload = productExport.status === "ready";
+  const isDownloading = downloadingProductExportId === productExport.id;
+  const isDeleting = deletingProductExportId === productExport.id;
+  const handleDownloadClick = useCallback(() => {
+    onDownload(productExport.id);
+  }, [onDownload, productExport.id]);
+  const handleRequestDeleteClick = useCallback(() => {
+    onRequestDelete(productExport.id);
+  }, [onRequestDelete, productExport.id]);
+
+  return (
+    <s-table-row>
+      <s-table-cell>
+        <s-link href={`/product-export/${productExport.id}`}>
+          {productExport.name}
+        </s-link>
+      </s-table-cell>
+      <s-table-cell>{formatDateTime(productExport.createdAt)}</s-table-cell>
+      <s-table-cell>{formatCount(productExport.objectCount)}</s-table-cell>
+      <s-table-cell>
+        <s-badge tone={status.tone}>{status.label}</s-badge>
+      </s-table-cell>
+      <s-table-cell>
+        <s-stack direction="inline" gap="small-200">
+          <s-button
+            accessibilityLabel={`Download ${productExport.name}`}
+            disabled={!canDownload || isDownloading}
+            icon="download"
+            loading={isDownloading}
+            variant="secondary"
+            onClick={handleDownloadClick}
+          >
+            Download
+          </s-button>
+          <s-button
+            accessibilityLabel={`Delete ${productExport.name}`}
+            command="--show"
+            commandFor="delete-product-export-modal"
+            disabled={Boolean(deletingProductExportId)}
+            icon="delete"
+            loading={isDeleting}
+            tone="critical"
+            variant="secondary"
+            onClick={handleRequestDeleteClick}
+          >
+            Delete
+          </s-button>
+        </s-stack>
+      </s-table-cell>
+    </s-table-row>
+  );
+});
 
 function getStatusDisplay(status: ProductExportStatus): {
   label: string;

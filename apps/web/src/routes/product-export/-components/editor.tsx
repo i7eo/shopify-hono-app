@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type SubmitEvent } from "react";
+import { useEffect, useMemo, useState, type SubmitEvent } from "react";
 import { Offline } from "@/components/errors";
 import {
   productExportTemplatesQueryOptions,
@@ -71,6 +71,11 @@ export function ProductExportEditor({
   useEffect(() => {
     setSelectedTemplate((current) => current ?? templates[0]?.code);
   }, [templates]);
+
+  const queryErrorMessage = useMemo(
+    () => (templatesQuery.error ? getErrorMessage(templatesQuery.error) : ""),
+    [templatesQuery.error],
+  );
 
   if (!isOnline) {
     return <Offline scope="page" />;
@@ -160,9 +165,7 @@ export function ProductExportEditor({
     !selectedTemplate;
   const pageHeading =
     mode === "create" ? "Create product export" : "Product export";
-  const displayedErrorMessage =
-    errorMessage ||
-    (templatesQuery.error && getErrorMessage(templatesQuery.error));
+  const displayedErrorMessage = errorMessage || queryErrorMessage;
 
   return (
     <form data-save-bar onSubmit={handleSubmit}>

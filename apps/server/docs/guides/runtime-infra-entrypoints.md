@@ -6,12 +6,12 @@
 
 `infra/*/index.ts` 只作为共享契约入口，不负责按 runtime 分发具体实现。
 
-runtime-specific 实现由对应 runtime capability 显式引入：
+runtime-specific 实现由对应 runtime capability creator 显式引入：
 
-| Runtime            | Capability 注册位置                                              |
-| ------------------ | ---------------------------------------------------------------- |
-| Node process       | `apps/server/src/app/runtime/process/capabilities.ts`            |
-| Cloudflare isolate | `apps/server/src/app/runtime/isolate/cloudflare/capabilities.ts` |
+| Runtime            | Capability 创建位置                                                      |
+| ------------------ | ------------------------------------------------------------------------ |
+| Node process       | `apps/server/src/app/runtime/process/runtime-capabilities.ts`            |
+| Cloudflare isolate | `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` |
 
 公共 `infra/*/index.ts` 可以导出：
 
@@ -38,7 +38,7 @@ Cloudflare build 会静态分析入口可达的动态 import。即使业务代�
 - `node:fs`、`node:path`、`node:stream` 等 Node 内置模块出现 unresolved warning。
 - 业务模块为了避开 warning 被迫知道 Node/Cloudflare 细节。
 
-把 runtime 分发移动到 capability 注册处后，Cloudflare 入口只显式 import isolate 实现，Node 入口只显式 import process 实现。业务模块继续只依赖 capability，不直接依赖 runtime 实现。
+把 runtime 分发移动到 runtime capability creator 后，Cloudflare 入口只显式 import isolate 实现，Node 入口只显式 import process 实现。业务模块继续只依赖 `RuntimeCapabilities`，不直接依赖 runtime 实现。
 
 ## 当前边界
 
@@ -60,32 +60,31 @@ apps/server/src/infra/bucket/isolate.ts
 `infra/database/index.ts`、`infra/queue/index.ts`、`infra/scheduler/index.ts` 同理只保留共享导出和类型。具体创建与销毁逻辑放在：
 
 ```text
-apps/server/src/app/runtime/process/capabilities.ts
-apps/server/src/app/runtime/isolate/cloudflare/capabilities.ts
+apps/server/src/app/runtime/process/runtime-capabilities.ts
+apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts
 ```
 
-## Runtime Resource Context
+## Runtime Capabilities Context
 
-`databaseFactory`、`bucketFactory`、`queueProducerFactory` 和 `moduleFileDownloadResolverFactory` 不再接收 Hono `Context`。
-
-它们统一接收最小资源上下文：
+HTTP request 通过 Hono `runtimeCapabilities` variable 读取 scoped 能力：
 
 ```ts
-type RuntimeResourceContext = {
-  bindings?: Record<string, unknown>;
+runtimeCapabilities(c).database();
+runtimeCapabilities(c).bucket();
+runtimeCapabilities(c).file.downloadResolver();
+runtimeCapabilities(c).queue.producer();
+```
+
+Queue 和 Scheduler context 也携带同一个 `RuntimeCapabilities` 对象，因此后台任务可以直接读取：
+
+```ts
+type QueueJobContext = {
+  runtimeCapabilities: RuntimeCapabilities;
   runtimeEnv: RuntimeConfig;
 };
 ```
 
-HTTP route 通过 adapter 从 Hono context 转换：
-
-```ts
-createRuntimeResourceContextFromHono(c);
-```
-
-Queue 和 Scheduler context 本身已经携带 `runtimeEnv` 与可选 `bindings`，可以直接传给这些 factory。
-
-这样 infra factory 不需要知道调用来自 HTTP、Queue 还是 Scheduler，也不会依赖 Hono。
+这样业务 service、HTTP route、Queue job 和 Scheduler task 都不需要读取全局 registry，也不会依赖 Hono 以外的伪造 context。
 
 ## 新增 Infra 能力的规则
 
@@ -96,8 +95,8 @@ Queue 和 Scheduler context 本身已经携带 `runtimeEnv` 与可选 `bindings`
 | 共享接口、类型、strategy parser           | `infra/foo/index.ts` 或 `infra/foo/shared.ts` |
 | Node-only 实现                            | `infra/foo/process.ts`                        |
 | Cloudflare-only 实现                      | `infra/foo/isolate.ts`                        |
-| runtime 选择、binding 校验、disposer 注册 | `app/runtime/*/capabilities.ts`               |
-| 业务模块调用                              | `getRuntimeCapability("fooFactory")`          |
+| runtime 选择、binding 校验、disposer 注册 | `app/runtime/*/runtime-capabilities.ts`       |
+| 业务模块调用                              | `runtimeCapabilities(c).foo` 或 context 能力  |
 
 不要在业务 service、controller、queue job 中写：
 
@@ -109,7 +108,7 @@ if (isCloudflareRuntime(config)) {
 }
 ```
 
-这类 runtime 分支应该留在 capability 注册处。
+这类 runtime 分支应该留在 runtime capability creator。
 
 ## Binding 校验
 

@@ -1,47 +1,50 @@
 import { createClient, getClientEnvConfig } from "@/infra/http/client";
-import { providerDisposers, providers } from "./constants";
 import { getEnvProvider } from "./env";
 import { createProviderSignature } from "./signature";
 import type { RuntimeConfig } from "@/infra/env";
 
 export type HttpClient = ReturnType<typeof createClient>;
 
-let clientProviderSignature: string | undefined;
+type ClientProviderSlot = {
+  signature: string;
+  value: HttpClient;
+};
+
+let clientProviderSlot: ClientProviderSlot | undefined;
 
 export function getClientProvider(config?: RuntimeConfig): HttpClient {
   const clientConfig = config ?? getCurrentEnvProvider();
 
   const signature = getClientProviderSignature(clientConfig);
-  if (!providers.has("client") || clientProviderSignature !== signature) {
+  if (clientProviderSlot?.signature !== signature) {
     setClientProvider(createClient(clientConfig), signature);
   }
 
-  return providers.get("client") as HttpClient;
+  return getCurrentClientProvider();
 }
 
 export function resetClientProvider() {
-  const client = providers.get("client") as HttpClient | undefined;
-  client?.dispose();
-  providers.delete("client");
-  providerDisposers.delete("client");
-  clientProviderSignature = undefined;
+  clientProviderSlot?.value.dispose();
+  clientProviderSlot = undefined;
 }
 
 function setClientProvider(client: HttpClient, signature: string) {
-  const current = providers.get("client") as HttpClient | undefined;
+  const current = clientProviderSlot?.value;
   if (current && current !== client) {
     current.dispose();
   }
-  providers.set("client", client);
-  clientProviderSignature = signature;
-  providerDisposers.set("client", resetClientProvider);
+  clientProviderSlot = { signature, value: client };
+}
+
+function getCurrentClientProvider(): HttpClient {
+  if (!clientProviderSlot) {
+    throw new Error("Client provider is not configured");
+  }
+
+  return clientProviderSlot.value;
 }
 
 function getCurrentEnvProvider(): RuntimeConfig {
-  const env = providers.get("env") as RuntimeConfig | undefined;
-
-  if (env) return env;
-
   return getEnvProvider();
 }
 

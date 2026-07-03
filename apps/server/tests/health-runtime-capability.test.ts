@@ -5,38 +5,43 @@ import {
   checkMemoryHealth,
   getHealths,
 } from "@/app/modules/health/service";
+import { runtimeCapabilityCloudflare } from "@/app/runtime/isolate/cloudflare/runtime-capabilities";
+import { runtimeCapabilityNode } from "@/app/runtime/process/runtime-capabilities";
 import {
-  disposeRuntimeCapabilities,
-  getRuntimeCapability,
-  setRuntimeCapability,
-} from "@/app/runtime/capabilities";
-import { createMockContext, runtimeConfig } from "./shopify/test-utils";
+  createMockContext,
+  createMockRuntimeCapabilities,
+  runtimeConfig,
+} from "./shopify/test-utils";
 import type { ProcessDatabase } from "@/infra/database/process";
 
 const networkHealthGet = vi.hoisted(() =>
   vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
 );
 
-const checkProcessDiskUsage = vi.fn(() => ({
-  availableBytes: 80,
-  checks: {},
-  freeBytes: 75,
-  path: "/tmp/health",
-  status: "ok" as const,
-  totalBytes: 100,
-  usedBytes: 25,
-  usedPercent: 0.25,
-}));
+const checkProcessDiskUsage = vi.hoisted(() =>
+  vi.fn(() => ({
+    availableBytes: 80,
+    checks: {},
+    freeBytes: 75,
+    path: "/tmp/health",
+    status: "ok" as const,
+    totalBytes: 100,
+    usedBytes: 25,
+    usedPercent: 0.25,
+  })),
+);
 
-const checkProcessMemoryUsage = vi.fn(() => ({
-  arrayBuffersBytes: 5,
-  checks: {},
-  externalBytes: 4,
-  heapTotalBytes: 30,
-  heapUsedBytes: 20,
-  rssBytes: 40,
-  status: "ok" as const,
-}));
+const checkProcessMemoryUsage = vi.hoisted(() =>
+  vi.fn(() => ({
+    arrayBuffersBytes: 5,
+    checks: {},
+    externalBytes: 4,
+    heapTotalBytes: 30,
+    heapUsedBytes: 20,
+    rssBytes: 40,
+    status: "ok" as const,
+  })),
+);
 
 vi.mock("@unimolecule/utils/node", () => ({
   checkProcessDiskUsage,
@@ -55,35 +60,38 @@ vi.mock("@/infra/provider", async (importOriginal) => {
 });
 
 describe("health runtime capabilities", () => {
-  afterEach(async () => {
-    await disposeRuntimeCapabilities();
+  afterEach(() => {
     vi.clearAllMocks();
   });
 
   it("reads disk and memory health through registered module capabilities", async () => {
     const context = createMockContext();
-
-    setRuntimeCapability("moduleHealthDiskChecker", (c) => ({
-      availableBytes: 800,
-      checks: {},
-      freeBytes: 700,
-      path: "/tmp/custom-health",
-      runtime: c.get("runtimeEnv").APP_RUNTIME,
-      status: "ok",
-      totalBytes: 1_000,
-      usedBytes: 300,
-      usedPercent: 0.3,
-    }));
-    setRuntimeCapability("moduleHealthMemoryChecker", (c) => ({
-      arrayBuffersBytes: 5,
-      checks: {},
-      externalBytes: 4,
-      heapTotalBytes: 30,
-      heapUsedBytes: 20,
-      rssBytes: 40,
-      runtime: c.get("runtimeEnv").APP_RUNTIME,
-      status: "ok",
-    }));
+    const runtimeCapabilities = createMockRuntimeCapabilities({
+      health: {
+        disk: (c) => ({
+          availableBytes: 800,
+          checks: {},
+          freeBytes: 700,
+          path: "/tmp/custom-health",
+          runtime: c.get("runtimeEnv").APP_RUNTIME,
+          status: "ok",
+          totalBytes: 1_000,
+          usedBytes: 300,
+          usedPercent: 0.3,
+        }),
+        memory: (c) => ({
+          arrayBuffersBytes: 5,
+          checks: {},
+          externalBytes: 4,
+          heapTotalBytes: 30,
+          heapUsedBytes: 20,
+          rssBytes: 40,
+          runtime: c.get("runtimeEnv").APP_RUNTIME,
+          status: "ok",
+        }),
+      },
+    });
+    context.set("runtimeCapabilities", runtimeCapabilities);
 
     await expect(checkDiskHealth(context as never)).resolves.toEqual({
       availableBytes: 800,
@@ -112,21 +120,19 @@ describe("health runtime capabilities", () => {
 
   it("registers process health capabilities from @unimolecule/utils node helpers", async () => {
     const context = createMockContext();
-    const { registerProcessRuntimeCapabilities } =
-      await import("@/app/runtime/process/capabilities");
+    const capabilities = runtimeCapabilityNode({
+      runtimeEnv: runtimeConfig,
+    });
 
-    registerProcessRuntimeCapabilities();
-
-    const diskChecker = getRuntimeCapability("moduleHealthDiskChecker");
-    const memoryChecker = getRuntimeCapability("moduleHealthMemoryChecker");
-
-    await expect(diskChecker?.(context as never)).resolves.toMatchObject({
+    await expect(
+      capabilities.health.disk(context as never),
+    ).resolves.toMatchObject({
       path: "/tmp/health",
       runtime: "node",
       status: "ok",
       totalBytes: 100,
     });
-    expect(memoryChecker?.(context as never)).toMatchObject({
+    expect(capabilities.health.memory(context as never)).toMatchObject({
       heapUsedBytes: 20,
       rssBytes: 40,
       runtime: "node",
@@ -136,28 +142,21 @@ describe("health runtime capabilities", () => {
     expect(checkProcessMemoryUsage).toHaveBeenCalledTimes(1);
   });
 
-  it("registers unsupported isolate health capabilities", async () => {
-    const context = createMockContext({
-      vars: {
-        runtimeEnv: {
-          ...runtimeConfig,
-          APP_RUNTIME: "cloudflare",
-        },
-      },
+  it("registers unsupported isolate health capabilities", () => {
+    const runtimeEnv: typeof runtimeConfig = {
+      ...runtimeConfig,
+      APP_RUNTIME: "cloudflare",
+    };
+    const capabilities = runtimeCapabilityCloudflare({
+      env: {},
+      runtimeEnv,
     });
-    const { registerCloudflareIsolateRuntimeCapabilities } =
-      await import("@/app/runtime/isolate/cloudflare/capabilities");
 
-    registerCloudflareIsolateRuntimeCapabilities();
-
-    const diskChecker = getRuntimeCapability("moduleHealthDiskChecker");
-    const memoryChecker = getRuntimeCapability("moduleHealthMemoryChecker");
-
-    expect(diskChecker?.(context as never)).toEqual({
+    expect(capabilities.health.disk(createMockContext() as never)).toEqual({
       runtime: "cloudflare",
       status: "unsupported",
     });
-    expect(memoryChecker?.(context as never)).toEqual({
+    expect(capabilities.health.memory(createMockContext() as never)).toEqual({
       runtime: "cloudflare",
       status: "unsupported",
     });
@@ -165,9 +164,11 @@ describe("health runtime capabilities", () => {
 
   it("reads database health through the runtime database factory", async () => {
     const context = createMockContext();
-
-    setRuntimeCapability("databaseFactory", (resourceContext) =>
-      createHealthTestDatabase(resourceContext.runtimeEnv.APP_RUNTIME),
+    context.set(
+      "runtimeCapabilities",
+      createMockRuntimeCapabilities({
+        database: () => createHealthTestDatabase(runtimeConfig.APP_RUNTIME),
+      }),
     );
 
     await expect(checkDatabaseHealth(context as never)).resolves.toEqual({
@@ -182,30 +183,34 @@ describe("health runtime capabilities", () => {
 
   it("aggregates module health checks", async () => {
     const context = createMockContext();
-
-    setRuntimeCapability("moduleHealthDiskChecker", (c) => ({
-      availableBytes: 800,
-      checks: {},
-      freeBytes: 700,
-      path: "/tmp/custom-health",
-      runtime: c.get("runtimeEnv").APP_RUNTIME,
-      status: "ok",
-      totalBytes: 1_000,
-      usedBytes: 300,
-      usedPercent: 0.3,
-    }));
-    setRuntimeCapability("moduleHealthMemoryChecker", (c) => ({
-      arrayBuffersBytes: 5,
-      checks: {},
-      externalBytes: 4,
-      heapTotalBytes: 30,
-      heapUsedBytes: 20,
-      rssBytes: 40,
-      runtime: c.get("runtimeEnv").APP_RUNTIME,
-      status: "ok",
-    }));
-    setRuntimeCapability("databaseFactory", (resourceContext) =>
-      createHealthTestDatabase(resourceContext.runtimeEnv.APP_RUNTIME),
+    context.set(
+      "runtimeCapabilities",
+      createMockRuntimeCapabilities({
+        database: () => createHealthTestDatabase(runtimeConfig.APP_RUNTIME),
+        health: {
+          disk: (c) => ({
+            availableBytes: 800,
+            checks: {},
+            freeBytes: 700,
+            path: "/tmp/custom-health",
+            runtime: c.get("runtimeEnv").APP_RUNTIME,
+            status: "ok",
+            totalBytes: 1_000,
+            usedBytes: 300,
+            usedPercent: 0.3,
+          }),
+          memory: (c) => ({
+            arrayBuffersBytes: 5,
+            checks: {},
+            externalBytes: 4,
+            heapTotalBytes: 30,
+            heapUsedBytes: 20,
+            rssBytes: 40,
+            runtime: c.get("runtimeEnv").APP_RUNTIME,
+            status: "ok",
+          }),
+        },
+      }),
     );
 
     await expect(getHealths(context as never)).resolves.toMatchObject({

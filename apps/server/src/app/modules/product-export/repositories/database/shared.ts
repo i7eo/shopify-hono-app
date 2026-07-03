@@ -1,9 +1,9 @@
 import {
   createSeekCursor,
-  readSeekCursor,
+  getSeekListCursor,
+  toPaginatedRowsPage,
   type SeekCursor,
 } from "@/shared/models";
-import { toPaginatedRowsPage } from "@/utils/pagination";
 import type {
   ProductExportListInput,
   ProductExportPartRecord,
@@ -12,7 +12,7 @@ import type {
   ProductExportsPage,
 } from "../../types";
 
-export { getPageOffset } from "@/utils/pagination";
+export { getPageOffset, resolvePageTotalFromRows } from "@/shared/models";
 
 export function toProductExportsPage(
   rows: ProductExportRecord[],
@@ -44,9 +44,7 @@ export function createProductExportCursor(
 export function getListCursor(
   input: ProductExportListInput,
 ): SeekCursor | null {
-  if (input.pagination.mode !== "cursor") return null;
-
-  return readSeekCursor(input.pagination.cursor);
+  return getSeekListCursor(input);
 }
 
 export function toPartStats(

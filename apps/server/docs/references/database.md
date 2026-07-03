@@ -1,6 +1,6 @@
 # Database
 
-`apps/server/src/infra/database` 是 Shopify session storage、file metadata 和 database health 共用的 runtime-aware database 层。它通过 `databaseFactory` capability 暴露 Drizzle client 和 database adapter check，让业务模块不直接关心 Node PostgreSQL 与 Cloudflare D1 的平台差异。
+`apps/server/src/infra/database` 是 Shopify session storage、file metadata、product-export 和 database health 共用的 runtime-aware database 层。它通过 `runtimeCapabilities.database()` 暴露 Drizzle client 和 database adapter check，让业务模块不直接关心 Node PostgreSQL 与 Cloudflare D1 的平台差异。
 
 ## Provider 矩阵
 
@@ -39,9 +39,9 @@ apps/server/src/infra/database/process.ts
 apps/server/src/infra/database/shared.ts
 ```
 
-数据库连接会缓存在 process runtime 中，并在 runtime capability disposer 中释放。adapter 的 `check()` 复用同一个 `pg.Pool` 执行 `select 1`，用于 `/health/database` 验证应用账号、连接池和 SQL 执行链路。
+数据库连接会缓存在 process runtime 中，并在 `runtimeCapabilityNodeDispose()` 中释放。adapter 的 `check()` 复用同一个 `pg.Pool` 执行 `select 1`，用于 `/health/database` 验证应用账号、连接池和 SQL 执行链路。
 
-`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database factory；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database factory。process PostgreSQL 可以缓存连接；isolate D1 当前以 request binding 为边界，disposer 是 no-op。两种 runtime 的 database health 都只做最小 `select 1` 检查，不依赖业务表或 migration 状态。
+`infra/database/index.ts` 只导出共享契约和 database kind helper。Node runtime capability 从 `infra/database/process.ts` 引入 process database adapter；Cloudflare runtime capability 从 `infra/database/isolate.ts` 引入 isolate database adapter。process PostgreSQL 可以缓存连接；isolate D1 当前以 request binding 为边界，不跨 request 缓存 binding。两种 runtime 的 database health 都只做最小 `select 1` 检查，不依赖业务表或 migration 状态。
 
 ### Cloudflare + D1
 
@@ -121,8 +121,9 @@ packages/database/src/models/sqlite/references.ts
 
 模块 repository 约定：
 
-- `index.ts` 只负责根据 Drizzle database kind 选择 dialect repository。
-- `postgres.ts` 和 `sqlite.ts` 放置 SQL dialect-specific 查询、排序、聚合和事务逻辑。
+- `index.ts` 只保留 repository 类型出口，不 import PostgreSQL 或 SQLite 实现。
+- `postgres.ts` 和 `sqlite.ts` 放置 SQL dialect-specific repository builder、查询、排序、聚合和事务逻辑。
+- runtime capability creator 负责在 Node 入口绑定 PostgreSQL repository，在 Cloudflare 入口绑定 SQLite/D1 repository。
 - `shared.ts` 放置分页转换、cursor 解析、page offset、状态统计转换等跨 dialect 逻辑。
 - Cursor 列表使用 `created_at + id` seek cursor，多取一条记录判断 `hasNext`；page 列表只允许浅页导航，并额外计算 `total`。
 
@@ -290,6 +291,6 @@ Cloudflare + D1 需要 `APP_DATABASE_D1_ID` 生成 `d1_databases`。非 producti
 ## 使用边界
 
 - 业务模块不要直接创建 `pg.Pool` 或 D1 client。
-- Shopify session storage 和 file store 都应通过 `databaseFactory` 获取 database。
+- Shopify session storage、file store、product-export 和 health/database 都应通过 `runtimeCapabilities.database()` 获取 database。
 - Cloudflare binding 字段不要写死在业务代码里，必须通过 `APP_DATABASE_D1_BINDING` 动态读取。
 - 迁移目录 `drizzle.pg` / `drizzle.d1` 是生成产物目录，lint 会跳过目录内容，但仍会校验 `drizzle.*.config.ts`。

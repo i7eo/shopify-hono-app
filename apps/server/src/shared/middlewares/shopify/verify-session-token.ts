@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { getShopifyConfigProvider } from "@/infra/provider";
+import { getEnvProvider, getShopifyConfigProvider } from "@/infra/provider";
 import { unauthorizedError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
 
@@ -12,7 +12,7 @@ export const verifySessionToken = createMiddleware<AppEnv>(async (c, next) => {
 
   const token = authHeader.slice(7);
 
-  const config = c.get("runtimeEnv");
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const shopify = await getShopifyConfigProvider(config);
 
   try {

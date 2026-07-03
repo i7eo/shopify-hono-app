@@ -1,3 +1,4 @@
+import type { RuntimeCapabilities } from "@/app/runtime/runtime-capabilities";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 import type { ShopifyClient } from "@/infra/provider";
@@ -12,6 +13,7 @@ type RuntimeBindings<TRuntime extends RuntimeConfig["APP_RUNTIME"]> =
 
 export interface Variables {
   requestId: string;
+  runtimeCapabilities: RuntimeCapabilities;
   runtimeEnv: RuntimeConfig;
   runtimeLogger: Logger;
 

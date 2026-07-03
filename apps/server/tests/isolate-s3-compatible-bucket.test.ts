@@ -32,6 +32,15 @@ vi.mock("@/infra/provider", async (importOriginal) => {
   };
 });
 
+vi.mock("@/utils/cloudflare", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/utils/cloudflare")>();
+
+  return {
+    ...original,
+    getCloudflareTokenId: vi.fn(() => Promise.resolve("access_key")),
+  };
+});
+
 vi.mock("@aws-sdk/client-s3", () => {
   class CreateMultipartUploadCommand {
     readonly type = "create-multipart";

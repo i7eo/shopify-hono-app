@@ -21,12 +21,12 @@ describe("Shopify runtime re-exports", () => {
     const productConstants = await import("@/app/modules/product/constants");
     const shopConstants = await import("@/app/modules/shop/constants");
 
-    expect(productConstants.apiPath).toBe("/api/product");
-    expect(productConstants.tag).toBe("Api - Product");
-    expect(productConstants.tags).toEqual(["Api - Product"]);
-    expect(shopConstants.apiPath).toBe("/api/shop");
-    expect(shopConstants.tag).toBe("Api - Shop");
-    expect(shopConstants.tags).toEqual(["Api - Shop"]);
+    expect(productConstants.apiPath).toBe("/api/products");
+    expect(productConstants.tag).toBe("Api - Products");
+    expect(productConstants.tags).toEqual(["Api - Products"]);
+    expect(shopConstants.apiPath).toBe("/api/shops");
+    expect(shopConstants.tag).toBe("Api - Shops");
+    expect(shopConstants.tags).toEqual(["Api - Shops"]);
   });
 
   it("supports resetting and disposing Shopify mode capabilities", async () => {

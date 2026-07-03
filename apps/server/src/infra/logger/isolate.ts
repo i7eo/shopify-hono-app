@@ -11,7 +11,7 @@ export async function setupIsolateLogger(
   options: LoggerSetupOptions,
 ): Promise<void> {
   await setupConsoleLogger(
-    { level: getLoggerEnvConfig(config).level },
+    { level: getLoggerEnvConfig(config).APP_LOGGER_LEVEL },
     options,
   );
 }

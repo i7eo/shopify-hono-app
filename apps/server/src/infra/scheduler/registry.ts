@@ -1,4 +1,5 @@
 import { throwAppServerError as throwError } from "../../../internal";
+import type { RuntimeCapabilities } from "@/app/runtime/runtime-capabilities";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 
@@ -6,6 +7,7 @@ export type SchedulerTaskContext = {
   bindings?: Record<string, unknown>;
   cron?: string;
   logger: Logger;
+  runtimeCapabilities: RuntimeCapabilities;
   runtimeEnv: RuntimeConfig;
 };
 

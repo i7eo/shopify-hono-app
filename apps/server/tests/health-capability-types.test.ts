@@ -1,7 +1,8 @@
+import { describe, expect, it } from "vitest";
 import type {
-  ModuleHealthDiskCheckResult,
-  ModuleHealthMemoryCheckResult,
-} from "@/app/runtime/capabilities";
+  RuntimeCapabilityDiskCheckResult,
+  RuntimeCapabilityMemoryCheckResult,
+} from "@/app/runtime/runtime-capabilities";
 import type {
   ProcessDiskUsageCheckResult,
   ProcessMemoryUsageCheckResult,
@@ -12,11 +13,11 @@ type Assert<T extends true> = T;
 type IsAssignable<Source, Target> = Source extends Target ? true : false;
 
 type SupportedDiskHealthResult = Exclude<
-  ModuleHealthDiskCheckResult,
+  RuntimeCapabilityDiskCheckResult,
   { status: "unsupported" }
 >;
 type SupportedMemoryHealthResult = Exclude<
-  ModuleHealthMemoryCheckResult,
+  RuntimeCapabilityMemoryCheckResult,
   { status: "unsupported" }
 >;
 
@@ -37,13 +38,19 @@ export type _MemoryHealthReusesProcessMemoryUsageCheckResult = Assert<
 export type _DiskHealthKeepsUnsupportedRuntimeBranch = Assert<
   IsAssignable<
     { runtime: string; status: "unsupported" },
-    ModuleHealthDiskCheckResult
+    RuntimeCapabilityDiskCheckResult
   >
 >;
 
 export type _MemoryHealthKeepsUnsupportedRuntimeBranch = Assert<
   IsAssignable<
     { runtime: string; status: "unsupported" },
-    ModuleHealthMemoryCheckResult
+    RuntimeCapabilityMemoryCheckResult
   >
 >;
+
+describe("runtime health capability types", () => {
+  it("keeps compile-time assertions attached to a real suite", () => {
+    expect(true).toBe(true);
+  });
+});

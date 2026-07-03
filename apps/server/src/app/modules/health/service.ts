@@ -1,8 +1,6 @@
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
+import { runtimeCapabilities } from "@/app/runtime/runtime-capabilities";
 import { getDatabaseEnvConfig } from "@/infra/database";
-import { getClientProvider } from "@/infra/provider";
-import { internalServerError } from "@/shared/exceptions";
+import { getClientProvider, getEnvProvider } from "@/infra/provider";
 import type {
   DatabaseHealthDataSchema,
   DiskHealthDataSchema,
@@ -32,7 +30,7 @@ type ReservedHealthTarget = ReservedHealthData["target"];
 const NETWORK_HEALTH_URL = "https://example.com";
 
 export async function getHealths(c: Context<AppEnv>): Promise<HealthData> {
-  const runtimeConfig = c.get("runtimeEnv");
+  const runtimeConfig = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const [disk, memory, network, database] = await Promise.all([
     checkDiskHealthSafely(c),
     checkMemoryHealthSafely(c),
@@ -59,17 +57,7 @@ export async function getHealths(c: Context<AppEnv>): Promise<HealthData> {
 export async function checkDiskHealth(
   c: Context<AppEnv>,
 ): Promise<DiskHealthData> {
-  const moduleHealthDiskChecker = getRuntimeCapability(
-    "moduleHealthDiskChecker",
-  );
-
-  if (!moduleHealthDiskChecker) {
-    throw internalServerError(
-      "Module health disk checker capability is not registered",
-    );
-  }
-
-  const result = await moduleHealthDiskChecker(c);
+  const result = await runtimeCapabilities(c).health.disk(c);
 
   if (result.status === "unsupported") {
     return {
@@ -96,17 +84,7 @@ export async function checkDiskHealth(
 export async function checkMemoryHealth(
   c: Context<AppEnv>,
 ): Promise<MemoryHealthData> {
-  const moduleHealthMemoryChecker = getRuntimeCapability(
-    "moduleHealthMemoryChecker",
-  );
-
-  if (!moduleHealthMemoryChecker) {
-    throw internalServerError(
-      "Module health memory checker capability is not registered",
-    );
-  }
-
-  const result = await moduleHealthMemoryChecker(c);
+  const result = await runtimeCapabilities(c).health.memory(c);
 
   if (result.status === "unsupported") {
     return {
@@ -151,20 +129,10 @@ export async function checkNetworkHealth(
 export async function checkDatabaseHealth(
   c: Context<AppEnv>,
 ): Promise<DatabaseHealthData> {
-  const runtimeConfig = c.get("runtimeEnv");
-  const databaseFactory = getRuntimeCapability("databaseFactory");
-
-  if (!databaseFactory) {
-    return createDatabaseHealthError(
-      runtimeConfig,
-      "Database factory capability is not registered",
-    );
-  }
+  const runtimeConfig = getEnvProvider(c.get("runtimeEnv") ?? c.env);
 
   try {
-    const database = await databaseFactory(
-      createRuntimeResourceContextFromHono(c),
-    );
+    const database = await runtimeCapabilities(c).database();
     const result = await database.check();
 
     return {
@@ -195,7 +163,7 @@ async function checkDiskHealthSafely(c: Context<AppEnv>) {
   } catch (error) {
     return {
       message: getErrorMessage(error),
-      runtime: c.get("runtimeEnv").APP_RUNTIME,
+      runtime: getEnvProvider(c.get("runtimeEnv") ?? c.env).APP_RUNTIME,
       status: "error" as const,
       target: "disk" as const,
     };
@@ -208,7 +176,7 @@ async function checkMemoryHealthSafely(c: Context<AppEnv>) {
   } catch (error) {
     return {
       message: getErrorMessage(error),
-      runtime: c.get("runtimeEnv").APP_RUNTIME,
+      runtime: getEnvProvider(c.get("runtimeEnv") ?? c.env).APP_RUNTIME,
       status: "error" as const,
       target: "memory" as const,
     };

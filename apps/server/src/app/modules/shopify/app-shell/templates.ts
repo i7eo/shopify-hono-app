@@ -1,22 +1,27 @@
 import { escape as escapeHtml } from "@unimolecule/utils";
+import type { RuntimeConfig } from "@/infra/env";
 
 /**
  * Renders the embedded app shell with App Bridge and Polaris web components.
  */
-export function renderEmbeddedAppShell(apiKey: string): string {
+export function renderEmbeddedAppShell(options: RuntimeConfig): string {
   return renderShopifyAppShell({
-    apiKey,
+    appRuntime: options.APP_RUNTIME,
+    apiKey: options.SHOPIFY_APP_KEY,
     appBridge: true,
+    mode: options.SHOPIFY_APP_MODE,
   });
 }
 
 /**
  * Renders the standalone app shell with Polaris web components only.
  */
-export function renderStandaloneAppShell(apiKey: string): string {
+export function renderStandaloneAppShell(options: RuntimeConfig): string {
   return renderShopifyAppShell({
-    apiKey,
+    appRuntime: options.APP_RUNTIME,
+    apiKey: options.SHOPIFY_APP_KEY,
     appBridge: false,
+    mode: options.SHOPIFY_APP_MODE,
   });
 }
 
@@ -24,8 +29,10 @@ export function renderStandaloneAppShell(apiKey: string): string {
  * Builds the shared HTML document used by both Shopify app modes.
  */
 function renderShopifyAppShell(options: {
+  appRuntime: string;
   apiKey: string;
   appBridge: boolean;
+  mode: string;
 }): string {
   return `
     <!DOCTYPE html>
@@ -33,7 +40,9 @@ function renderShopifyAppShell(options: {
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <meta name="app-runtime" content="${escapeHtml(options.appRuntime)}" />
       <meta name="shopify-api-key" content="${escapeHtml(options.apiKey)}" />
+      <meta name="shopify-app-mode" content="${escapeHtml(options.mode)}" />
       ${renderAppBridgeScript(options.appBridge)}
       <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
       <title>My Shopify App</title>

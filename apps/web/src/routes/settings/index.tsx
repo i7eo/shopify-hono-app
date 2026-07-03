@@ -13,8 +13,6 @@ function Settings() {
       }}
       onSubmit={(event) => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        console.info("Settings form data", Object.fromEntries(formData));
       }}
     >
       <s-page heading="Settings" inlineSize="small">

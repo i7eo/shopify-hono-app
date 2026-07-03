@@ -240,6 +240,7 @@ describe("Shopify Admin API client middleware", () => {
 
     vi.doMock("@/infra/provider", async (importOriginal) => ({
       ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getLoggerProvider: vi.fn(() => logger),
       getShopifyClientProvider,
     }));
     vi.doMock("@/app/modules/shopify/mode", () => ({
@@ -283,6 +284,7 @@ describe("Shopify Admin API client middleware", () => {
 
     vi.doMock("@/infra/provider", async (importOriginal) => ({
       ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getLoggerProvider: vi.fn(() => logger),
       getShopifyClientProvider,
     }));
     vi.doMock("@/app/modules/shopify/mode", () => ({
@@ -303,7 +305,7 @@ describe("Shopify Admin API client middleware", () => {
 
   it("proxies non-request client properties and refreshes for response status 401", async () => {
     const firstClient = {
-      apiVersion: "2026-04",
+      apiVersion: "2026-07",
       request: vi.fn().mockRejectedValueOnce(
         Object.assign(new Error("Unauthorized"), {
           response: { status: 401 },
@@ -311,7 +313,7 @@ describe("Shopify Admin API client middleware", () => {
       ),
     };
     const refreshedClient = {
-      apiVersion: "2026-04",
+      apiVersion: "2026-07",
       request: vi.fn().mockResolvedValueOnce("ok"),
     };
     const refreshedSession = {
@@ -327,6 +329,7 @@ describe("Shopify Admin API client middleware", () => {
 
     vi.doMock("@/infra/provider", async (importOriginal) => ({
       ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getLoggerProvider: vi.fn(() => logger),
       getShopifyClientProvider,
     }));
     vi.doMock("@/app/modules/shopify/mode", () => ({
@@ -346,7 +349,7 @@ describe("Shopify Admin API client middleware", () => {
       }) as never,
     );
 
-    expect(client.apiVersion).toBe("2026-04");
+    expect(client.apiVersion).toBe("2026-07");
     await expect(client.request("query", { variables: {} })).resolves.toBe(
       "ok",
     );

@@ -172,8 +172,8 @@ import type { Database } from "@/infra/database";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 import type { QueueProducer } from "@/infra/queue";
-import type { RuntimeUnsupportedResult } from "@/utils/runtime";
 import type { AppEnv } from "@/typings";
+import type { RuntimeUnsupportedResult } from "@/utils/runtime";
 import type { SessionStorage } from "@shopify/shopify-app-session-storage";
 import type {
   ProcessDiskUsageCheckResult,
@@ -244,7 +244,7 @@ import type { RuntimeCapabilities } from "@/app/runtime/runtime-capabilities";
 Then add this field to `Variables`:
 
 ```ts
-runtimeCapabilities: RuntimeCapabilities;
+RuntimeCapabilities;
 ```
 
 - [ ] **Step 3: Add a focused unit test for lazy caching**
@@ -272,9 +272,9 @@ describe("runtimeCapabilityLazy", () => {
   it("memoizes an asynchronous capability promise within one scope", async () => {
     let calls = 0;
     const value = {};
-    const lazy = runtimeCapabilityLazy(async () => {
+    const lazy = runtimeCapabilityLazy(() => {
       calls += 1;
-      return value;
+      return Promise.resolve(value);
     });
 
     const first = lazy();
@@ -340,12 +340,12 @@ Create `apps/server/src/shared/middlewares/runtime-capabilities.ts`:
 
 ```ts
 import { createMiddleware } from "hono/factory";
-import { runtimeCapabilityNodeRequest } from "@/app/runtime/process/runtime-capabilities";
 import { runtimeCapabilityCloudflareRequest } from "@/app/runtime/isolate/cloudflare/runtime-capabilities";
+import { runtimeCapabilityNodeRequest } from "@/app/runtime/process/runtime-capabilities";
 import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
 
-export function runtimeCapabilitiesMiddleware() {
+export function runtimeCapabilitiesContextMiddleware() {
   return createMiddleware<AppEnv>(async (c, next) => {
     const runtimeEnv = c.get("runtimeEnv");
     const logger = c.get("runtimeLogger");
@@ -402,7 +402,7 @@ import {
   emojiFaviconMiddleware,
   loggerMiddleware,
   requestMiddleware,
-  runtimeCapabilitiesMiddleware,
+  runtimeCapabilitiesContextMiddleware,
   runtimeEnvMiddleware,
   runtimeLoggerMiddleware,
 } from "@/shared/middlewares";
@@ -413,7 +413,7 @@ Then register:
 ```ts
 app.use("*", runtimeEnvMiddleware());
 app.use("*", runtimeLoggerMiddleware());
-app.use("*", runtimeCapabilitiesMiddleware());
+app.use("*", runtimeCapabilitiesContextMiddleware());
 ```
 
 Keep `loggerMiddleware` after this so request logs use the already configured logger.
@@ -448,6 +448,12 @@ Expected: No runtime capabilities missing errors in middleware tests.
 Create `apps/server/src/app/runtime/process/runtime-capabilities.ts`:
 
 ```ts
+import {
+  checkProcessDiskUsage,
+  checkProcessMemoryUsage,
+  type ProcessDiskUsageCheckResult,
+  type ProcessMemoryUsageCheckResult,
+} from "@unimolecule/utils/node";
 import { BucketFileDownloadResolver } from "@/app/modules/file/download";
 import { createBucketDownloadSigner } from "@/infra/bucket";
 import { disposeProcessBucket, getProcessBucket } from "@/infra/bucket/process";
@@ -465,20 +471,14 @@ import {
   disposeProcessScheduler,
 } from "@/infra/scheduler/process";
 import { runtimeNotSupported } from "@/utils/runtime";
-import { runtimeCapabilityLazy } from "../runtime-capabilities";
-import type { RuntimeCapabilities } from "../runtime-capabilities";
+import {
+  runtimeCapabilityLazy,
+  type RuntimeCapabilities,
+} from "../runtime-capabilities";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 import type { QueueConsumer } from "@/infra/queue";
 import type { Scheduler } from "@/infra/scheduler";
-import type {
-  ProcessDiskUsageCheckResult,
-  ProcessMemoryUsageCheckResult,
-} from "@unimolecule/utils/node";
-import {
-  checkProcessDiskUsage,
-  checkProcessMemoryUsage,
-} from "@unimolecule/utils/node";
 
 export type NodeRuntimeCapabilities = RuntimeCapabilities & {
   queue: RuntimeCapabilities["queue"] & {
@@ -500,7 +500,7 @@ export function runtimeCapabilityNode(options: {
     runtimeEnv,
     database,
     bucket,
-    shopifySessionStorage: runtimeCapabilityLazy(async () => {
+    shopifySessionStorage: runtimeCapabilityLazy(() => {
       throw new Error("Task 6 wires Node Shopify session storage");
     }),
     health: {
@@ -571,11 +571,11 @@ Modify `apps/server/src/app/runtime/process/lifecycle/shutdown.ts`:
 
 ```ts
 import { runtimeCapabilityNodeDispose } from "@/app/runtime/process/runtime-capabilities";
-import { disposeProviders } from "@/infra/provider";
+import { providersDispose } from "@/infra/provider";
 
 export async function shutdown() {
   await runtimeCapabilityNodeDispose();
-  await disposeProviders();
+  await providersDispose();
 }
 ```
 
@@ -620,14 +620,16 @@ import {
 } from "@/infra/queue/isolate";
 import { createIsolateScheduler } from "@/infra/scheduler/isolate";
 import { runtimeNotSupported } from "@/utils/runtime";
-import { runtimeCapabilityLazy } from "../../runtime-capabilities";
+import {
+  runtimeCapabilityLazy,
+  type RuntimeCapabilities,
+} from "../../runtime-capabilities";
 import {
   isCloudflareD1Database,
   isCloudflareQueue,
   isCloudflareR2Bucket,
   requireCloudflareBinding,
 } from "./bindings";
-import type { RuntimeCapabilities } from "../../runtime-capabilities";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 
@@ -669,7 +671,7 @@ export function runtimeCapabilityCloudflareRequest(
     runtimeEnv,
     database,
     bucket,
-    shopifySessionStorage: runtimeCapabilityLazy(async () => {
+    shopifySessionStorage: runtimeCapabilityLazy(() => {
       throw new Error("Task 6 wires Cloudflare Shopify session storage");
     }),
     health: {
@@ -789,7 +791,9 @@ Expected: No module-scope cache that holds Cloudflare binding objects.
 - Modify: `apps/server/src/app/runtime/process/runtime-capabilities.ts`
 - Modify: `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - Modify: `apps/server/src/app/modules/shopify/session-storage/index.ts`
-- Modify/Delete: `apps/server/src/app/modules/shopify/session-storage/database.ts`
+- Add: `apps/server/src/app/modules/shopify/session-storage/postgres.ts`
+- Add: `apps/server/src/app/modules/shopify/session-storage/sqlite.ts`
+- Delete: `apps/server/src/app/modules/shopify/session-storage/database.ts`
 - Modify: `apps/server/src/app/modules/shopify/session-storage/types.ts` if needed
 - Test: `apps/server/tests/shopify/session-middleware.test.ts`
 
@@ -809,51 +813,35 @@ export async function getShopifySessionStorage(c: Context<AppEnv>) {
 
 - [ ] **Step 2: Wire Node session storage in Node creator**
 
-In `apps/server/src/app/runtime/process/runtime-capabilities.ts`, replace the temporary throw with a Node-specific dynamic import:
+In `apps/server/src/app/runtime/process/runtime-capabilities.ts`, delegate the Node-specific adapter to the Shopify module:
 
 ```ts
-shopifySessionStorage: runtimeCapabilityLazy(async () => {
-  const databaseResult = await database();
-  const adapterModule = await import(
-    "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-postgres.adapter.mjs"
-  );
-  const { postgresShopifySessions } = await import(
-    "@shamt/database/models/postgres"
-  );
-
-  return new adapterModule.DrizzleSessionStoragePostgres(
-    databaseResult.db,
-    postgresShopifySessions,
-  );
-}),
+const capabilities = {
+  shopifySessionStorage: runtimeCapabilityLazy(async () =>
+    createPostgresShopifySessionStorage(await database()),
+  ),
+};
 ```
 
-If the staged code already has a typed constructor wrapper, preserve the type-safe wrapper but keep it Node-only.
+Keep `DrizzleSessionStoragePostgres` and `postgresShopifySessions` imports in `shopify/session-storage/postgres.ts`.
 
 - [ ] **Step 3: Wire Cloudflare session storage in Cloudflare creator**
 
-In `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`, replace the temporary throw with a Cloudflare-safe SQLite/D1 adapter:
+In `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`, delegate the Cloudflare adapter to the Shopify module:
 
 ```ts
-shopifySessionStorage: runtimeCapabilityLazy(async () => {
-  const databaseResult = await database();
-  const { sqliteShopifySessions } = await import("@shamt/database/models/sqlite");
-  const adapterModule = await import(
-    "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-sqlite.adapter.mjs"
-  );
-
-  return new adapterModule.DrizzleSessionStorageSQLite(
-    databaseResult.db,
-    sqliteShopifySessions,
-  );
-}),
+const capabilities = {
+  shopifySessionStorage: runtimeCapabilityLazy(async () =>
+    createSqliteShopifySessionStorage(await database()),
+  ),
+};
 ```
 
-If this import still pulls PostgreSQL into Cloudflare, replace it with app-owned D1 session storage before continuing.
+Keep `DrizzleSessionStorageSQLite` and `sqliteShopifySessions` imports in `shopify/session-storage/sqlite.ts`.
 
 - [ ] **Step 4: Delete provider switch**
 
-Remove or reduce `apps/server/src/app/modules/shopify/session-storage/database.ts` so it no longer imports both Postgres and SQLite adapters from the same module reachable by Cloudflare.
+Delete `apps/server/src/app/modules/shopify/session-storage/database.ts` so no module reachable by Cloudflare imports both Postgres and SQLite adapters.
 
 - [ ] **Step 5: Verify Cloudflare bundle**
 

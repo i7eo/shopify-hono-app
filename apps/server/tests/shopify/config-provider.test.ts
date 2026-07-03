@@ -7,7 +7,7 @@ const { shopifyApi } = vi.hoisted(() => ({
 
 vi.mock("@shopify/shopify-api", () => ({
   ApiVersion: {
-    April26: "April26",
+    July26: "July26",
   },
   LogSeverity: {
     Debug: 0,
@@ -39,7 +39,7 @@ describe("Shopify config", () => {
       expect.objectContaining({
         apiKey: "test_app_key",
         apiSecretKey: "test_app_secret",
-        apiVersion: "April26",
+        apiVersion: "July26",
         hostName: "app.example.com",
         hostScheme: "https",
         isEmbeddedApp: true,
@@ -127,7 +127,8 @@ describe("Shopify provider and HTTP client", () => {
       .fn()
       .mockReturnValueOnce({ id: "first" })
       .mockReturnValueOnce({ id: "second" })
-      .mockReturnValueOnce({ id: "third" });
+      .mockReturnValueOnce({ id: "third" })
+      .mockReturnValueOnce({ id: "fourth" });
     vi.doMock("@/app/modules/shopify/config", async (importOriginal) => ({
       ...(await importOriginal<
         typeof import("@/app/modules/shopify/config")
@@ -140,8 +141,6 @@ describe("Shopify provider and HTTP client", () => {
 
     const { getShopifyConfigProvider, resetShopifyProvider } =
       await import("@/infra/provider/shopify");
-    const { providerDisposers, providers } =
-      await import("@/infra/provider/constants");
 
     const first = await getShopifyConfigProvider(runtimeConfig as never);
     const cached = await getShopifyConfigProvider(runtimeConfig as never);
@@ -159,12 +158,15 @@ describe("Shopify provider and HTTP client", () => {
     expect(second).toEqual({ id: "second" });
     expect(third).toEqual({ id: "third" });
     expect(createShopifyConfig).toHaveBeenCalledTimes(3);
-    expect(providers.get("shopifyConfig")).toBe(third);
-    expect(providerDisposers.get("shopifyConfig")).toBe(resetShopifyProvider);
 
     resetShopifyProvider();
-    expect(providers.has("shopifyConfig")).toBe(false);
-    expect(providerDisposers.has("shopifyConfig")).toBe(false);
+
+    const recreated = await getShopifyConfigProvider({
+      ...runtimeConfig,
+      SHOPIFY_APP_URL: "https://updated.example.com",
+    } as never);
+    expect(recreated).toEqual({ id: "fourth" });
+    expect(createShopifyConfig).toHaveBeenCalledTimes(4);
   });
 
   it("creates GraphQL clients from Hono context sessions", async () => {
@@ -176,6 +178,7 @@ describe("Shopify provider and HTTP client", () => {
       clients: { Graphql: graphqlConstructor },
     }));
     vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
       getShopifyConfigProvider,
     }));
 

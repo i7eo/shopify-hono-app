@@ -1,8 +1,11 @@
 import { InvalidWebhookError } from "@shopify/shopify-api";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { disposeRuntimeCapabilities } from "@/app/runtime/capabilities";
-import { logger, runtimeConfig } from "./test-utils";
+import {
+  createMockRuntimeCapabilities,
+  logger,
+  runtimeConfig,
+} from "./test-utils";
 import type { ProductExportRecord } from "@/app/modules/product-export/types";
 import type { AppEnv } from "@/typings";
 
@@ -11,17 +14,18 @@ describe("Shopify webhook routes", () => {
     vi.resetModules();
     vi.doUnmock("@/shared/middlewares");
     vi.doUnmock("@/app/modules/shopify/session-storage");
-    vi.doUnmock("@/app/modules/product-export/repositories/database");
-    return disposeRuntimeCapabilities();
   });
 
-  async function createApp(payload?: unknown) {
+  async function createApp(
+    payload?: unknown,
+    capabilities?: Parameters<typeof createMockRuntimeCapabilities>[0],
+  ) {
     const webhookPayload = payload ?? { id: 1 };
 
     vi.doMock("@/shared/middlewares", () => ({
       verifyWebhook: async (c: any, next: any) => {
         c.set("webhook", {
-          apiVersion: "2026-04",
+          apiVersion: "2026-07",
           payload: webhookPayload,
           shop: "shop.myshopify.com",
           topic: "TEST_TOPIC",
@@ -40,6 +44,10 @@ describe("Shopify webhook routes", () => {
         deleteSessions,
       })),
     }));
+    vi.doMock("@/infra/provider", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getLoggerProvider: vi.fn(() => logger),
+    }));
 
     const { createWebhookRoutes } =
       await import("@/app/modules/shopify/webhook");
@@ -47,6 +55,7 @@ describe("Shopify webhook routes", () => {
     app.use("*", async (c, next) => {
       c.set("runtimeLogger", logger as never);
       c.set("runtimeEnv", runtimeConfig);
+      c.set("runtimeCapabilities", createMockRuntimeCapabilities(capabilities));
       c.set("requestId", "req_test");
       await next();
     });
@@ -114,40 +123,35 @@ describe("Shopify webhook routes", () => {
     const enqueue = vi.fn();
     const update = vi.fn();
 
-    vi.doMock("@/app/modules/product-export/repositories/database", () => ({
-      createDatabaseProductExportsRepositoryFromPromise: vi.fn(() => ({
-        create: vi.fn(),
-        delete: vi.fn(),
-        findByBulkOperationId: vi.fn(() => record),
-        findById: vi.fn(),
-        list: vi.fn(),
-        update,
-      })),
-    }));
-
-    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
-    setRuntimeCapability(
-      "databaseFactory",
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      vi.fn(() => ({ provider: "test" }) as never),
+    const { app } = await createApp(
+      {
+        admin_graphql_api_id: "gid://shopify/BulkOperation/1",
+        completed_at: "2026-06-18T12:00:00.000Z",
+        file_size: "1024",
+        object_count: "10",
+        partial_data_url: null,
+        status: "completed",
+        url: "https://shopify.example.com/bulk-result.jsonl",
+      },
+      {
+        databaseRepositories: {
+          productExports: vi.fn(() => ({
+            create: vi.fn(),
+            delete: vi.fn(),
+            findByBulkOperationId: vi.fn(() => record),
+            findById: vi.fn(),
+            list: vi.fn(),
+            update,
+          })) as never,
+        },
+        queue: {
+          producer: vi.fn(() => ({
+            enqueue,
+            enqueueBatch: vi.fn(),
+          })),
+        },
+      },
     );
-    setRuntimeCapability(
-      "queueProducerFactory",
-      vi.fn(() => ({
-        enqueue,
-        enqueueBatch: vi.fn(),
-      })),
-    );
-
-    const { app } = await createApp({
-      admin_graphql_api_id: "gid://shopify/BulkOperation/1",
-      completed_at: "2026-06-18T12:00:00.000Z",
-      file_size: "1024",
-      object_count: "10",
-      partial_data_url: null,
-      status: "completed",
-      url: "https://shopify.example.com/bulk-result.jsonl",
-    });
 
     const response = await app.request("/webhooks/bulk_operations/finish", {
       method: "POST",
@@ -208,6 +212,8 @@ describe("Shopify webhook routes", () => {
       },
     }));
     vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
+      getLoggerProvider: vi.fn(() => logger),
       getShopifyConfigProvider,
     }));
 
@@ -265,6 +271,8 @@ describe("Shopify webhook routes", () => {
       },
     };
     vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
+      getLoggerProvider: vi.fn(() => logger),
       getShopifyConfigProvider: vi.fn(() => shopify),
     }));
 
@@ -304,6 +312,10 @@ describe("Shopify webhook routes", () => {
           }),
         });
       },
+    }));
+    vi.doMock("@/infra/provider", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/infra/provider")>()),
+      getLoggerProvider: vi.fn(() => logger),
     }));
 
     const { createWebhookRoutes } =

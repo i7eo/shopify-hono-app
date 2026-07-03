@@ -35,37 +35,37 @@ Wrangler 配置提供。
 
 ## 分层 DI
 
-项目没有引入大型 DI container，而是用几组小型 registry 完成依赖注入。
+项目没有引入大型 DI container，而是用显式 runtime capabilities 加几组小型 registry 完成依赖注入。
 
 ### Runtime Capability
 
 runtime capability 负责注入平台相关能力：
 
-- `runtimeLoggerSetup`
-- `runtimeEnvSourceResolver`
-- `moduleHealthDiskChecker`
-- `moduleHealthMemoryChecker`
-- `databaseFactory`
-- `bucketFactory`
-- `queueProducerFactory`
-- `queueConsumerFactory`
-- `schedulerFactory`
-- `moduleFileDownloadResolverFactory`
+- `runtimeCapabilities.database()`
+- `runtimeCapabilities.databaseRepositories.files()`
+- `runtimeCapabilities.databaseRepositories.productExports()`
+- `runtimeCapabilities.databaseRepositories.references()`
+- `runtimeCapabilities.bucket()`
+- `runtimeCapabilities.shopifySessionStorage()`
+- `runtimeCapabilities.health.disk(c)`
+- `runtimeCapabilities.health.memory(c)`
+- `runtimeCapabilities.file.downloadResolver()`
+- `runtimeCapabilities.queue.producer()`
 
-共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。health/disk 与 health/memory 通过 capability 暴露运行时指标：Node 使用 `@unimolecule/utils/node` 的 disk/memory helper，Cloudflare isolate 返回 unsupported。`/healths` 聚合 endpoint 复用 disk、memory、network、database 和 reserved redis 的单项检查结果；unsupported/reserved 不会单独让整体状态失败，单项 `error` 才会让整体返回 `error`。文件模块、Shopify session storage 与 health/database 都通过统一的 `databaseFactory` 获取 database adapter；health/database 调用 adapter `check()` 执行 `select 1`，其他模块再在自己的业务边界内实现 repository/adapter。
-file module 通过 `bucketFactory` 获取 object bucket，并通过 `moduleFileDownloadResolverFactory` 把下载解析为 memory stream 或 R2 signed redirect；Node 与 Cloudflare runtime 共用 R2 SigV4 signer。product-export 等异步模块通过 `queueProducerFactory` 投递小 payload，通过 queue/scheduler registry 注册 handler。
+共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。health/disk 与 health/memory 通过 capability 暴露运行时指标：Node 使用 `@unimolecule/utils/node` 的 disk/memory helper，Cloudflare isolate 返回 unsupported。`/healths` 聚合 endpoint 复用 disk、memory、network、database 和 reserved redis 的单项检查结果；unsupported/reserved 不会单独让整体状态失败，单项 `error` 才会让整体返回 `error`。Shopify session storage 与 health/database 通过统一的 `runtimeCapabilities.database()` 获取 database adapter；file、product-export、reference 通过 `runtimeCapabilities.databaseRepositories.*()` 获取 runtime 已绑定的 repository，避免公共 repository index 同时 import PostgreSQL 与 SQLite 实现。
+file module 通过 `runtimeCapabilities.bucket()` 获取 object bucket，并通过 `runtimeCapabilities.file.downloadResolver()` 把下载解析为 memory stream 或 R2 signed redirect；Node 与 Cloudflare runtime 共用 R2 SigV4 signer。product-export 等异步模块通过 `runtimeCapabilities.queue.producer()` 投递小 payload，通过 queue/scheduler registry 注册 handler。
 
 对应文件：
 
-- `src/app/runtime/capabilities.ts`
-- `src/app/runtime/process/capabilities.ts`
-- `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/app/runtime/runtime-capabilities.ts`
+- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 
-这个技巧的价值是把平台差异限制在 runtime entry 附近。新增 runtime 时，优先补 capability，而不是改业务 controller。
+这个技巧的价值是把平台差异限制在 runtime entry 附近。新增 runtime 时，优先补 runtime capability creator，而不是改业务 controller。
 
-### Provider Registry
+### Provider Lifecycle
 
-provider registry 缓存跨请求可复用的基础设施实例：
+provider 缓存跨请求可复用的基础设施实例。调用方统一通过 `get*Provider()` 获取当前实例，provider 模块内部用 typed slot 保存 value、signature 和 lifecycle 状态：
 
 - env provider
 - logger provider
@@ -74,15 +74,15 @@ provider registry 缓存跨请求可复用的基础设施实例：
 
 对应文件：
 
-- `src/infra/provider/constants.ts`
 - `src/infra/provider/env.ts`
 - `src/infra/provider/logger.ts`
 - `src/infra/provider/shopify.ts`
 - `src/infra/provider/client.ts`
+- `src/infra/provider/index.ts`
 
-每个 provider 都有 reset/disposer 入口，测试和 lifecycle 可以清理全局状态，避免 provider cache 污染下一轮运行。
+每个 provider 都有 reset/disposer 入口，`src/infra/provider/index.ts` 通过 `providersDispose()` 聚合清理 provider 状态，避免 provider cache 污染下一轮运行。
 
-database、bucket、queue 和 scheduler 没有放入 provider registry，而是作为 runtime capability + infra adapter 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool、memory/r2 bucket cache 和 pg-boss worker，Cloudflare 需要 request-bound D1/R2/Queue binding。capability disposer 会在 process runtime 释放 cached pg pool、bucket adapter、queue consumer/producer 和 scheduler，isolate runtime 当前保持 no-op。
+database、bucket、queue 和 scheduler 没有放入 provider API，而是作为 runtime capability + infra adapter 暴露。原因是它们的 runtime/provider 支持矩阵依赖平台能力：Node 需要进程级 pg pool、memory/r2 bucket cache 和 pg-boss worker，Cloudflare 需要 request-bound D1/R2/Queue binding。`runtimeCapabilityNodeDispose()` 会在 process runtime 释放 cached pg pool、bucket adapter、queue consumer/producer 和 scheduler；isolate runtime 不保留跨 request 的 binding 引用。
 
 ### Shopify Mode Capability
 
@@ -106,21 +106,19 @@ runtime、Shopify mode 和 frontend target 保持正交，具体 env 语义见 [
 env provider 支持两个阶段：
 
 1. bootstrap 阶段读取 `process.env` 中的字符串配置。
-2. request 阶段通过 `runtimeEnvMiddleware` 合并 runtime capability 提供的 env source。
+2. request 阶段通过 `runtimeEnvMiddleware` 合并 Hono `c.env` 中的平台 binding。
 
 Cloudflare 下 env source 来自 `c.env`，Node 下来自 `process.env`：
 
 ```ts
-const envConfig = runtimeEnvSourceResolver?.(c) ?? c.env ?? getSafeProcessEnv();
+const envConfig = c.env ?? getSafeProcessEnv();
 const runtimeEnv = getEnvProvider(envConfig);
 ```
 
 `getEnvProvider(rawEnv)` 默认会把 `process.env` 与传入 env merge：
 
 ```ts
-const effectiveRawEnv = options.override
-  ? nextRawEnv
-  : { ...getSafeProcessEnv(), ...nextRawEnv };
+const effectiveRawEnv = { ...getSafeProcessEnv(), ...nextRawEnv };
 ```
 
 这个设计让模块 import 阶段可以读取 bootstrap env，也让请求进来后可以用平台 binding 刷新为更完整的 runtime env。
@@ -132,7 +130,7 @@ const effectiveRawEnv = options.override
 runtime-specific 行为只放在两个地方：
 
 - runtime entry，例如 `src/app/runtime/process/index.ts`。
-- runtime capability，例如 `src/app/runtime/isolate/cloudflare/capabilities.ts`。
+- runtime capability creator，例如 `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`。
 
 业务模块只使用通用 `AppEnv`。平台 binding 在 schema 中可以 optional，但必须在 capability 使用点通过 `requireCloudflareBinding(...)` 之类的 helper 强校验。
 
@@ -144,8 +142,8 @@ Cloudflare platform binding 在 schema 中不再写死具体字段。binding nam
 
 ```ts
 const d1 = requireCloudflareBinding(
-  context.env[config.APP_DATABASE_D1_BINDING],
-  config.APP_DATABASE_D1_BINDING,
+  env[runtimeEnv.APP_DATABASE_D1_BINDING],
+  runtimeEnv.APP_DATABASE_D1_BINDING,
   isCloudflareD1Database,
 );
 ```
@@ -154,7 +152,7 @@ const d1 = requireCloudflareBinding(
 
 - `src/infra/env/isolate.ts`
 - `src/app/runtime/isolate/cloudflare/bindings.ts`
-- `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 
 这条规则可以概括为：启动阶段宽，能力使用严；binding/name 由 env file 驱动，binding 值在使用点验证。
 
@@ -199,15 +197,15 @@ Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则�
 
 - Node-only 实现放在 process entry、process capability 或 process logger 中。
 - runtime-aware infra 的 `index.ts` 只导出共享契约、类型、registry 或 runtime-neutral helper。
-- process/isolate adapter 由 `src/app/runtime/process/capabilities.ts` 与 `src/app/runtime/isolate/cloudflare/capabilities.ts` 显式引入并注册。
+- process/isolate adapter 由 `src/app/runtime/process/runtime-capabilities.ts` 与 `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` 显式引入。
 - 文件日志依赖用动态 import。
 - Cloudflare 共享代码不从 process util barrel 导入 Node-only 模块。
 - runtime capability 只暴露抽象函数。
 
 典型文件：
 
-- `src/app/runtime/process/capabilities.ts`
-- `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - `src/infra/logger/process.ts`
 - `src/infra/database/index.ts`
 - `src/infra/bucket/index.ts`

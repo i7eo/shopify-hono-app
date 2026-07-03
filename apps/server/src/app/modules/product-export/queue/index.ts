@@ -1,5 +1,5 @@
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
+import { runtimeCapabilities } from "@/app/runtime/runtime-capabilities";
+import { getEnvProvider } from "@/infra/provider";
 import { badGatewayError } from "@/shared/exceptions";
 import type { PRODUCT_EXPORT_QUEUE_JOBS } from "./constants";
 import type { QueueJobContext, QueueMessage } from "@/infra/queue";
@@ -39,25 +39,13 @@ export async function enqueueProductExportJob(
   name: ProductExportJobName,
   payload: ProductExportJobPayload | ProductExportReconcilePayload,
 ): Promise<void> {
-  const queueProducerFactory = getRuntimeCapability("queueProducerFactory");
-
-  if (!queueProducerFactory) {
-    throw badGatewayError(
-      "Runtime capability is not registered: queueProducerFactory",
-      {
-        expose: true,
-      },
-    );
-  }
-
-  const producer = await queueProducerFactory(
-    createRuntimeResourceContextFromHono(c),
-  );
+  const producer = await runtimeCapabilities(c).queue.producer();
   await producer.enqueue(
     createProductExportQueueMessage(name, payload, c.get("requestId")),
     {
       idempotencyKey: createIdempotencyKey(name, payload),
-      maxAttempts: c.get("runtimeEnv").APP_QUEUE_CONSUMER_MAX_RETRIES,
+      maxAttempts: getEnvProvider(c.get("runtimeEnv") ?? c.env)
+        .APP_QUEUE_CONSUMER_MAX_RETRIES,
     },
   );
 }
@@ -102,18 +90,18 @@ export async function enqueueProductExportJobsFromContext(
 }
 
 function createQueueProducerFromContext(context: QueueJobContext) {
-  const factory = getRuntimeCapability("queueProducerFactory");
+  const factory = context.runtimeCapabilities.queue.producer;
 
   if (!factory) {
     throw badGatewayError(
-      "Runtime capability is not registered: queueProducerFactory",
+      "Runtime capability is not available: queue.producer",
       {
         expose: true,
       },
     );
   }
 
-  return factory(context);
+  return factory();
 }
 
 /**

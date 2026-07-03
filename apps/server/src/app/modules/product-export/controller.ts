@@ -1,5 +1,6 @@
 import { ensureShopifyOfflineSession } from "@/app/modules/shopify/session";
 import { registerConfiguredShopifyWebhooks } from "@/app/modules/shopify/webhook";
+import { getEnvProvider } from "@/infra/provider";
 import { badGatewayError } from "@/shared/exceptions";
 import { AppError, createResponse } from "@/shared/models";
 import {
@@ -31,7 +32,7 @@ export function registerProductExportController(app: AppOpenAPI) {
         createResponse({
           data: await createProductExport(c, {
             name: body.name,
-            runtimeEnv: c.get("runtimeEnv"),
+            runtimeEnv: getEnvProvider(c.get("runtimeEnv") ?? c.env),
             shopDomain: c.get("shopDomain"),
             template: body.template,
           }),

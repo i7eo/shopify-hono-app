@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { getEnvProvider } from "@/infra/provider";
 import {
   tokenExchange,
   verifySessionToken,
@@ -16,7 +17,9 @@ export const embeddedShopifyModeCapabilities: ShopifyModeCapabilities = {
   isEmbeddedApp: true,
   // Embedded apps render the shell that can initialize inside Shopify Admin.
   buildAppShellResponse: (c) =>
-    c.html(renderEmbeddedAppShell(c.get("runtimeEnv").SHOPIFY_APP_KEY)),
+    c.html(
+      renderEmbeddedAppShell(getEnvProvider(c.get("runtimeEnv") ?? c.env)),
+    ),
   renderAppShell: renderEmbeddedAppShell,
   // Admin API requests must first prove the App Bridge session token.
   authenticateAdminRequest: createMiddleware<AppEnv>(async (c, next) => {
@@ -37,7 +40,7 @@ export const embeddedShopifyModeCapabilities: ShopifyModeCapabilities = {
       // owner: /app when server owns the frontend role, / when web owns it.
       responseHeaders.set(
         "Location",
-        getShopifyAppShellUrl(c.get("runtimeEnv"), {
+        getShopifyAppShellUrl(getEnvProvider(c.get("runtimeEnv") ?? c.env), {
           shop: session.shop,
         }),
       );

@@ -4,11 +4,11 @@
 
 ## 当前支持状态
 
-| Runtime       | 执行模型 | 状态     | 说明                                              |
-| ------------- | -------- | -------- | ------------------------------------------------- |
-| `node`        | process  | 正式支持 | 本地开发、普通 Node 服务、Node build 目标         |
-| `cloudflare`  | isolate  | 正式支持 | Cloudflare Workers、PostgreSQL/D1 session storage |
-| `vercel-edge` | isolate  | 预留     | 只有类型预留，没有完整入口和部署配置              |
+| Runtime       | 执行模型 | 状态     | 说明                                          |
+| ------------- | -------- | -------- | --------------------------------------------- |
+| `node`        | process  | 正式支持 | 本地开发、普通 Node 服务、Node build 目标     |
+| `cloudflare`  | isolate  | 正式支持 | Cloudflare Workers、D1-backed session storage |
+| `vercel-edge` | isolate  | 预留     | 只有类型预留，没有完整入口和部署配置          |
 
 项目只让用户配置事实型变量 `APP_RUNTIME`，不再额外配置 `APP_RUNTIME_MODE`。执行模型由代码根据 `APP_RUNTIME` 推导。
 
@@ -25,24 +25,27 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 
 ## Runtime Capabilities
 
-跨 runtime 的平台能力通过 capability registry 注入：
+跨 runtime 的平台能力通过显式 `RuntimeCapabilities` 对象注入。runtime entry 负责创建 scoped capabilities，middleware 把它写入 Hono context，业务模块通过 `runtimeCapabilities(c)` 读取。
 
-- `runtimeLoggerSetup`
-- `runtimeEnvSourceResolver`
-- `moduleHealthDiskChecker`
-- `moduleHealthMemoryChecker`
-- `databaseFactory`
-- `bucketFactory`
-- `queueProducerFactory`
-- `queueConsumerFactory`
-- `schedulerFactory`
-- `moduleFileDownloadResolverFactory`
+核心能力包括：
+
+- `runtimeCapabilities.database()`
+- `runtimeCapabilities.databaseRepositories.files()`
+- `runtimeCapabilities.databaseRepositories.productExports()`
+- `runtimeCapabilities.databaseRepositories.references()`
+- `runtimeCapabilities.bucket()`
+- `runtimeCapabilities.shopifySessionStorage()`
+- `runtimeCapabilities.health.disk(c)`
+- `runtimeCapabilities.health.memory(c)`
+- `runtimeCapabilities.file.downloadResolver()`
+- `runtimeCapabilities.queue.producer()`
 
 对应文件：
 
-- `src/app/runtime/capabilities.ts`
-- `src/app/runtime/process/capabilities.ts`
-- `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/app/runtime/runtime-capabilities.ts`
+- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
+- `src/shared/middlewares/runtime-capabilities.ts`
 - `src/infra/database`
 - `src/infra/bucket`
 - `src/infra/queue`
@@ -52,18 +55,17 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 
 database、bucket、queue 和 scheduler 各自还保留自己的 infra index，但 index
 只导出共享契约、类型、registry 或 runtime-neutral helper。process/isolate
-实现由 `src/app/runtime/process/capabilities.ts` 与
-`src/app/runtime/isolate/cloudflare/capabilities.ts` 显式引入并注册到
-capability registry。这样 Cloudflare entry 不会因为共享 infra barrel 间接看到
-Node-only process adapter。
+实现由 `src/app/runtime/process/runtime-capabilities.ts` 与
+`src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` 显式引入。这样
+Cloudflare entry 不会因为共享 infra barrel 间接看到 Node-only process adapter。
 
 process 实现可以缓存长生命周期资源，例如 `pg.Pool`、bucket adapter、`pg-boss`
 producer/consumer 和 schedule worker。Cloudflare isolate 实现以 request/event
-binding 为边界，当前 disposer 是预留 no-op。
+binding 为边界，不保留跨 request 的 D1、R2 或 Queue binding 引用。
 
-### Database Factory
+### Database Capability
 
-`databaseFactory` 是 file module、Shopify session storage 与 health/database 的统一数据库入口。各模块只接收 Drizzle database result，再在自己的模块内选择对应 store 或 adapter，不再注册独立的 module-specific database capability。health/database 调用 database adapter 的 `check()`，由具体 runtime 通过 `select 1` 验证最小 SQL 查询链路。
+`runtimeCapabilities.database()` 是 Shopify session storage 与 health/database 的统一数据库入口；`runtimeCapabilities.databaseRepositories.*()` 是同一个 database capability 下的 repository 绑定出口。Node runtime 只 import `postgres.ts` repository builder，Cloudflare runtime 只 import `sqlite.ts` repository builder；公共 `repositories/database/index.ts` 只保留类型出口，不再按 provider 动态分发。health/database 调用 database adapter 的 `check()`，由具体 runtime 通过 `select 1` 验证最小 SQL 查询链路。
 
 当前策略：
 
@@ -75,9 +77,9 @@ binding 为边界，当前 disposer 是预留 no-op。
 PostgreSQL 使用 `drizzle.pg.config.ts` 和 `drizzle.pg`。D1 使用 `drizzle.d1.config.ts` 和 `drizzle.d1`，Wrangler binding 的 `migrations_dir` 指向 `drizzle.d1`。
 Node 只支持 PostgreSQL；Cloudflare 只支持 D1。非法组合会通过 runtime env 解析，但会在 database strategy 边界失败。
 
-### Bucket Factory
+### Bucket Capability
 
-`bucketFactory` 是 file module 的统一 object bucket 入口。Node 支持 `memory` 和 `r2`，Cloudflare 当前只支持 `r2`。Node + R2 使用 `@aws-sdk/client-s3` 的 S3-compatible 实现；Cloudflare + R2 使用 request-bound Worker R2 binding。
+`runtimeCapabilities.bucket()` 是 file module 与 product-export 的统一 object bucket 入口。Node 支持 `memory` 和 `r2`，Cloudflare 当前只支持 `r2`。Node + R2 使用 `@aws-sdk/client-s3` 的 S3-compatible 实现；Cloudflare + R2 使用 request-bound Worker R2 binding。
 
 ### Queue And Scheduler
 
@@ -98,12 +100,12 @@ Node entry 在启动时创建 consumer/scheduler 并调用 `start(...)`。Cloudf
 
 Cloudflare request-bound binding 不要求在 bootstrap 阶段存在。schema 允许这类字段 optional，runtime capability 在真正使用时负责强校验。
 
-例如 Cloudflare D1 database factory 在 capability 中读取 `APP_DATABASE_D1_BINDING` 指向的 `c.env[binding]`，并通过 `requireCloudflareBinding(...)` 校验：
+例如 Cloudflare D1 database capability 在 `runtimeCapabilityCloudflare(...)` 中读取 `APP_DATABASE_D1_BINDING` 指向的 `env[binding]`，并通过 `requireCloudflareBinding(...)` 校验：
 
 ```ts
-const binding = config.APP_DATABASE_D1_BINDING;
+const binding = runtimeEnv.APP_DATABASE_D1_BINDING;
 const d1 = requireCloudflareBinding(
-  context.env[binding],
+  env[binding],
   binding,
   isCloudflareD1Database,
 );
@@ -135,7 +137,7 @@ Shopify mode capability 只负责 app-flow 差异，例如 App Shell、OAuth cal
 
 - `src/app/modules/shopify/mode`
 
-runtime capability 仍只负责平台差异，例如 logger、env source、database、bucket。
+runtime capability 只负责平台 port 差异，例如 database、bucket、queue、session storage、health checker 和 file resolver。env 与 logger 的权威入口仍是 provider。
 
 ## Shopify Frontend Target
 

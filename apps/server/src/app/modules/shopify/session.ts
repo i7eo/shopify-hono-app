@@ -1,5 +1,5 @@
 import { RequestedTokenType, type Session } from "@shopify/shopify-api";
-import { getShopifyConfigProvider } from "@/infra/provider";
+import { getEnvProvider, getShopifyConfigProvider } from "@/infra/provider";
 import { badGatewayError, unauthorizedError } from "@/shared/exceptions";
 import { getShopifySessionStorage } from "./session-storage";
 import type { AppEnv } from "@/typings";
@@ -11,7 +11,7 @@ import type { Context } from "hono";
 export async function loadActiveShopifyOnlineSession(
   c: Context<AppEnv>,
 ): Promise<Session | undefined> {
-  const config = c.get("runtimeEnv");
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const shopify = await getShopifyConfigProvider(config);
   const sessionStorage = await getShopifySessionStorage(c);
   const sessionId = await shopify.session.getCurrentId({
@@ -39,7 +39,7 @@ export async function loadActiveShopifyOfflineSession(
   const shopDomain = c.var.shopDomain;
   if (!shopDomain) return undefined;
 
-  const config = c.get("runtimeEnv");
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const shopify = await getShopifyConfigProvider(config);
   const sessions = await (
     await getShopifySessionStorage(c)
@@ -119,7 +119,7 @@ async function deleteCurrentShopifyOnlineSession(c: Context<AppEnv>) {
     sessionIds.add(c.var.shopifySession.id);
   }
 
-  const config = c.get("runtimeEnv");
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const shopify = await getShopifyConfigProvider(config);
   const sessionId = await shopify.session.getCurrentId({
     isOnline: true,
@@ -148,7 +148,7 @@ async function exchangeShopifySession(
     throw unauthorizedError("Missing or malformed Authorization header");
   }
 
-  const config = c.get("runtimeEnv");
+  const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
   const shopify = await getShopifyConfigProvider(config);
   const { session } = await shopify.auth.tokenExchange({
     shop: c.var.shopDomain,

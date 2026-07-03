@@ -3,7 +3,6 @@ import {
   getShopifyEnvConfig,
 } from "@/app/modules/shopify/config";
 import { createShopifyClient } from "@/infra/http/shopify";
-import { providerDisposers, providers } from "./constants";
 import { getLoggerProvider } from "./logger";
 import { createProviderSignature } from "./signature";
 import type { RuntimeConfig } from "@/infra/env";
@@ -13,7 +12,12 @@ import type { Context } from "hono";
 
 export type ShopifyClient = Awaited<ReturnType<typeof createShopifyClient>>;
 
-let shopifyConfigSignature: string | undefined;
+type ShopifyConfigProviderSlot = {
+  signature: string;
+  value: Shopify;
+};
+
+let shopifyConfigProviderSlot: ShopifyConfigProviderSlot | undefined;
 
 export function getShopifyClientProvider(
   c: Context<AppEnv>,
@@ -25,10 +29,9 @@ export async function getShopifyConfigProvider(
   config: RuntimeConfig,
 ): Promise<Shopify> {
   const signature = getShopifyConfigSignature(config);
-  const cached = providers.get("shopifyConfig") as Shopify | undefined;
 
-  if (cached && shopifyConfigSignature === signature) {
-    return cached;
+  if (shopifyConfigProviderSlot?.signature === signature) {
+    return shopifyConfigProviderSlot.value;
   }
 
   const logger = await getLoggerProvider(config);
@@ -39,15 +42,11 @@ export async function getShopifyConfigProvider(
 }
 
 export function resetShopifyProvider() {
-  providers.delete("shopifyConfig");
-  providerDisposers.delete("shopifyConfig");
-  shopifyConfigSignature = undefined;
+  shopifyConfigProviderSlot = undefined;
 }
 
 function setShopifyConfigProvider(shopify: Shopify, signature: string) {
-  providers.set("shopifyConfig", shopify);
-  shopifyConfigSignature = signature;
-  providerDisposers.set("shopifyConfig", resetShopifyProvider);
+  shopifyConfigProviderSlot = { signature, value: shopify };
 }
 
 function getShopifyConfigSignature(config: RuntimeConfig): string {

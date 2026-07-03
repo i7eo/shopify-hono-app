@@ -1,7 +1,7 @@
 import type { PaginatedPage, PaginationInput } from "@/shared/models";
-import type { SelectReference } from "@shamt/database/types";
+import type { SelectPostgresReference } from "@shamt/database/entities";
 
-export type ReferenceRecord = SelectReference;
+export type ReferenceRecord = SelectPostgresReference;
 
 export type ReferencesPage = PaginatedPage & {
   references: ReferenceRecord[];
@@ -45,15 +45,3 @@ export type ListReferencesInput = ReferenceNamespaceLookup & {
   limit?: number;
   page?: number;
 };
-
-export interface ReferenceRepository {
-  create: (record: ReferenceRecord) => Promise<void>;
-  delete: (input: ReferenceLookup) => Promise<void>;
-  findByCode: (input: ReferenceCodeLookup) => Promise<ReferenceRecord | null>;
-  findByCodeIncludingDeleted: (
-    input: ReferenceCodeLookup,
-  ) => Promise<ReferenceRecord | null>;
-  findById: (input: ReferenceLookup) => Promise<ReferenceRecord | null>;
-  list: (input: ReferenceListInput) => Promise<ReferencesPage>;
-  update: (record: ReferenceRecord) => Promise<void>;
-}

@@ -11,11 +11,11 @@ import type { AppOpenAPI } from "./register-openapi";
  * Route aggregation only; concrete route behavior lives in modules.
  */
 export function registerRoutes(app: AppOpenAPI) {
-  registerHealthController(app);
   registerShopifyRoutes(app);
   registerFileController(app);
-  registerShopController(app);
+  registerHealthController(app);
   registerProductController(app);
   registerProductExportController(app);
   registerReferenceController(app);
+  registerShopController(app);
 }

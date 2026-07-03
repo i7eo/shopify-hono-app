@@ -5,11 +5,11 @@ import {
   type DEFAULT_RUNTIMES_VALUES,
 } from "@shamt/app-env";
 
-const PROCESS_RUNTIMES = [DEFAULT_RUNTIMES.NODE] as const;
 const ISOLATE_RUNTIMES = [
   DEFAULT_RUNTIMES.CLOUDFLARE,
   DEFAULT_RUNTIMES.VERCEL_EDGE,
 ] as const;
+const PROCESS_RUNTIMES = [DEFAULT_RUNTIMES.NODE] as const;
 
 export function isDev(appEnv?: DEFAULT_ENVS_VALUES) {
   return appEnv === DEFAULT_ENVS.DEVELOPMENT;

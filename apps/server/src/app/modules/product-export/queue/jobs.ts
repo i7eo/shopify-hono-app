@@ -1,12 +1,10 @@
 import { chunk } from "@unimolecule/utils";
 import { registerQueueJob, type QueueJobContext } from "@/infra/queue";
 import { registerSchedulerTask } from "@/infra/scheduler";
-import { badGatewayError } from "@/shared/exceptions";
+import { badGatewayError, internalServerError } from "@/shared/exceptions";
 import { createBucketObjectKey } from "@/utils";
-import { createDatabaseProductExportsRepository } from "../repositories/database";
 import {
   createProductExportBucket,
-  createProductExportDatabase,
   createProductExportShopifyClient,
   createProductExportShopifyClientContext,
 } from "../runtime";
@@ -34,17 +32,15 @@ import {
   PRODUCT_EXPORT_PART_PAGE_SIZE,
   PRODUCT_EXPORT_QUEUE_JOBS,
   PRODUCT_EXPORT_RECONCILE_BATCH_SIZE,
+  PRODUCT_EXPORT_RECONCILE_CONCURRENCY,
   PRODUCT_EXPORT_RECONCILE_CRON,
 } from "./constants";
 import {
   enqueueProductExportJobFromContext,
   enqueueProductExportJobsFromContext,
 } from ".";
-import type {
-  ProductExportPartRecord,
-  ProductExportRecord,
-  ProductExportRepository,
-} from "../types";
+import type { ProductExportRepository } from "../repositories/database";
+import type { ProductExportPartRecord, ProductExportRecord } from "../types";
 import type { Bucket } from "@/infra/bucket";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
@@ -112,10 +108,10 @@ async function startBulkJob(
 
   if (!record || record.status !== PRODUCT_EXPORT_STATUSES.QUEUED) return;
 
-  const database = await createProductExportDatabase(context);
+  const storage = await context.runtimeCapabilities.shopifySessionStorage();
   const { client, session } = await createProductExportShopifyClientContext(
     context.runtimeEnv,
-    database,
+    storage,
     job.shopDomain,
   );
   await startProductExportBulkOperationForRecord({
@@ -144,10 +140,10 @@ async function bulkFinishedJob(
   if (!record?.shopifyBulkOperationId) return;
 
   if (!record.resultUrl) {
-    const database = await createProductExportDatabase(context);
+    const storage = await context.runtimeCapabilities.shopifySessionStorage();
     const client = await createProductExportShopifyClient(
       context.runtimeEnv,
-      database,
+      storage,
       job.shopDomain,
     );
     const operation = await fetchProductExportBulkOperation(
@@ -354,9 +350,7 @@ async function reconcileJob(
 
     if (records.length === 0) return;
 
-    for (const record of records) {
-      await reconcileRecord(context, store, record);
-    }
+    await reconcileRecords(context, store, records);
 
     const lastRecord = records.at(-1)!;
     cursor = {
@@ -365,6 +359,40 @@ async function reconcileJob(
     };
 
     if (records.length < PRODUCT_EXPORT_RECONCILE_BATCH_SIZE) return;
+  }
+}
+
+async function reconcileRecords(
+  context: QueueJobContext,
+  store: ProductExportRepository,
+  records: ProductExportRecord[],
+): Promise<void> {
+  const failures: Array<{ error: unknown; exportId: string }> = [];
+
+  for (const batch of chunk(records, PRODUCT_EXPORT_RECONCILE_CONCURRENCY)) {
+    const results = await Promise.allSettled(
+      batch.map((record) => reconcileRecord(context, store, record)),
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") return;
+
+      failures.push({
+        error: result.reason,
+        exportId: batch[index]!.id,
+      });
+    });
+  }
+
+  if (failures.length > 0) {
+    throw internalServerError("Failed to reconcile product exports", {
+      details: {
+        failures: failures.map(({ error, exportId }) => ({
+          error: error instanceof Error ? error.message : String(error),
+          exportId,
+        })),
+      },
+    });
   }
 }
 
@@ -480,12 +508,8 @@ async function enqueuePendingParts(
 /**
  * Creates a product-export store from the queue runtime context.
  */
-async function createStore(
-  context: QueueJobContext,
-): Promise<ProductExportRepository> {
-  return createDatabaseProductExportsRepository(
-    await createProductExportDatabase(context),
-  );
+function createStore(context: QueueJobContext): ProductExportRepository {
+  return context.runtimeCapabilities.databaseRepositories.productExports();
 }
 
 /**

@@ -1,11 +1,12 @@
 import { DEFAULT_ENVS } from "@shamt/app-env";
 import { HTTP_STATUS_CODES } from "@unimolecule/canon/http";
+import { getEnvProvider } from "@/infra/provider";
 import {
   createError,
   type AppError,
   type ErrorResponse,
 } from "@/shared/models";
-import { getContextValue, setResponseHeaders } from "@/utils";
+import { setResponseHeaders } from "@/utils";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -15,7 +16,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
  * Use from app.onError/app.notFound after the error has been normalized to AppError.
  */
 export function createErrorResponse(c: Context<AppEnv>, error: AppError) {
-  const requestId = getContextValue(c, "requestId");
+  const requestId = c.get("requestId");
   const body = createError({
     status: error.status,
     message: getPublicMessage(error),
@@ -53,13 +54,20 @@ function getStatusPhrase(status: number): string {
  * keep details hidden by default.
  */
 function shouldExposeDetails(c: Context<AppEnv>): boolean {
-  const runtimeEnv = getContextValue(c, "runtimeEnv");
-  if (runtimeEnv?.APP_ENV) {
-    return runtimeEnv.APP_ENV !== DEFAULT_ENVS.PRODUCTION;
-  }
+  try {
+    return (
+      getEnvProvider(c.get("runtimeEnv") ?? c.env).APP_ENV !==
+      DEFAULT_ENVS.PRODUCTION
+    );
+  } catch {
+    const runtimeEnv = c.get("runtimeEnv");
+    if (runtimeEnv?.APP_ENV) {
+      return runtimeEnv.APP_ENV !== DEFAULT_ENVS.PRODUCTION;
+    }
 
-  const rawEnv = c.env as unknown as Record<string, unknown> | undefined;
-  if (rawEnv?.APP_ENV) return rawEnv.APP_ENV !== DEFAULT_ENVS.PRODUCTION;
+    const rawEnv = c.env as unknown as Record<string, unknown> | undefined;
+    if (rawEnv?.APP_ENV) return rawEnv.APP_ENV !== DEFAULT_ENVS.PRODUCTION;
+  }
 
   return false;
 }

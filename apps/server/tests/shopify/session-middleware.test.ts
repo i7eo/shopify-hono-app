@@ -1,101 +1,96 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { throwAppServerError as throwError } from "../../internal";
-import { createMockContext, expectAppError, runtimeConfig } from "./test-utils";
+import {
+  createMockContext,
+  createMockRuntimeCapabilities,
+  expectAppError,
+  runtimeConfig,
+} from "./test-utils";
+import type { ShopifySessionStorage } from "@/app/modules/shopify/session-storage/types";
+import type { D1DatabaseClient, PostgresDatabase } from "@/infra/database";
+
+function mockProvider(
+  provider: () => Record<string, unknown>,
+  runtimeEnv: typeof runtimeConfig = runtimeConfig,
+) {
+  vi.doMock("@/infra/provider", () => ({
+    getEnvProvider: vi.fn(() => runtimeEnv),
+    ...provider(),
+  }));
+}
+
+function createSessionStorageMock(): ShopifySessionStorage {
+  return {
+    deleteSession: vi.fn(() => Promise.resolve(true)),
+    deleteSessions: vi.fn(() => Promise.resolve(true)),
+    findSessionsByShop: vi.fn(() => Promise.resolve([])),
+    loadSession: vi.fn(() => Promise.resolve(undefined)),
+    storeSession: vi.fn(() => Promise.resolve(true)),
+  };
+}
 
 describe("Shopify session storage", () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock("@/app/modules/shopify/session-storage/database");
   });
 
-  it("uses database session storage in Cloudflare D1 runtime", async () => {
-    const database = {
-      db: {},
-      dialect: "sqlite",
-      provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-      runtime: "cloudflare",
-    };
-    const sessionStorage = { kind: "database-session-storage" };
-    const createDatabase = vi.fn(() => Promise.resolve(database));
-    const createDatabaseShopifySessionStorage = vi.fn(() => sessionStorage);
+  it("resolves session storage from runtime capabilities in Cloudflare D1 runtime", async () => {
+    const sessionStorage = createSessionStorageMock();
 
-    vi.doMock("@/infra/database", () => ({
-      createDatabase,
-    }));
-    vi.doMock("@/app/modules/shopify/session-storage/database", () => ({
-      createDatabaseShopifySessionStorage,
-    }));
-
-    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
-    //@ts-ignore
-    setRuntimeCapability("databaseFactory", () => createDatabase());
+    const runtimeEnv: typeof runtimeConfig = {
+      ...runtimeConfig,
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+      APP_RUNTIME: "cloudflare",
+      APP_ENV: "production",
+    };
     const context = createMockContext({
       vars: {
-        runtimeEnv: {
-          ...runtimeConfig,
-          APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.D1,
-          APP_RUNTIME: "cloudflare",
-          APP_ENV: "production",
-        },
+        runtimeEnv,
+        runtimeCapabilities: createMockRuntimeCapabilities({
+          shopifySessionStorage: () => sessionStorage,
+        }),
       },
     });
 
     await expect(getShopifySessionStorage(context as never)).resolves.toBe(
       sessionStorage,
     );
-    expect(createDatabase).toHaveBeenCalledOnce();
-    expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
 
-  it("uses database session storage in node postgres runtime", async () => {
-    const database = {
-      db: {},
-      dialect: "postgres",
-      provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
-      runtime: "node",
-    };
-    const sessionStorage = { kind: "database-session-storage" };
-    const createDatabase = vi.fn(() => Promise.resolve(database));
-    const createDatabaseShopifySessionStorage = vi.fn(() => sessionStorage);
+  it("resolves session storage from runtime capabilities in node postgres runtime", async () => {
+    const sessionStorage = createSessionStorageMock();
 
-    vi.doMock("@/infra/database", () => ({
-      createDatabase,
-    }));
-    vi.doMock("@/app/modules/shopify/session-storage/database", () => ({
-      createDatabaseShopifySessionStorage,
-    }));
-
-    const { setRuntimeCapability } = await import("@/app/runtime/capabilities");
     const { getShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage");
-    //@ts-ignore
-    setRuntimeCapability("databaseFactory", () => createDatabase());
+    const runtimeEnv: typeof runtimeConfig = {
+      ...runtimeConfig,
+      APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+      APP_RUNTIME: "node",
+      APP_ENV: "development",
+    };
     const context = createMockContext({
       vars: {
-        runtimeEnv: {
-          ...runtimeConfig,
-          APP_DATABASE_PROVIDER: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
-          APP_RUNTIME: "node",
-          APP_ENV: "development",
-        },
+        runtimeEnv,
+        runtimeCapabilities: createMockRuntimeCapabilities({
+          shopifySessionStorage: () => sessionStorage,
+        }),
       },
     });
 
     await expect(getShopifySessionStorage(context as never)).resolves.toBe(
       sessionStorage,
     );
-    expect(createDatabase).toHaveBeenCalledOnce();
-    expect(createDatabaseShopifySessionStorage).toHaveBeenCalledWith(database);
   });
 });
 
 describe("Shopify database session storage adapter", () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    vi.doUnmock("@/app/modules/shopify/session-storage/postgres");
+    vi.doUnmock("@/app/modules/shopify/session-storage/sqlite");
     vi.doUnmock("@shopify/shopify-app-session-storage-drizzle");
     vi.doUnmock(
       "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-postgres.adapter.mjs",
@@ -106,7 +101,7 @@ describe("Shopify database session storage adapter", () => {
   });
 
   it("creates the Postgres Drizzle session storage adapter", async () => {
-    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    vi.doUnmock("@/app/modules/shopify/session-storage/postgres");
     const loadedSession = { id: "loaded-session" };
     const DrizzleSessionStoragePostgres = vi.fn(function (
       this: {
@@ -140,18 +135,26 @@ describe("Shopify database session storage adapter", () => {
 
     const { postgresShopifySessions } =
       await import("@shamt/database/models/postgres");
-    const { createDatabaseShopifySessionStorage } =
-      await import("@/app/modules/shopify/session-storage/database");
+    const { createPostgresShopifySessionStorage } =
+      await import("@/app/modules/shopify/session-storage/postgres");
     const db = { id: "pg-db" };
-    const storage = createDatabaseShopifySessionStorage({
-      db,
+    const database: PostgresDatabase = {
+      check: () =>
+        Promise.resolve({
+          dialect: "postgres",
+          latencyMs: 1,
+          provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
+          runtime: "node",
+          status: "ok",
+        }),
+      db: db as unknown as PostgresDatabase["db"],
       dialect: "postgres",
       dispose: vi.fn(),
       provider: DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
       runtime: "node",
-    } as never);
+    };
+    const storage = await createPostgresShopifySessionStorage(database);
 
-    expect(DrizzleSessionStoragePostgres).not.toHaveBeenCalled();
     await expect(storage.loadSession("session-id")).resolves.toBe(
       loadedSession,
     );
@@ -163,7 +166,7 @@ describe("Shopify database session storage adapter", () => {
   });
 
   it("creates the SQLite Drizzle session storage adapter for D1", async () => {
-    vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    vi.doUnmock("@/app/modules/shopify/session-storage/sqlite");
     const DrizzleSessionStoragePostgres = vi.fn();
     const loadedSession = { id: "loaded-session" };
     const DrizzleSessionStorageSQLite = vi.fn(function (
@@ -197,17 +200,25 @@ describe("Shopify database session storage adapter", () => {
 
     const { sqliteShopifySessions } =
       await import("@shamt/database/models/sqlite");
-    const { createDatabaseShopifySessionStorage } =
-      await import("@/app/modules/shopify/session-storage/database");
+    const { createSqliteShopifySessionStorage } =
+      await import("@/app/modules/shopify/session-storage/sqlite");
     const db = { id: "d1-db" };
-    const storage = createDatabaseShopifySessionStorage({
-      db,
+    const database: D1DatabaseClient = {
+      check: () =>
+        Promise.resolve({
+          dialect: "sqlite",
+          latencyMs: 1,
+          provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
+          runtime: "cloudflare",
+          status: "ok",
+        }),
+      db: db as unknown as D1DatabaseClient["db"],
       dialect: "sqlite",
       provider: DEFAULT_APP_DATABASE_PROVIDERS.D1,
       runtime: "cloudflare",
-    } as never);
+    };
+    const storage = await createSqliteShopifySessionStorage(database);
 
-    expect(DrizzleSessionStorageSQLite).not.toHaveBeenCalled();
     await expect(storage.loadSession("session-id")).resolves.toBe(
       loadedSession,
     );
@@ -216,24 +227,6 @@ describe("Shopify database session storage adapter", () => {
       sqliteShopifySessions,
     );
     expect(DrizzleSessionStoragePostgres).not.toHaveBeenCalled();
-  });
-
-  it("rejects unsupported database providers", async () => {
-    vi.doUnmock("@/app/modules/shopify/session-storage/database");
-
-    const { createDatabaseShopifySessionStorage } =
-      await import("@/app/modules/shopify/session-storage/database");
-
-    expect(() =>
-      createDatabaseShopifySessionStorage({
-        db: {},
-        dialect: "unknown",
-        provider: "unsupported",
-        runtime: "node",
-      } as never),
-    ).toThrow(
-      "Shopify session storage database provider is not supported: unsupported",
-    );
   });
 });
 
@@ -260,7 +253,7 @@ describe("verifySessionToken middleware", () => {
       sub: "gid://shopify/User/1",
     };
     const decodeSessionToken = vi.fn(() => claims);
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         session: { decodeSessionToken },
       })),
@@ -283,7 +276,7 @@ describe("verifySessionToken middleware", () => {
   });
 
   it("wraps invalid session token errors", async () => {
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         session: {
           decodeSessionToken: vi.fn(() => {
@@ -306,14 +299,14 @@ describe("verifySessionToken middleware", () => {
     ).rejects.toSatisfy((error) => {
       expectAppError(error, 401, "Invalid session token");
       expect(error).toMatchObject({
-        details: { message: "bad token" },
+        details: { message: "[apps/server] bad token" },
       });
       return true;
     });
   });
 
   it("wraps non-Error invalid session token failures", async () => {
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         session: {
           decodeSessionToken: vi.fn(() => {
@@ -441,7 +434,8 @@ describe("tokenExchange middleware", () => {
       expectAppError(error, 502, "Token exchange failed");
       expect(error).toMatchObject({
         details: {
-          message: "Token exchange did not return an access token",
+          message:
+            "[apps/server] Token exchange did not return an access token",
         },
       });
       return true;
@@ -501,7 +495,7 @@ describe("Shopify online session helpers", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ loadSession })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         config: { scopes: ["read_products"] },
         session: { getCurrentId },
@@ -536,7 +530,7 @@ describe("Shopify online session helpers", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ loadSession })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         config: { scopes: ["read_products"] },
         session: { getCurrentId },
@@ -570,7 +564,7 @@ describe("Shopify online session helpers", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ storeSession })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         auth: { tokenExchange },
       })),
@@ -610,7 +604,7 @@ describe("Shopify online session helpers", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ findSessionsByShop })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         config: { scopes: ["read_products"] },
       })),
@@ -644,7 +638,7 @@ describe("Shopify online session helpers", () => {
         storeSession,
       })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         auth: { tokenExchange },
         config: { scopes: ["read_products"] },
@@ -674,7 +668,7 @@ describe("Shopify online session helpers", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         auth: { tokenExchange: vi.fn(() => ({ session: {} })) },
       })),
@@ -721,7 +715,7 @@ describe("Shopify online session helpers", () => {
         storeSession,
       })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         session: { getCurrentId },
         auth: { tokenExchange: vi.fn(() => ({ session: freshSession })) },
@@ -759,7 +753,7 @@ describe("Shopify online session helpers", () => {
         storeSession: vi.fn(),
       })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         session: { getCurrentId: vi.fn(() => undefined) },
         auth: { tokenExchange: vi.fn(() => ({ session: freshSession })) },
@@ -857,7 +851,7 @@ describe("Shopify account session", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ loadSession })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         config: { scopes: ["read_products"] },
       })),
@@ -901,7 +895,7 @@ describe("Shopify account session", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ loadSession })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider,
     }));
 
@@ -946,7 +940,7 @@ describe("Shopify account session", () => {
     vi.doMock("@/app/modules/shopify/session-storage", () => ({
       getShopifySessionStorage: vi.fn(() => ({ loadSession })),
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         config: { scopes: ["read_products"] },
       })),
@@ -992,9 +986,9 @@ describe("verifyWebhook middleware", () => {
       topic: "APP_UNINSTALLED",
       domain: "shop.myshopify.com",
       webhookId: "webhook-1",
-      apiVersion: "2026-04",
+      apiVersion: "2026-07",
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: { validate },
       })),
@@ -1015,7 +1009,7 @@ describe("verifyWebhook middleware", () => {
       rawBody: '{"shop_id":1}',
     });
     expect(context.var.webhook).toEqual({
-      apiVersion: "2026-04",
+      apiVersion: "2026-07",
       payload: { shop_id: 1 },
       shop: "shop.myshopify.com",
       topic: "APP_UNINSTALLED",
@@ -1025,7 +1019,7 @@ describe("verifyWebhook middleware", () => {
   });
 
   it("rejects empty webhook bodies after validation", async () => {
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: {
           validate: vi.fn(() => ({
@@ -1059,7 +1053,7 @@ describe("verifyWebhook middleware", () => {
       topic: "APP_UNINSTALLED",
       domain: "shop.myshopify.com",
     }));
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: { validate },
       })),
@@ -1187,7 +1181,7 @@ describe("verifyWebhook middleware", () => {
 
   it("rejects invalid webhook signatures", async () => {
     const validation = { valid: false, reason: "invalid_hmac" };
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: { validate: vi.fn(() => validation) },
       })),
@@ -1217,7 +1211,7 @@ describe("verifyWebhook middleware", () => {
       reason: "missing_headers",
       valid: false,
     };
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: { validate: vi.fn(() => validation) },
       })),
@@ -1242,7 +1236,7 @@ describe("verifyWebhook middleware", () => {
   });
 
   it("rejects invalid webhook JSON payloads", async () => {
-    vi.doMock("@/infra/provider", () => ({
+    mockProvider(() => ({
       getShopifyConfigProvider: vi.fn(() => ({
         webhooks: {
           validate: vi.fn(() => ({

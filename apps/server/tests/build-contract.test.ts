@@ -83,7 +83,7 @@ describe("build output contracts", () => {
       "./models/*",
       "./schemas",
       "./schemas/*",
-      "./types",
+      "./entities",
       "./package.json",
     ]);
     expect(publishExportKeys).toEqual(exportKeys);

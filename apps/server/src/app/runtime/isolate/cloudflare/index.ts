@@ -1,14 +1,26 @@
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerJobs } from "@/app/bootstrap/register-jobs";
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
-import { registerCloudflareIsolateRuntimeCapabilities } from "./capabilities";
-import type { RuntimeAppEnv } from "@/typings";
+import {
+  runtimeCapabilityCloudflare,
+  runtimeCapabilityCloudflareQueue,
+  runtimeCapabilityCloudflareScheduled,
+} from "./runtime-capabilities";
+import type { AppEnv, RuntimeAppEnv } from "@/typings";
+import type { Context } from "hono";
 
-registerCloudflareIsolateRuntimeCapabilities();
 registerJobs();
 
-const cloudflareApp = bootstrapApp();
+const cloudflareApp = bootstrapApp({
+  createRuntimeCapabilities: (c: Context<AppEnv>) => {
+    const runtimeEnv = getEnvProvider(c.get("runtimeEnv") ?? c.env);
+
+    return runtimeCapabilityCloudflare({
+      env: c.env as Record<string, unknown>,
+      runtimeEnv,
+    });
+  },
+});
 
 export default {
   async fetch(request, env, ctx) {
@@ -17,8 +29,11 @@ export default {
   },
   async queue(batch, env) {
     const context = await createCloudflareQueueJobContext(env);
-    const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
-    const queueConsumer = await queueConsumerFactory?.(context.runtimeEnv);
+    const runtimeCapabilities = runtimeCapabilityCloudflareQueue({
+      env,
+      runtimeEnv: context.runtimeEnv,
+    });
+    const queueConsumer = await runtimeCapabilities.consumer();
     await queueConsumer?.consume(batch, context);
   },
   async scheduled(controller, env) {
@@ -26,8 +41,12 @@ export default {
       env,
       controller.cron,
     );
-    const schedulerFactory = getRuntimeCapability("schedulerFactory");
-    const scheduler = await schedulerFactory?.(context.runtimeEnv);
+    const runtimeCapabilities = runtimeCapabilityCloudflareScheduled({
+      cron: controller.cron,
+      env,
+      runtimeEnv: context.runtimeEnv,
+    });
+    const scheduler = await runtimeCapabilities.scheduler();
     await scheduler?.run(controller.cron, context);
   },
 } satisfies ExportedHandler<RuntimeAppEnv<"cloudflare">["Bindings"]>;
@@ -37,10 +56,15 @@ async function createCloudflareQueueJobContext(
 ) {
   const runtimeEnv = getEnvProvider(env);
   const logger = await getLoggerProvider(runtimeEnv);
+  const runtimeCapabilities = runtimeCapabilityCloudflare({
+    env,
+    runtimeEnv,
+  });
 
   return {
     bindings: env,
     logger,
+    runtimeCapabilities,
     runtimeEnv,
   };
 }
@@ -51,11 +75,16 @@ async function createCloudflareSchedulerTaskContext(
 ) {
   const runtimeEnv = getEnvProvider(env);
   const logger = await getLoggerProvider(runtimeEnv);
+  const runtimeCapabilities = runtimeCapabilityCloudflare({
+    env,
+    runtimeEnv,
+  });
 
   return {
     bindings: env,
     cron,
     logger,
+    runtimeCapabilities,
     runtimeEnv,
   };
 }

@@ -54,6 +54,8 @@
 ## Runtime And Infrastructure Rules
 
 - Database and bucket providers must remain selected by env and runtime capability boundaries.
+- Code that needs runtime env must call `getEnvProvider(...)`; code that needs logger must call `getLoggerProvider(...)`.
+- Hono middleware may synchronize env/logger onto context with `c.set("runtimeEnv", ...)` and `c.set("runtimeLogger", ...)`, and code can technically read them with `c.get(...)`, but this is strongly discouraged outside middleware or narrow compatibility boundaries. Prefer provider calls so env/logger caching, signature checks, and request-time refresh stay centralized.
 - Node PostgreSQL and Cloudflare D1 binding behavior must stay separated behind the app database factory.
 - Process runtime may cache long-lived clients and must dispose them on shutdown or test teardown.
 - Cloudflare isolate runtime must treat request/event bindings as the resource boundary.
@@ -70,7 +72,7 @@
 
 - Update `apps/server/README.md` or `apps/server/docs/*` when runtime, env, deployment, Shopify, queue, scheduler, database, bucket, file, or error behavior changes.
 - Put server-specific decisions and task-oriented guides under `apps/server/docs/guides/`.
-- Put descriptive reference material, explanations, and usage manuals under `apps/server/docs/reference/`.
+- Put descriptive reference material, explanations, and usage manuals under `apps/server/docs/references/`.
 - Put server-specific notes or backlog under `apps/server/docs/notes/`.
 - Keep docs factual and current; remove obsolete design drafts instead of preserving stale alternatives.
 

@@ -1,12 +1,12 @@
 import { createMiddleware } from "hono/factory";
-import { getLoggerProvider } from "@/infra/provider";
+import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
 import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
 
 export function runtimeLoggerMiddleware() {
   return createMiddleware<AppEnv>(async (c, next) => {
     try {
-      const runtimeEnv = c.get("runtimeEnv");
+      const runtimeEnv = getEnvProvider(c.env);
       const runtimeLogger = await getLoggerProvider(runtimeEnv);
       c.set("runtimeLogger", runtimeLogger);
     } catch (error) {

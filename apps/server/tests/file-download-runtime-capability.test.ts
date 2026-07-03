@@ -1,9 +1,6 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  disposeRuntimeCapabilities,
-  getRuntimeCapability,
-} from "@/app/runtime/capabilities";
+import { describe, expect, it, vi } from "vitest";
+import { runtimeCapabilityCloudflare } from "@/app/runtime/isolate/cloudflare/runtime-capabilities";
 import { getRuntimeConfig } from "@/infra/env";
 import { throwAppServerError as throwError } from "../internal";
 import { runtimeConfig } from "./shopify/test-utils";
@@ -31,12 +28,17 @@ vi.mock("@/infra/provider", async (importOriginal) => {
   };
 });
 
-describe("file download runtime capability", () => {
-  afterEach(() => disposeRuntimeCapabilities());
+vi.mock("@/utils/cloudflare", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/utils/cloudflare")>();
 
+  return {
+    ...original,
+    getCloudflareTokenId: vi.fn(() => Promise.resolve("access_key")),
+  };
+});
+
+describe("file download runtime capability", () => {
   it("redirects R2 downloads through a Cloudflare-compatible signed URL", async () => {
-    const { registerCloudflareIsolateRuntimeCapabilities } =
-      await import("@/app/runtime/isolate/cloudflare/capabilities");
     const runtimeEnv = getRuntimeConfig({
       ...runtimeConfig,
       APP_BUCKET_PROVIDER: "r2",
@@ -48,10 +50,9 @@ describe("file download runtime capability", () => {
     });
     const r2 = createR2Binding();
     const context = {
-      bindings: {
+      env: {
         test_r2: r2,
       },
-      runtimeEnv,
     };
     const file: FileRecord = {
       bucketKey: "shop/file.csv",
@@ -69,10 +70,11 @@ describe("file download runtime capability", () => {
       deletedAt: null,
     };
 
-    registerCloudflareIsolateRuntimeCapabilities();
-
-    const factory = getRuntimeCapability("moduleFileDownloadResolverFactory");
-    const resolver = await factory?.(context);
+    const capabilities = runtimeCapabilityCloudflare({
+      env: context.env,
+      runtimeEnv,
+    });
+    const resolver = await capabilities.file.downloadResolver();
     const download = await resolver?.resolve({ file });
 
     expect(download?.type).toBe("redirect");

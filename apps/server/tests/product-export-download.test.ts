@@ -1,21 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  disposeRuntimeCapabilities,
-  setRuntimeCapability,
-} from "@/app/runtime/capabilities";
-import { runtimeConfig } from "./shopify/test-utils";
+  createMockRuntimeCapabilities,
+  runtimeConfig,
+} from "./shopify/test-utils";
 import type { FileDownloadResolver } from "@/app/modules/file/types";
+import type { ProductExportRepository } from "@/app/modules/product-export/repositories/database";
 import type { downloadProductExport } from "@/app/modules/product-export/service";
 import type { ProductExportRecord } from "@/app/modules/product-export/types";
-import type { ProcessDatabase } from "@/infra/database/process";
 
 const findByIdMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@/app/modules/product-export/repositories/database", () => ({
-  createDatabaseProductExportsRepositoryFromPromise: () => ({
-    findById: findByIdMock,
-  }),
-}));
 
 describe("product export download", () => {
   beforeEach(() => {
@@ -24,7 +17,6 @@ describe("product export download", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    return disposeRuntimeCapabilities();
   });
 
   it("resolves ready product export files through the file download resolver", async () => {
@@ -43,16 +35,11 @@ describe("product export download", () => {
       ),
     };
     findByIdMock.mockResolvedValue(record);
-    const databaseFactory = () => createTestDatabase();
-    setRuntimeCapability("databaseFactory", databaseFactory);
-    setRuntimeCapability("moduleFileDownloadResolverFactory", () =>
-      Promise.resolve(resolver),
-    );
 
     const { downloadProductExport } =
       await import("@/app/modules/product-export/service");
     const download = await downloadProductExport(
-      createServiceContext(),
+      createServiceContext({ resolver }),
       "test-shop.myshopify.com",
       "export-1",
     );
@@ -80,18 +67,13 @@ describe("product export download", () => {
 
   it("returns not found when the export is missing", async () => {
     findByIdMock.mockResolvedValue(null);
-    const databaseFactory = () => createTestDatabase();
-    setRuntimeCapability("databaseFactory", databaseFactory);
-    setRuntimeCapability("moduleFileDownloadResolverFactory", () => ({
-      resolve: vi.fn(),
-    }));
 
     const { downloadProductExport } =
       await import("@/app/modules/product-export/service");
 
     await expect(
       downloadProductExport(
-        createServiceContext(),
+        createServiceContext({ resolver: { resolve: vi.fn() } }),
         "test-shop.myshopify.com",
         "missing-export",
       ),
@@ -103,9 +85,6 @@ describe("product export download", () => {
 
   it("returns not found when the export is not ready or has no bucket object", async () => {
     const resolver: FileDownloadResolver = { resolve: vi.fn() };
-    const databaseFactory = () => createTestDatabase();
-    setRuntimeCapability("databaseFactory", databaseFactory);
-    setRuntimeCapability("moduleFileDownloadResolverFactory", () => resolver);
 
     const { downloadProductExport } =
       await import("@/app/modules/product-export/service");
@@ -115,7 +94,7 @@ describe("product export download", () => {
     );
     await expect(
       downloadProductExport(
-        createServiceContext(),
+        createServiceContext({ resolver }),
         "test-shop.myshopify.com",
         "export-1",
       ),
@@ -129,7 +108,7 @@ describe("product export download", () => {
     );
     await expect(
       downloadProductExport(
-        createServiceContext(),
+        createServiceContext({ resolver }),
         "test-shop.myshopify.com",
         "export-1",
       ),
@@ -383,10 +362,23 @@ function createProductExportMetaMock() {
   };
 }
 
-function createServiceContext() {
+function createServiceContext(options: { resolver: FileDownloadResolver }) {
+  const productExportsMock: Pick<ProductExportRepository, "findById"> = {
+    findById: findByIdMock,
+  };
+  const productExports = productExportsMock as ProductExportRepository;
+  const runtimeCapabilities = createMockRuntimeCapabilities({
+    databaseRepositories: {
+      productExports: () => productExports,
+    },
+    file: {
+      downloadResolver: () => options.resolver,
+    },
+  });
   const context = {
     get(key: string) {
       if (key === "runtimeEnv") return runtimeConfig;
+      if (key === "runtimeCapabilities") return runtimeCapabilities;
       if (key === "requestId") return "req_test";
       return;
     },
@@ -453,27 +445,6 @@ function createDownloadRouteContext() {
       },
       url: "https://app.example.com/api/product-exports/export-1/download",
     },
-  };
-}
-
-function createTestDatabase(): ProcessDatabase {
-  const check: ProcessDatabase["check"] = () =>
-    Promise.resolve({
-      dialect: "postgres",
-      latencyMs: 0,
-      provider: "postgres",
-      runtime: "node",
-      status: "ok",
-    });
-
-  return {
-    check,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Drizzle client is not used by this controller test.
-    db: {} as ProcessDatabase["db"],
-    dialect: "postgres",
-    provider: "postgres",
-    runtime: "node",
-    dispose: vi.fn(() => Promise.resolve()),
   };
 }
 

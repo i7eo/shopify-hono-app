@@ -20,12 +20,12 @@
 
 ```text
 process entry
-  -> createProcessRuntimeCapabilities()
-  -> bootstrapApp(capabilities)
+  -> runtimeCapabilityNode()
+  -> bootstrapApp({ createRuntimeCapabilities })
 
 cloudflare entry
-  -> createCloudflareRequestRuntimeCapabilities(env)
-  -> bootstrapApp(capabilities)
+  -> runtimeCapabilityCloudflare(env)
+  -> bootstrapApp({ createRuntimeCapabilities })
 
 app modules
   -> depend on RuntimeCapabilities ports
@@ -37,11 +37,17 @@ app modules
 ```ts
 type RuntimeCapabilities = {
   database: Lazy<Database>;
+  databaseRepositories: {
+    files: () => FilesRepository;
+    productExports: () => ProductExportRepository;
+    references: () => ReferenceRepository;
+  };
   bucket: Lazy<Bucket>;
   shopifySessionStorage: Lazy<SessionStorage>;
-  logger: Logger;
 };
 ```
+
+`RuntimeCapabilities` 不保存 env 或 logger 快照。runtime capability creator 可以接收 `runtimeEnv` 来创建 adapter，但 env 的权威入口是 `getEnvProvider()`；logger 的权威入口是 `getLoggerProvider()`。request 阶段由 middleware 把二者同步到 Hono context。
 
 不要再新增这种全局注册表 API：
 
@@ -92,7 +98,7 @@ capability registry 的优点是能把业务模块和 runtime 实现隔开，但
 Cloudflare request capabilities 可以对同一个 request 内的 adapter 做 lazy memoization：
 
 ```ts
-function createCloudflareRequestRuntimeCapabilities(env, runtimeEnv) {
+function runtimeCapabilityCloudflare(env, runtimeEnv) {
   const database = once(() =>
     createIsolateDatabase(runtimeEnv, {
       d1: env[runtimeEnv.APP_DATABASE_D1_BINDING],
@@ -141,29 +147,28 @@ function createCloudflareRuntimeCapabilities(env, runtimeEnv) {
 
 不是所有旧 capability 都应该进入 request capabilities。先区分 bootstrap 能力、request/event 能力和业务 port。
 
-| 旧 capability                       | 新位置                                                           | 处理方式                                                              |
+| 已移除的旧 registry capability      | 新位置                                                           | 处理方式                                                              |
 | ----------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `runtimeLoggerSetup`                | runtime bootstrap                                                | 改为 `ensureRuntimeLogger(runtimeEnv)`，不放进 request capabilities   |
-| `runtimeEnvSourceResolver`          | runtime entry / request capabilities 创建处                      | 大概率删除旧概念，创建 capabilities 前直接解析 runtime env            |
+| `runtimeLoggerSetup`                | logger provider                                                  | 改为 `getLoggerProvider(runtimeEnv)`                                  |
+| `runtimeEnvSourceResolver`          | runtime entry / request capabilities 创建处                      | 已删除，`runtimeEnvMiddleware` 直接读取 `c.env` 并回退 `process.env`  |
 | `moduleHealthDiskChecker`           | `runtimeCapabilities.health.disk`                                | 作为 health port 注入，Node 返回真实检查，Cloudflare 返回 unsupported |
 | `moduleHealthMemoryChecker`         | `runtimeCapabilities.health.memory`                              | 同上                                                                  |
 | `moduleFileDownloadResolverFactory` | `runtimeCapabilities.file.downloadResolver` 或 file service 组合 | 归入 file 边界，不再作为全局 runtime factory                          |
 
 logger 需要特别处理。D1、R2 这类 adapter 可以是 request-scoped lazy capability；但 LogTape 的 `configure/reset` 是 isolate/process 级全局配置。如果 Cloudflare 每个 request 都无条件 reset logger，会带来不必要的开销，也可能让并发 request 互相影响全局 logger config。
 
-新模式下保留启动期 bootstrap logger，并在 runtime request/event 入口做幂等的 logger 确认：
+新模式下保留启动期 bootstrap logger，并在 runtime request/event 入口通过 logger provider 做幂等的 logger 确认：
 
 ```ts
-await setupBootstrapLogger();
+await getLoggerProvider();
 
 export default {
   async fetch(request, env, ctx) {
     const runtimeEnv = createCloudflareRuntimeEnv(env);
-    const logger = await ensureCloudflareRuntimeLogger(runtimeEnv);
-    const capabilities = createCloudflareRequestRuntimeCapabilities({
+    const logger = await getLoggerProvider(runtimeEnv);
+    const capabilities = runtimeCapabilityCloudflare({
       ctx,
       env,
-      logger,
       runtimeEnv,
     });
 
@@ -172,57 +177,34 @@ export default {
 };
 ```
 
-`ensureCloudflareRuntimeLogger(runtimeEnv)` 应按 logger config signature 做幂等 setup。第一次 request 进入 isolate 时用 Cloudflare env 配置 runtime logger；后续同一个 isolate、同一份 logger 配置不重复 reset。只有 signature 变化时才重新 setup：
+`getLoggerProvider(runtimeEnv)` 按 logger config signature 做幂等 setup。第一次 request 进入 isolate 时用 Cloudflare env 配置 runtime logger；后续同一个 isolate、同一份 logger 配置不重复 reset。只有 signature 变化时才重新 setup。同一 signature 的并发 setup 会复用同一个 setup promise。
+
+Node process runtime 也通过同一个 provider 入口完成 runtime logger setup，并在 process shutdown 时统一 dispose：
 
 ```ts
-let loggerSignature: string | undefined;
-let loggerSetupPromise: Promise<void> | undefined;
-
-export async function ensureCloudflareRuntimeLogger(runtimeEnv) {
-  const nextSignature = getLoggerSignature(runtimeEnv);
-
-  if (loggerSignature === nextSignature) {
-    await loggerSetupPromise;
-    return getRuntimeLogger();
-  }
-
-  loggerSetupPromise = setupIsolateLogger(runtimeEnv, {
-    reset: loggerSignature !== undefined,
-  }).then(() => {
-    loggerSignature = nextSignature;
-  });
-
-  await loggerSetupPromise;
-  return getRuntimeLogger();
-}
-```
-
-Node process runtime 可以在 bootstrap 阶段完成 runtime logger setup，并在 process shutdown 时统一 dispose：
-
-```ts
-const runtimeEnv = createProcessRuntimeEnv();
-const logger = await ensureProcessRuntimeLogger(runtimeEnv);
-const capabilities = createProcessRuntimeCapabilities({
-  logger,
+const runtimeEnv = getEnvProvider();
+const logger = await getLoggerProvider(runtimeEnv);
+const capabilities = runtimeCapabilityNode({
   runtimeEnv,
 });
 ```
 
-因此，`RuntimeCapabilities` 中可以持有已经可用的 `logger`，但不应该持有 `runtimeLoggerSetup` 这类会 reset 全局 logger 配置的 setup function。
+因此，`RuntimeCapabilities` 不持有 `logger`，也不持有 `runtimeLoggerSetup` 这类会 reset 全局 logger 配置的 setup function。request logger 由 `runtimeLoggerMiddleware()` 调用 `getLoggerProvider(getEnvProvider(c.env))` 后同步到 Hono context。
 
 ## 放置规则
 
 新增或迁移 runtime 能力时按下面的规则放置代码：
 
-| 内容                          | 放置位置                                                                   |
-| ----------------------------- | -------------------------------------------------------------------------- |
-| runtime 入口                  | `src/app/runtime/process` 或 `src/app/runtime/isolate/cloudflare`          |
-| runtime capabilities creator  | 对应 runtime 入口附近，例如 `capabilities.ts` 或 `runtime-capabilities.ts` |
-| 业务 port 类型                | 使用该能力的 app/module 边界，或共享 `RuntimeCapabilities` 类型            |
-| Node-only adapter             | `src/infra/*/process.ts` 或明确的 process runtime 文件                     |
-| Cloudflare-only adapter       | `src/infra/*/isolate.ts` 或明确的 isolate runtime 文件                     |
-| app module service/repository | 只接收 port，不直接读取 runtime/provider                                   |
-| package 级 schema/model       | `packages/*`，保持不依赖 `apps/*`                                          |
+| 内容                          | 放置位置                                                           |
+| ----------------------------- | ------------------------------------------------------------------ |
+| runtime 入口                  | `src/app/runtime/process` 或 `src/app/runtime/isolate/cloudflare`  |
+| runtime capabilities creator  | 对应 runtime 入口附近，例如 `runtime-capabilities.ts`              |
+| 业务 port 类型                | 使用该能力的 app/module 边界，或共享 `RuntimeCapabilities` 类型    |
+| Node-only adapter             | `src/infra/*/process.ts` 或明确的 process runtime 文件             |
+| Cloudflare-only adapter       | `src/infra/*/isolate.ts` 或明确的 isolate runtime 文件             |
+| app module service/repository | 只接收 port，不直接读取 runtime/provider                           |
+| database repository index     | 只导出 repository 类型；dialect 实现在 `postgres.ts` / `sqlite.ts` |
+| package 级 schema/model       | `packages/*`，保持不依赖 `apps/*`                                  |
 
 不要把 runtime/provider switch 写进业务模块：
 
@@ -267,28 +249,28 @@ infra/database/isolate.ts
 
 Shopify session storage 是显式 `RuntimeCapabilities` 的典型例子。
 
-业务上需要的是 Shopify `SessionStorage` port。具体 adapter 应由 runtime capabilities creator 创建：
+业务上需要的是 Shopify `SessionStorage` port。具体 adapter 由 Shopify module 下的 runtime-specific session-storage factory 创建，runtime capabilities creator 只负责传入当前 runtime database：
 
 | Runtime      | Session storage adapter                            |
 | ------------ | -------------------------------------------------- |
 | Node process | PostgreSQL-backed Shopify session storage          |
 | Cloudflare   | app-owned D1/SQLite-backed Shopify session storage |
 
-`@shopify/shopify-app-session-storage` 可以作为类型和接口语义来源，但不应该让业务模块通过一个 provider switch 自己创建 adapter。长期方向是移除类似 `createDatabaseShopifySessionStorage(database)` 的模块内分发，让 process capabilities creator 与 Cloudflare capabilities creator 分别创建自己的 session storage，并把同一个 `SessionStorage` port 传给 Shopify auth、webhook、account 和 session service。
+`@shopify/shopify-app-session-storage` 可以作为类型和接口语义来源。Postgres 与 SQLite/D1 adapter 分别收敛在 `shopify/session-storage/postgres.ts` 与 `shopify/session-storage/sqlite.ts`，避免通过一个 provider switch 同时触达 Node/PostgreSQL 和 Cloudflare/D1 实现。
 
 这样可以避免 Cloudflare 入口因为复用 Node/PostgreSQL Shopify adapter 而把 `drizzle-orm/pg-core` 或 `PgTextBuilder` 带入 Worker bundle。
 
-## registry 的迁移规则
+## 旧 registry 移除后的规则
 
-现有 capability registry 可以作为兼容层逐步迁移，但不再作为新增能力的默认方案。
+旧 runtime capability registry 已从当前代码中移除。后续新增或调整 runtime 能力时，不再新增 `getRuntimeCapability(...)` / `setRuntimeCapability(...)` 名称，也不保留全局 registry 作为兼容桥。
 
-迁移优先级：
+维护规则：
 
 1. 新增 runtime 能力先放进显式 `RuntimeCapabilities` 对象，不新增全局 registry 名称。
-2. 已经引发 bundling 问题或 provider switch 的能力优先迁移，例如 database、Shopify session storage、bucket、queue、scheduler。
-3. 迁移时先定义 app capabilities port，再改业务模块从 port 获取能力。
-4. capability registry 只允许作为过渡桥接，不能成为新业务模块的长期依赖。
-5. 当某个能力完成显式注入后，删除对应 registry 类型、注册和读取代码。
+2. runtime entry 通过 `runtimeCapabilityNode(...)`、`runtimeCapabilityCloudflare(...)`、`runtimeCapabilityCloudflareQueue(...)` 或 `runtimeCapabilityCloudflareScheduled(...)` 创建当前 scope 的能力集合。
+3. 业务模块先定义或复用 app capabilities port，再从 `runtimeCapabilities(c)` 或 queue/scheduler context 获取能力。
+4. Node-only 与 Cloudflare-only adapter 只在对应 runtime capability creator 中引入，不通过共享 barrel 间接暴露。
+5. 如果发现旧 registry 术语或 `getRuntimeCapability(...)` 示例，只能作为历史背景或反例保留，不能描述当前实现。
 
 迁移完成后的业务代码应该能从函数参数、context variable 或明确的 `RuntimeCapabilities` 类型看出依赖了哪些能力，而不是需要搜索 `getRuntimeCapability(...)`。
 

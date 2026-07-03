@@ -1,3 +1,4 @@
+import { getEnvProvider } from "@/infra/provider";
 import { createResponse } from "@/shared/models";
 import {
   createFileRoute,
@@ -18,7 +19,7 @@ import type { AppOpenAPI } from "@/app/bootstrap/register-openapi";
 
 export function registerFileController(app: AppOpenAPI) {
   app.openapi(createFileRoute, async (c) => {
-    const runtimeEnv = c.get("runtimeEnv");
+    const runtimeEnv = getEnvProvider(c.get("runtimeEnv") ?? c.env);
     const shopDomain = c.get("shopDomain");
 
     if (isMultipartRequest(c.req.header("Content-Type"))) {

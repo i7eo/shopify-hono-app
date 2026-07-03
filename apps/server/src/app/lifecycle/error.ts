@@ -1,7 +1,7 @@
 import { serializeValue } from "@unimolecule/utils";
+import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
 import { normalizeError } from "@/shared/exceptions";
 import { createErrorResponse } from "@/shared/exceptions/response";
-import { getContextValue } from "@/utils";
 import type { AppError } from "@/shared/models";
 import type { AppEnv } from "@/typings";
 import type { Context, Hono } from "hono";
@@ -19,13 +19,21 @@ async function logError(c: Context<AppEnv>, error: AppError) {
     code: error.code,
     message: error.message,
     details: error.details,
-    requestId: getContextValue(c, "requestId"),
+    requestId: c.get("requestId"),
     method: c.req.method,
     path: c.req.path,
   };
-  const logger =
-    getContextValue(c, "runtimeLogger") ??
-    (await import("@/infra/logger")).default;
+  const logger = await getErrorLogger(c);
 
   logger.error(serializeValue(record));
+}
+
+async function getErrorLogger(c: Context<AppEnv>) {
+  try {
+    return await getLoggerProvider(
+      getEnvProvider(c.get("runtimeEnv") ?? c.env),
+    );
+  } catch {
+    return getLoggerProvider();
+  }
 }

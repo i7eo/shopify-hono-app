@@ -2,22 +2,34 @@ import { serve } from "@hono/node-server";
 import { DEFAULT_ENVS } from "@shamt/app-env";
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerJobs } from "@/app/bootstrap/register-jobs";
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { registerProcessExceptions } from "@/app/runtime/process/register-process-exceptions";
 import { registerProcessExits } from "@/app/runtime/process/register-process-exits";
+import { runtimeCapabilityNode } from "@/app/runtime/process/runtime-capabilities";
+import { setupProcessLogger } from "@/infra/logger/process";
 import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
+import { registerProcessLoggerSetup } from "@/infra/provider/logger";
 import { name } from "../../../../package.json";
-import { registerProcessRuntimeCapabilities } from "./capabilities";
 
 export async function bootstrap() {
-  registerProcessRuntimeCapabilities();
   registerJobs();
+  registerProcessLoggerSetup(setupProcessLogger);
 
   // error catch first
   await registerProcessExceptions();
 
   const env = getEnvProvider();
+  const logger = await getLoggerProvider(env);
+  const runtimeCapabilities = runtimeCapabilityNode({
+    runtimeEnv: env,
+  });
   const app = await bootstrapApp({
+    createRuntimeCapabilities: (c) => {
+      const runtimeEnv = getEnvProvider(c.get("runtimeEnv") ?? c.env);
+
+      return runtimeCapabilityNode({
+        runtimeEnv,
+      });
+    },
     registerOpenApi: env.APP_ENV !== DEFAULT_ENVS.PRODUCTION,
   });
   const nodeApp = serve({
@@ -26,21 +38,20 @@ export async function bootstrap() {
   });
   await registerProcessExits(nodeApp);
 
-  const logger = await getLoggerProvider();
   logger.info(
     `🎉 ${name} is running on port ${env.APP__SERVER_PORT}! OpenAPI Route: 👉 /reference`,
   );
 
-  const queueConsumerFactory = getRuntimeCapability("queueConsumerFactory");
-  const queueConsumer = await queueConsumerFactory?.(env);
+  const queueConsumer = await runtimeCapabilities.queue.consumer();
   await queueConsumer?.start({
     logger,
+    runtimeCapabilities,
     runtimeEnv: env,
   });
-  const schedulerFactory = getRuntimeCapability("schedulerFactory");
-  const scheduler = await schedulerFactory?.(env);
+  const scheduler = await runtimeCapabilities.scheduler();
   await scheduler?.start({
     logger,
+    runtimeCapabilities,
     runtimeEnv: env,
   });
 }

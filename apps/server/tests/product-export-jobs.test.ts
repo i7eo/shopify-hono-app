@@ -7,24 +7,24 @@ import {
   deleteProductExportPartObjects,
   registerModuleProductExportJobs,
 } from "@/app/modules/product-export/queue/jobs";
-import {
-  disposeRuntimeCapabilities,
-  setRuntimeCapability,
-} from "@/app/runtime/capabilities";
+import { createSqliteProductExportsRepository } from "@/app/modules/product-export/repositories/database/sqlite";
 import { consumeQueueBatch } from "@/infra/queue/consumer";
 import { resetQueueJobs } from "@/infra/queue/registry";
+import { createMockRuntimeCapabilities } from "./shopify/test-utils";
+import type { ProductExportRepository } from "@/app/modules/product-export/repositories/database";
 import type {
   ProductExportPartRecord,
   ProductExportRecord,
 } from "@/app/modules/product-export/types";
 import type { Bucket } from "@/infra/bucket";
 import type { Database } from "@/infra/database";
-import type { QueueJobContext } from "@/infra/queue";
+import type { QueueJobContext, QueueProducer } from "@/infra/queue";
 
 describe("product export queue jobs", () => {
-  afterEach(async () => {
+  const expectedReconcileConcurrency = 4;
+
+  afterEach(() => {
     resetQueueJobs();
-    await disposeRuntimeCapabilities();
     vi.restoreAllMocks();
   });
 
@@ -112,8 +112,6 @@ describe("product export queue jobs", () => {
   it("fails Cloudflare finalize jobs over the part threshold without Node handoff", async () => {
     const update = vi.fn();
     const database = createDatabase(update);
-    setRuntimeCapability("databaseFactory", () => database);
-    setRuntimeCapability("bucketFactory", () => createBucket());
     registerModuleProductExportJobs();
 
     const result = await consumeQueueBatch(
@@ -133,7 +131,10 @@ describe("product export queue jobs", () => {
           },
         ],
       },
-      createCloudflareQueueContext(),
+      createCloudflareQueueContext({
+        bucket: createBucket(),
+        database,
+      }),
     );
 
     expect(result.results[0]).toMatchObject({
@@ -156,6 +157,72 @@ describe("product export queue jobs", () => {
       }),
     );
   });
+
+  it("reconciles recoverable exports with bounded concurrency", async () => {
+    vi.resetModules();
+    const [{ consumeQueueBatch }, { registerModuleProductExportJobs }] =
+      await Promise.all([
+        import("@/infra/queue/consumer"),
+        import("@/app/modules/product-export/queue/jobs"),
+      ]);
+    let activeEnqueues = 0;
+    let maxActiveEnqueues = 0;
+    let didListRecoverableExports = false;
+    const producer: QueueProducer = {
+      enqueue: vi.fn(async () => {
+        activeEnqueues += 1;
+        maxActiveEnqueues = Math.max(maxActiveEnqueues, activeEnqueues);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        activeEnqueues -= 1;
+      }),
+      enqueueBatch: vi.fn(),
+    };
+    const repository = {
+      listRecoverableExports: vi.fn(() => {
+        if (didListRecoverableExports) return Promise.resolve([]);
+        didListRecoverableExports = true;
+        return Promise.resolve(
+          Array.from({ length: expectedReconcileConcurrency + 2 }, (_, index) =>
+            createProductExportRecord({
+              id: `export-${index}`,
+              status: "queued",
+            }),
+          ),
+        );
+      }),
+    } as unknown as ProductExportRepository;
+    registerModuleProductExportJobs();
+
+    const result = await consumeQueueBatch(
+      {
+        messages: [
+          {
+            attempts: 1,
+            body: {
+              name: PRODUCT_EXPORT_QUEUE_JOBS.RECONCILE,
+              payload: {},
+              version: 1,
+            },
+            id: "message-1",
+          },
+        ],
+      },
+      createReconcileQueueContext({
+        producer,
+        repository,
+      }),
+    );
+
+    expect(result.results[0]).toMatchObject({
+      action: "ack",
+      id: "message-1",
+    });
+    expect(producer.enqueue).toHaveBeenCalledTimes(
+      expectedReconcileConcurrency + 2,
+    );
+    expect(maxActiveEnqueues).toBeGreaterThan(1);
+    expect(maxActiveEnqueues).toBeLessThanOrEqual(expectedReconcileConcurrency);
+  });
 });
 
 function createBucket(overrides: Partial<Bucket> = {}): Bucket {
@@ -167,18 +234,61 @@ function createBucket(overrides: Partial<Bucket> = {}): Bucket {
   };
 }
 
-function createCloudflareQueueContext(): QueueJobContext {
+function createCloudflareQueueContext(options: {
+  bucket: Bucket;
+  database: Database;
+}): QueueJobContext {
+  const runtimeEnv = {
+    APP_QUEUE_CONSUMER_MAX_RETRIES: 3,
+    APP_RUNTIME: "cloudflare",
+  };
+  const logger = {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  } as unknown as QueueJobContext["logger"];
+
   return {
-    logger: {
-      debug: vi.fn(),
-      error: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-    },
-    runtimeEnv: {
-      APP_QUEUE_CONSUMER_MAX_RETRIES: 3,
-      APP_RUNTIME: "cloudflare",
-    },
+    logger,
+    runtimeCapabilities: createMockRuntimeCapabilities({
+      database: () => options.database,
+      databaseRepositories: {
+        productExports: () =>
+          createSqliteProductExportsRepository(options.database as never),
+      },
+      bucket: () => options.bucket,
+    }),
+    runtimeEnv,
+  } as unknown as QueueJobContext;
+}
+
+function createReconcileQueueContext(options: {
+  producer: QueueProducer;
+  repository: ProductExportRepository;
+}): QueueJobContext {
+  const runtimeEnv = {
+    APP_QUEUE_CONSUMER_MAX_RETRIES: 3,
+    APP_RUNTIME: "node",
+  };
+  const logger = {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  } as unknown as QueueJobContext["logger"];
+
+  return {
+    logger,
+    runtimeCapabilities: createMockRuntimeCapabilities({
+      databaseRepositories: {
+        productExports: () => options.repository,
+      },
+      queue: {
+        producer: () => Promise.resolve(options.producer),
+      },
+    }),
+    runtimeEnv,
   } as unknown as QueueJobContext;
 }
 

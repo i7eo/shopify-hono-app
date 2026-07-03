@@ -1,11 +1,13 @@
 import { throwAppServerError as throwError } from "../../../internal";
 import type { QueueMessage } from "./shared";
+import type { RuntimeCapabilities } from "@/app/runtime/runtime-capabilities";
 import type { RuntimeConfig } from "@/infra/env";
 import type { Logger } from "@/infra/logger";
 
 export type QueueJobContext = {
   bindings?: Record<string, unknown>;
   logger: Logger;
+  runtimeCapabilities: RuntimeCapabilities;
   runtimeEnv: RuntimeConfig;
 };
 

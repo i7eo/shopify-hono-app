@@ -1,3 +1,4 @@
+import { getEnvProvider } from "@/infra/provider";
 import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
 import type { DEFAULT_SHOPIFY_APP_MODES_VALUES } from "@shamt/app-env";
@@ -7,7 +8,7 @@ import type { Context, MiddlewareHandler } from "hono";
 export interface ShopifyModeCapabilities {
   isEmbeddedApp: boolean;
   buildAppShellResponse: (c: Context<AppEnv>) => Promise<Response> | Response;
-  renderAppShell: (apiKey: string) => string;
+  renderAppShell: (c: Context<AppEnv>["var"]["runtimeEnv"]) => string;
   authenticateAdminRequest: MiddlewareHandler<AppEnv>;
   refreshAdminSession: (c: Context<AppEnv>) => Promise<Session>;
   buildAuthCallbackRedirect: (
@@ -91,9 +92,8 @@ export async function disposeShopifyModeCapabilities(): Promise<void> {
  */
 export function shopifyAdminSession(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const capabilities = getShopifyModeCapabilities(
-      c.get("runtimeEnv").SHOPIFY_APP_MODE,
-    );
+    const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
+    const capabilities = getShopifyModeCapabilities(config.SHOPIFY_APP_MODE);
 
     return await capabilities.authenticateAdminRequest(c, next);
   };

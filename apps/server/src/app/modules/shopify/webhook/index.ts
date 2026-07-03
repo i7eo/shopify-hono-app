@@ -5,7 +5,11 @@ import {
 } from "@shopify/shopify-api";
 import { Hono, type Context } from "hono";
 import { handleProductExportBulkOperationFinishWebhook } from "@/app/modules/product-export/webhook";
-import { getShopifyConfigProvider } from "@/infra/provider";
+import {
+  getEnvProvider,
+  getLoggerProvider,
+  getShopifyConfigProvider,
+} from "@/infra/provider";
 import { verifyWebhook } from "@/shared/middlewares";
 import { createResponse } from "@/shared/models";
 import { getShopifySessionStorage } from "../session-storage";
@@ -71,7 +75,7 @@ export const createWebhookRoutes = () => {
     const sessionStorage = await getShopifySessionStorage(c);
     const sessions = await sessionStorage.findSessionsByShop(shop);
     await sessionStorage.deleteSessions(sessions.map((session) => session.id));
-    const logger = c.get("runtimeLogger");
+    const logger = await getRequestLogger(c);
     logger.info(`App uninstalled: ${shop}`);
     return c.json(
       createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
@@ -86,9 +90,9 @@ export const createWebhookRoutes = () => {
   //:========================================: GDPR START :========================================//
   webhookRoutes.post(
     SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_CUSTOMERS_DATA_REQUEST,
-    (c) => {
+    async (c) => {
       const { payload, shop } = c.var.webhook;
-      const logger = c.get("runtimeLogger");
+      const logger = await getRequestLogger(c);
       logger.info(
         `Customer data request from ${shop}: ${JSON.stringify(payload)}`,
       );
@@ -100,9 +104,9 @@ export const createWebhookRoutes = () => {
 
   webhookRoutes.post(
     SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_CUSTOMERS_REDACT,
-    (c) => {
+    async (c) => {
       const { payload, shop } = c.var.webhook;
-      const logger = c.get("runtimeLogger");
+      const logger = await getRequestLogger(c);
       logger.info(
         `Customer redact request from ${shop}: ${JSON.stringify(payload)}`,
       );
@@ -112,14 +116,19 @@ export const createWebhookRoutes = () => {
     },
   );
 
-  webhookRoutes.post(SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_SHOP_REDACT, (c) => {
-    const { payload, shop } = c.var.webhook;
-    const logger = c.get("runtimeLogger");
-    logger.info(`Shop redact request from ${shop}: ${JSON.stringify(payload)}`);
-    return c.json(
-      createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
-    );
-  });
+  webhookRoutes.post(
+    SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_SHOP_REDACT,
+    async (c) => {
+      const { payload, shop } = c.var.webhook;
+      const logger = await getRequestLogger(c);
+      logger.info(
+        `Shop redact request from ${shop}: ${JSON.stringify(payload)}`,
+      );
+      return c.json(
+        createResponse({ data: { ok: true }, requestId: c.get("requestId") }),
+      );
+    },
+  );
   //:========================================: GDPR  END  :========================================//
 
   return webhookRoutes;
@@ -139,7 +148,9 @@ export async function registerConfiguredShopifyWebhooks(
   c: Context<AppEnv>,
   session: Session,
 ) {
-  const shopify = await getShopifyConfigProvider(c.get("runtimeEnv"));
+  const shopify = await getShopifyConfigProvider(
+    getEnvProvider(c.get("runtimeEnv") ?? c.env),
+  );
 
   if (!shopifyInstancesWithWebhookHandlers.has(shopify)) {
     shopify.webhooks.addHandlers(SHOPIFY_WEBHOOK_HANDLERS);
@@ -148,9 +159,14 @@ export async function registerConfiguredShopifyWebhooks(
 
   const result = await shopify.webhooks.register({ session });
 
-  c.get("runtimeLogger").info(
+  const logger = await getRequestLogger(c);
+  logger.info(
     `Registered Shopify webhooks for ${session.shop}: ${JSON.stringify(result)}`,
   );
 
   return result;
+}
+
+function getRequestLogger(c: Context<AppEnv>) {
+  return getLoggerProvider(getEnvProvider(c.get("runtimeEnv") ?? c.env));
 }

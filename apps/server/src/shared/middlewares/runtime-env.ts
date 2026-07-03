@@ -1,5 +1,4 @@
 import { createMiddleware } from "hono/factory";
-import { getRuntimeCapability } from "@/app/runtime/capabilities";
 import { getSafeProcessEnv } from "@/app/runtime/process/utils/process";
 import { getEnvProvider } from "@/infra/provider";
 import { internalServerError } from "@/shared/exceptions";
@@ -8,11 +7,7 @@ import type { AppEnv } from "@/typings";
 export function runtimeEnvMiddleware() {
   return createMiddleware<AppEnv>(async (c, next) => {
     try {
-      const runtimeEnvSourceResolver = getRuntimeCapability(
-        "runtimeEnvSourceResolver",
-      );
-      const envConfig =
-        runtimeEnvSourceResolver?.(c) ?? c.env ?? getSafeProcessEnv();
+      const envConfig = c.env ?? getSafeProcessEnv();
       const runtimeEnv = getEnvProvider(envConfig);
       c.set("runtimeEnv", runtimeEnv);
     } catch (error) {

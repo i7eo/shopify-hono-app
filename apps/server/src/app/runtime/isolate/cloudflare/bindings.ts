@@ -5,7 +5,7 @@ import { internalServerError } from "@/shared/exceptions";
  * Bootstrap config may be parsed from process.env before bindings exist, so
  * bindings stay optional in schema and become required where they are used.
  *
- * Example: databaseFactory requires D1 only after the request context is
+ * Example: the database capability requires D1 only after the request context is
  * available.
  */
 export function requireCloudflareBinding<T>(

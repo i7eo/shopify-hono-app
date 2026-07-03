@@ -2,16 +2,16 @@ import { shopifyClient } from "@/utils/client.shopify";
 import { throwAppWebError as throwError } from "../../internal";
 import type { ApiResponse, JsonSerializedDates } from "@/typings/json-api";
 import type {
-  InsertProductExport,
-  SelectProductExport,
-} from "@shamt/database/types";
+  InsertPostgresProductExport,
+  SelectPostgresProductExport,
+} from "@shamt/database/entities";
 import type { HttpRequestConfig } from "@unimolecule/oh-my-fetch";
 
-export type ProductExportStatus = SelectProductExport["status"];
-export type ProductExportTemplateCode = SelectProductExport["template"];
+export type ProductExportStatus = SelectPostgresProductExport["status"];
+export type ProductExportTemplateCode = SelectPostgresProductExport["template"];
 
 export type ProductExport = JsonSerializedDates<
-  SelectProductExport,
+  SelectPostgresProductExport,
   "completedAt" | "createdAt" | "deletedAt" | "updatedAt"
 >;
 
@@ -45,7 +45,7 @@ export interface ProductExportListInput {
 }
 
 export type CreateProductExportInput = Pick<
-  InsertProductExport,
+  InsertPostgresProductExport,
   "name" | "template"
 >;
 

@@ -89,52 +89,6 @@ export function parseProductExportJobPayload(
   };
 }
 
-/**
- * Selects complete JSONL lines that belong to a part's nominal byte window.
- *
- * Range chunks after the first include overlap from the previous part. The
- * line-start byte position prevents duplicate CSV rows across overlapping
- * chunks.
- */
-export function selectCompleteLines(
-  jsonl: string,
-  part: ProductExportPartRecord,
-): string[] {
-  const lines: string[] = [];
-  let offset = part.rangeStart;
-  let index = 0;
-
-  while (index < jsonl.length) {
-    const newlineIndex = jsonl.indexOf("\n", index);
-    if (newlineIndex === -1) break;
-
-    const lineStart = offset;
-    const line = jsonl.slice(index, newlineIndex);
-    const nominalStart = part.seq * PRODUCT_EXPORT_JSONL_CHUNK_BYTES;
-    const nominalEnd = nominalStart + PRODUCT_EXPORT_JSONL_CHUNK_BYTES;
-
-    if (
-      line.length > 0 &&
-      lineStart >= nominalStart &&
-      lineStart < nominalEnd
-    ) {
-      lines.push(line);
-    }
-
-    offset += newlineIndex - index + 1;
-    index = newlineIndex + 1;
-  }
-
-  return lines;
-}
-
-/**
- * Converts Shopify product JSONL lines to CSV rows without a header.
- */
-export function jsonlToCsv(lines: string[]): string {
-  return lines.map((line) => productToCsvLine(JSON.parse(line))).join("");
-}
-
 export type ProductExportCsvPartStreamResult = {
   body: ReadableStream<Uint8Array>;
   getRowCount: () => number;
@@ -171,6 +125,8 @@ export function createProductExportCsvPartStream(
 
             if (isLineInPartWindow(line, lineStart, part)) {
               rowCount += 1;
+              // TODO: Defer evaluating a streaming JSON parser until the CSV
+              // string hot path is no longer the dominant export cost.
               controller.enqueue(
                 encoder.encode(productToCsvLine(JSON.parse(line))),
               );
@@ -219,13 +175,6 @@ export async function readProductExportCsvPartResult(
   };
 }
 
-/**
- * Counts non-empty CSV rows in a part.
- */
-export function countCsvRows(csv: string): number {
-  return csv.length === 0 ? 0 : csv.split("\n").filter(Boolean).length;
-}
-
 function isLineInPartWindow(
   line: string,
   lineStart: number,
@@ -253,19 +202,11 @@ function productToCsvLine(value: unknown): string {
     vendor?: unknown;
   };
 
-  return [
-    product.id,
-    product.title,
+  return `${csvCell(product.id)},${csvCell(product.title)},${csvCell(
     product.handle,
-    product.status,
-    product.vendor,
+  )},${csvCell(product.status)},${csvCell(product.vendor)},${csvCell(
     product.productType,
-    product.createdAt,
-    product.updatedAt,
-  ]
-    .map(csvCell)
-    .join(",")
-    .concat("\n");
+  )},${csvCell(product.createdAt)},${csvCell(product.updatedAt)}\n`;
 }
 
 /**
@@ -273,5 +214,6 @@ function productToCsvLine(value: unknown): string {
  */
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
+  if (!text.includes('"')) return `"${text}"`;
   return `"${text.replaceAll('"', '""')}"`;
 }

@@ -3,16 +3,56 @@ import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import {
   getPageOffset,
   getReferenceListCursor,
+  resolvePageTotalFromRows,
   toReferencesPage,
 } from "./shared";
+import type { ReferenceRepository } from ".";
 import type {
   ReferenceCodeLookup,
   ReferenceListInput,
   ReferenceLookup,
   ReferenceRecord,
-  ReferenceRepository,
 } from "../../types";
 import type { PostgresDatabase } from "@/infra/database";
+
+type PostgresReferenceDatabase = PostgresDatabase | Promise<PostgresDatabase>;
+
+/**
+ * Creates a PostgreSQL-backed reference repository from a runtime database
+ * capability.
+ */
+export function createPostgresReferenceRepository(
+  database: PostgresReferenceDatabase,
+): ReferenceRepository {
+  const dbPromise = Promise.resolve(database);
+
+  return {
+    async create(record): Promise<void> {
+      return createPostgresReference(await dbPromise, record);
+    },
+    async delete(input): Promise<void> {
+      return deletePostgresReference(await dbPromise, input);
+    },
+    async findByCode(input) {
+      return findPostgresReferenceByCode(await dbPromise, input);
+    },
+    async findByCodeIncludingDeleted(input) {
+      return findPostgresReferenceByCodeIncludingDeleted(
+        await dbPromise,
+        input,
+      );
+    },
+    async findById(input) {
+      return findPostgresReferenceById(await dbPromise, input);
+    },
+    async list(input) {
+      return listPostgresReferences(await dbPromise, input);
+    },
+    async update(record): Promise<void> {
+      return updatePostgresReference(await dbPromise, record);
+    },
+  };
+}
 
 export async function createPostgresReference(
   database: PostgresDatabase,
@@ -112,7 +152,9 @@ export async function listPostgresReferences(
       : await query;
   const total =
     input.pagination.mode === "page"
-      ? await countPostgresReferences(database, where)
+      ? await resolvePageTotalFromRows(rows, input.pagination, () =>
+          countPostgresReferences(database, where),
+        )
       : undefined;
 
   return toReferencesPage(rows, input, total);
@@ -201,13 +243,3 @@ async function countPostgresReferences(
 
   return Number(row?.total ?? 0);
 }
-
-export const postgresReferenceRepository = {
-  create: createPostgresReference,
-  delete: deletePostgresReference,
-  findByCode: findPostgresReferenceByCode,
-  findByCodeIncludingDeleted: findPostgresReferenceByCodeIncludingDeleted,
-  findById: findPostgresReferenceById,
-  list: listPostgresReferences,
-  update: updatePostgresReference,
-} satisfies Record<keyof ReferenceRepository, unknown>;

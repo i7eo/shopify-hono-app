@@ -6,6 +6,9 @@ describe("infra providers", () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     vi.doUnmock("@/infra/env");
+    vi.doUnmock("@/infra/logger");
+    vi.doUnmock("@/infra/logger/isolate");
+    vi.doUnmock("@/infra/logger/process");
     vi.doUnmock("@unimolecule/oh-my-fetch/client");
   });
 
@@ -62,6 +65,28 @@ describe("infra providers", () => {
     expect(getRuntimeConfig).toHaveBeenCalledTimes(2);
 
     resetEnvProvider();
+  });
+
+  it("clears the env provider when disposing providers", async () => {
+    stubRuntimeEnv();
+    const getRuntimeConfig = vi.fn((rawEnv) => ({
+      ...(rawEnv as Record<string, unknown>),
+      parsedAt: getRuntimeConfig.mock.calls.length,
+    }));
+    vi.doMock("@/infra/env", () => ({
+      getRuntimeConfig,
+    }));
+
+    const { getEnvProvider, providersDispose } =
+      await import("@/infra/provider");
+    const first = getEnvProvider();
+
+    await providersDispose();
+
+    const recreated = getEnvProvider();
+
+    expect(recreated).not.toBe(first);
+    expect(getRuntimeConfig).toHaveBeenCalledTimes(2);
   });
 
   it("creates the HTTP client with APP_REQUEST_TIMEOUT from the env provider", async () => {
@@ -164,26 +189,169 @@ describe("infra providers", () => {
     resetClientProvider();
   });
 
-  it("disposes providers from a stable disposer snapshot", async () => {
-    const { disposeProviders } = await import("@/infra/provider");
-    const { providerDisposers, providers } =
-      await import("@/infra/provider/constants");
-    const calls: string[] = [];
+  it("uses the bootstrap logger until runtime config is available", async () => {
+    const runtimeLogger = { info: vi.fn() };
+    const setupBootstrapLogger = vi.fn();
+    const setupLogger = vi.fn();
+    const setupProcessLogger = vi.fn();
+    const setupIsolateLogger = vi.fn();
+    vi.doMock("@/infra/logger", () => ({
+      default: runtimeLogger,
+      dispose: vi.fn(),
+      setupBootstrapLogger,
+      setupLogger,
+    }));
+    vi.doMock("@/infra/logger/process", () => ({
+      setupProcessLogger,
+    }));
+    vi.doMock("@/infra/logger/isolate", () => ({
+      setupIsolateLogger,
+    }));
 
-    providers.set("env", runtimeConfig as never);
-    providers.set("client", {} as never);
-    providerDisposers.set("env", () => {
-      calls.push("env");
-      providerDisposers.delete("client");
+    const {
+      getLoggerProvider,
+      registerProcessLoggerSetup,
+      resetLoggerProvider,
+    } = await import("@/infra/provider/logger");
+    registerProcessLoggerSetup(setupProcessLogger);
+
+    await expect(getLoggerProvider()).resolves.toBe(runtimeLogger);
+    await expect(getLoggerProvider(runtimeConfig as never)).resolves.toBe(
+      runtimeLogger,
+    );
+    await expect(getLoggerProvider()).resolves.toBe(runtimeLogger);
+
+    expect(setupBootstrapLogger).toHaveBeenCalledTimes(1);
+    expect(setupBootstrapLogger.mock.invocationCallOrder[0]).toBeLessThan(
+      setupProcessLogger.mock.invocationCallOrder[0],
+    );
+    expect(setupProcessLogger).toHaveBeenCalledWith(runtimeConfig, {
+      reset: true,
     });
-    providerDisposers.set("client", () => {
-      calls.push("client");
+    expect(setupLogger).not.toHaveBeenCalled();
+    expect(setupIsolateLogger).not.toHaveBeenCalled();
+
+    resetLoggerProvider();
+  });
+
+  it("clears the logger provider when disposing providers", async () => {
+    const runtimeLogger = { info: vi.fn() };
+    const setupBootstrapLogger = vi.fn();
+    const dispose = vi.fn();
+    vi.doMock("@/infra/logger", () => ({
+      default: runtimeLogger,
+      dispose,
+      setupBootstrapLogger,
+      setupLogger: vi.fn(),
+    }));
+
+    const { getLoggerProvider, providersDispose } =
+      await import("@/infra/provider");
+
+    await expect(getLoggerProvider()).resolves.toBe(runtimeLogger);
+    await providersDispose();
+    await expect(getLoggerProvider()).resolves.toBe(runtimeLogger);
+
+    expect(setupBootstrapLogger).toHaveBeenCalledTimes(2);
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches runtime logger setup by logger-affecting config fields", async () => {
+    const runtimeLogger = { info: vi.fn() };
+    const setupProcessLogger = vi.fn();
+    vi.doMock("@/infra/logger", () => ({
+      default: runtimeLogger,
+      dispose: vi.fn(),
+      setupBootstrapLogger: vi.fn(),
+      setupLogger: vi.fn(),
+    }));
+    vi.doMock("@/infra/logger/process", () => ({
+      setupProcessLogger,
+    }));
+    vi.doMock("@/infra/logger/isolate", () => ({
+      setupIsolateLogger: vi.fn(),
+    }));
+
+    const {
+      getLoggerProvider,
+      registerProcessLoggerSetup,
+      resetLoggerProvider,
+    } = await import("@/infra/provider/logger");
+    registerProcessLoggerSetup(setupProcessLogger);
+
+    const first = await getLoggerProvider(runtimeConfig as never);
+    const cached = await getLoggerProvider({
+      ...runtimeConfig,
+      SCOPES: "read_products",
+    } as never);
+    const withDifferentDir = await getLoggerProvider({
+      ...runtimeConfig,
+      APP_LOGGER_DIR: "different-logs",
+    } as never);
+    const withDifferentEnv = await getLoggerProvider({
+      ...runtimeConfig,
+      APP_ENV: "production",
+    } as never);
+
+    expect(first).toBe(runtimeLogger);
+    expect(cached).toBe(runtimeLogger);
+    expect(withDifferentDir).toBe(runtimeLogger);
+    expect(withDifferentEnv).toBe(runtimeLogger);
+    expect(setupProcessLogger).toHaveBeenCalledTimes(3);
+    expect(setupProcessLogger).toHaveBeenNthCalledWith(1, runtimeConfig, {
+      reset: false,
     });
+    expect(setupProcessLogger).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ APP_LOGGER_DIR: "different-logs" }),
+      { reset: true },
+    );
+    expect(setupProcessLogger).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ APP_ENV: "production" }),
+      { reset: true },
+    );
 
-    await disposeProviders();
+    resetLoggerProvider();
+  });
 
-    expect(calls).toEqual(["env", "client"]);
-    expect(providers.size).toBe(0);
-    expect(providerDisposers.size).toBe(0);
+  it("uses isolate logger setup for isolate runtime configs", async () => {
+    const runtimeLogger = { info: vi.fn() };
+    const setupProcessLogger = vi.fn();
+    const setupIsolateLogger = vi.fn();
+    vi.doMock("@/infra/logger", () => ({
+      default: runtimeLogger,
+      dispose: vi.fn(),
+      setupBootstrapLogger: vi.fn(),
+      setupLogger: vi.fn(),
+    }));
+    vi.doMock("@/infra/logger/process", () => ({
+      setupProcessLogger,
+    }));
+    vi.doMock("@/infra/logger/isolate", () => ({
+      setupIsolateLogger,
+    }));
+
+    const { getLoggerProvider, resetLoggerProvider } =
+      await import("@/infra/provider/logger");
+    const cloudflareConfig = {
+      ...runtimeConfig,
+      APP_RUNTIME: "cloudflare",
+    };
+
+    await expect(getLoggerProvider(cloudflareConfig as never)).resolves.toBe(
+      runtimeLogger,
+    );
+    await expect(getLoggerProvider(cloudflareConfig as never)).resolves.toBe(
+      runtimeLogger,
+    );
+
+    expect(setupIsolateLogger).toHaveBeenCalledTimes(1);
+    expect(setupIsolateLogger).toHaveBeenCalledWith(cloudflareConfig, {
+      reset: false,
+    });
+    expect(setupProcessLogger).not.toHaveBeenCalled();
+
+    resetLoggerProvider();
   });
 });

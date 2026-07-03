@@ -14,5 +14,4 @@ try {
   process.exit(1);
 }
 
-export type Env = ConfigSchema;
 export const env = parsedEnv;

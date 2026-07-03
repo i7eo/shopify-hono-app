@@ -4,11 +4,11 @@ import { PaginationQuerySchema, PaginationSchema } from "@/shared/models";
 
 export const ReferenceSchema = selectPostgresReferenceSchema
   .extend({
-    createdAt: z.string().datetime().openapi({
+    createdAt: z.iso.datetime().openapi({
       description: "Reference creation timestamp.",
       example: "2026-06-21T12:00:00.000Z",
     }),
-    deletedAt: z.string().datetime().nullable().openapi({
+    deletedAt: z.iso.datetime().nullable().openapi({
       description: "Reference deletion timestamp.",
       example: null,
     }),
@@ -24,7 +24,7 @@ export const ReferenceSchema = selectPostgresReferenceSchema
       description: "Shopify shop domain that owns the reference.",
       example: "test-shop.myshopify.com",
     }),
-    updatedAt: z.string().datetime().openapi({
+    updatedAt: z.iso.datetime().openapi({
       description: "Reference update timestamp.",
       example: "2026-06-21T12:00:00.000Z",
     }),

@@ -91,11 +91,12 @@ Cloudflare scheduled handler 会把 `env` 放入 `bindings`，并把本次触发
 Node 启动时从 runtime capability 取得 scheduler：
 
 ```ts
-const schedulerFactory = getRuntimeCapability("schedulerFactory");
-const scheduler = await schedulerFactory?.(env);
+const runtimeCapabilities = runtimeCapabilityNode({ logger, runtimeEnv: env });
+const scheduler = await runtimeCapabilities.scheduler();
 
 await scheduler?.start({
   logger,
+  runtimeCapabilities,
   runtimeEnv: env,
 });
 ```
@@ -109,7 +110,7 @@ await scheduler?.start({
 3. 调用 `boss.work(task.name, handler)` 执行 task。
 4. shutdown 时调用 `boss.offWork(task.name)`。
 
-`pg-boss` 实例会缓存，`disposeRuntimeCapabilities()` 会调用 scheduler disposer，并停止实例。`infra/scheduler/index.ts` 只导出 registry 和共享类型；Node/Cloudflare scheduler adapter 由对应 runtime capability 显式引入。
+`pg-boss` 实例会缓存，`runtimeCapabilityNodeDispose()` 会调用 scheduler disposer，并停止实例。`infra/scheduler/index.ts` 只导出 registry 和共享类型；Node/Cloudflare scheduler adapter 由对应 runtime capability creator 显式引入。
 
 ## Cloudflare scheduler
 
@@ -118,8 +119,13 @@ Cloudflare Worker export 增加：
 ```ts
 export default {
   async scheduled(controller, env) {
-    const schedulerFactory = getRuntimeCapability("schedulerFactory");
-    const scheduler = await schedulerFactory?.(context.runtimeEnv);
+    const runtimeCapabilities = runtimeCapabilityCloudflareScheduled({
+      cron: controller.cron,
+      env,
+      logger: context.logger,
+      runtimeEnv: context.runtimeEnv,
+    });
+    const scheduler = await runtimeCapabilities.scheduler();
 
     await scheduler?.run(controller.cron, context);
   },

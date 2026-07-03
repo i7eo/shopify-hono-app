@@ -1,14 +1,17 @@
+import type { BucketProvider } from "@/infra/bucket";
 import type { RuntimeConfig } from "@/infra/env";
 import type { PaginatedPage, PaginationInput } from "@/shared/models";
-import type { SelectFile } from "@shamt/database/types";
+import type { SelectPostgresFile } from "@shamt/database/entities";
 import type { Context } from "hono";
 
-export type FileStatus = SelectFile["status"];
+export type FileStatus = SelectPostgresFile["status"];
 
-export type FileRecord = SelectFile;
+export type FileRecord = SelectPostgresFile & {
+  bucketProvider: BucketProvider;
+};
 
 export type PublicFile = Omit<
-  SelectFile,
+  SelectPostgresFile,
   "createdAt" | "deletedAt" | "expiresAt" | "updatedAt"
 > & {
   createdAt: string;
@@ -35,14 +38,6 @@ export type FileStatusUpdate = FileLookup & {
   status: FileStatus;
   deletedAt?: Date;
 };
-
-export interface FilesRepository {
-  create: (file: FileRecord) => Promise<void>;
-  findById: (input: FileLookup) => Promise<FileRecord | null>;
-  list: (input: FileListInput) => Promise<FilesPage>;
-  updateStatus: (input: FileStatusUpdate) => Promise<void>;
-  delete: (input: FileLookup) => Promise<void>;
-}
 
 export type FileDownloadInput = {
   file: FileRecord;

@@ -50,8 +50,8 @@ Cloudflare 下 `envConfig` 来自 `c.env`，其中包含 request-bound 平台 bi
 
 - `src/shared/middlewares/runtime-env.ts`
 - `src/infra/provider/env.ts`
-- `src/app/runtime/process/capabilities.ts`
-- `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/app/runtime/process/index.ts`
+- `src/app/runtime/isolate/cloudflare/index.ts`
 
 ## Provider 缓存
 
@@ -129,7 +129,7 @@ type CloudflareBindings = {
 | `SHOPIFY_APP_KEY`             | Shopify app client ID               | Shopify app key                                                           |
 | `SHOPIFY_APP_SECRET`          | Shopify app secret                  | Shopify app secret                                                        |
 | `SHOPIFY_APP_URL`             | `https://example.com`               | Shopify app 对外 URL                                                      |
-| `SHOPIFY_API_VERSION`         | `2026-04`                           | Shopify Admin API version                                                 |
+| `SHOPIFY_API_VERSION`         | `2026-07`                           | Shopify Admin API version                                                 |
 | `SCOPES`                      | `read_products,write_products`      | Shopify access scopes                                                     |
 
 其他字段来自 schema 默认值，只有需要覆盖默认行为或启用对应 provider 时才写入 env file，例如 `APP_NAME`、`APP_API_PREFIX`、`APP_REQUEST_TIMEOUT`、`APP_LOCALE`、`APP_USE_CLUSTER`、`APP_LOGGER_DIR`、`APP_LOGGER_LEVEL`、`APP_LOGGER_MAX_SIZE`、`APP_FILE_UPLOAD_TIMEOUT`、`APP_FILE_UPLOAD_MULTIPLE_SIZE`、`APP_FILE_DIR`、`APP_FILE_EXPIRE`、`APP_FILE_MAX_SIZE`、`APP_BUCKET_R2_URL`、`APP_BUCKET_R2_BINDING`、`APP_BUCKET_R2_NAME`、`APP_DATABASE_URL`、`APP_DATABASE_D1_BINDING`、`APP_DATABASE_D1_NAME`、`APP_DATABASE_D1_ID`、`APP_QUEUE_PROVIDER`、`APP_QUEUE_NAME`、`APP_QUEUE_BINDING`、`APP_QUEUE_CONSUMER_MAX_BATCH_SIZE`、`APP_QUEUE_CONSUMER_MAX_RETRIES`、`APP_SCHEDULER_PROVIDER`、`APP_SCHEDULER_CRON_VALUE`、`APP_CLOUDFLARE_WORKER_NAME`、`APP_CLOUDFLARE_WORKER_ACCOUNT_ID`、`APP_CLOUDFLARE_USER_TOKEN`、`APP_CACHE_EXPIRE`、`APP_CACHE_MAX_SIZE`、`APP_CACHE_REDIS_URL`。

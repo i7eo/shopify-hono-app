@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { startProductExportBulkOperationForRecord } from "@/app/modules/product-export/service";
-import type {
-  ProductExportRecord,
-  ProductExportRepository,
-} from "@/app/modules/product-export/types";
+import type { ProductExportRepository } from "@/app/modules/product-export/repositories/database";
+import type { ProductExportRecord } from "@/app/modules/product-export/types";
 import type { ShopifyClient } from "@/infra/provider";
 
 describe("product export Shopify session ownership", () => {

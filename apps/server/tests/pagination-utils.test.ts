@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { toPaginatedRowsPage } from "@/utils/pagination";
+import {
+  getExactPageTotalFromRows,
+  toPaginatedRowsPage,
+} from "@/shared/models";
 
 describe("pagination utils", () => {
   it("creates page pagination from one extra row", () => {
@@ -49,5 +52,38 @@ describe("pagination utils", () => {
         nextCursor: "after:second",
       },
     });
+  });
+
+  it("derives exact page totals from final page rows", () => {
+    expect(
+      getExactPageTotalFromRows([{ id: "third" }], {
+        limit: 2,
+        page: 2,
+      }),
+    ).toBe(3);
+    expect(
+      getExactPageTotalFromRows([], {
+        limit: 2,
+        page: 1,
+      }),
+    ).toBe(0);
+  });
+
+  it("requires a count query when page rows cannot prove the total", () => {
+    expect(
+      getExactPageTotalFromRows(
+        [{ id: "first" }, { id: "second" }, { id: "third" }],
+        {
+          limit: 2,
+          page: 1,
+        },
+      ),
+    ).toBeUndefined();
+    expect(
+      getExactPageTotalFromRows([], {
+        limit: 2,
+        page: 2,
+      }),
+    ).toBeUndefined();
   });
 });

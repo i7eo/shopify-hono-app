@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getShopifyConfigProvider } from "@/infra/provider";
+import { getEnvProvider, getShopifyConfigProvider } from "@/infra/provider";
 import { badRequestError } from "@/shared/exceptions";
 import { getShopifyModeCapabilities } from "../mode";
 import { getShopifySessionStorage } from "../session-storage";
@@ -15,7 +15,7 @@ export const createAuthRoutes = () => {
 
   authRoutes.get("/", async (c) => {
     const shop = c.req.query("shop");
-    const config = c.get("runtimeEnv");
+    const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
     const shopify = await getShopifyConfigProvider(config);
 
     if (!shop || !SHOP_DOMAIN_RE.test(shop)) {
@@ -31,7 +31,7 @@ export const createAuthRoutes = () => {
   });
 
   authRoutes.get("/callback", async (c) => {
-    const config = c.get("runtimeEnv");
+    const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
     const shopify = await getShopifyConfigProvider(config);
     const { headers, session } = await shopify.auth.callback({
       rawRequest: c.req.raw,

@@ -43,13 +43,16 @@ export async function setupProcessLogger(
   const loggerEnvConfig = getLoggerEnvConfig(config);
 
   if (config.APP_ENV !== DEFAULT_ENVS.PRODUCTION) {
-    await setupConsoleLogger({ level: loggerEnvConfig.level }, options);
+    await setupConsoleLogger(
+      { level: loggerEnvConfig.APP_LOGGER_LEVEL },
+      options,
+    );
     return;
   }
 
   const logPaths = await resolveProcessLogPaths(config);
-  const maxSize = loggerEnvConfig.maxSize;
-  const expire = loggerEnvConfig.expire;
+  const maxSize = loggerEnvConfig.APP_LOGGER_MAX_SIZE;
+  const expire = loggerEnvConfig.APP_LOGGER_EXPIRE;
   const sinks: Partial<Record<ProcessLoggerSinkName, Sink>> = {
     console: getConsoleSink({ formatter: jsonLinesFormatter }),
   };

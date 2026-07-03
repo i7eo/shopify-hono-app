@@ -1,18 +1,7 @@
-import {
-  getRuntimeCapability,
-  type RuntimeCapabilityInstances,
-  type RuntimeCapabilityName,
-} from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
+import { runtimeCapabilities } from "@/app/runtime/runtime-capabilities";
 import { getBucketEnvConfig, type Bucket } from "@/infra/bucket";
-import {
-  badRequestError,
-  goneError,
-  internalServerError,
-  notFoundError,
-} from "@/shared/exceptions";
+import { badRequestError, goneError, notFoundError } from "@/shared/exceptions";
 import { PAGINATION_LIMIT_MAX, toPaginationInput } from "@/shared/models";
-import { createDatabaseFilesRepositoryFromPromise } from "./repositories/database";
 import { getFileUploadStreamParser } from "./upload-stream-parser";
 import {
   createBucketKey,
@@ -21,13 +10,13 @@ import {
   sanitizeFilename,
   toPublicFile,
 } from "./utils";
+import type { FilesRepository } from "./repositories/database";
 import type {
   CreateFileInput,
   CreateFilesInput,
   FileDownload,
   FileRecord,
   FilesPage,
-  FilesRepository,
   ListFilesInput,
   PublicFile,
 } from "./types";
@@ -253,41 +242,19 @@ async function getAvailableFile(
  * Builds the module-owned files repository from the shared database capability.
  */
 function getFilesRepository(c: Context<AppEnv>): FilesRepository {
-  return createDatabaseFilesRepositoryFromPromise(
-    Promise.resolve(
-      getFactory("databaseFactory")(createRuntimeResourceContextFromHono(c)),
-    ),
-  );
+  return runtimeCapabilities(c).databaseRepositories.files();
 }
 
 /**
  * Resolves the active object bucket through the shared bucket capability.
  */
 function getFileBucket(c: Context<AppEnv>): Bucket | Promise<Bucket> {
-  return getFactory("bucketFactory")(createRuntimeResourceContextFromHono(c));
+  return runtimeCapabilities(c).bucket();
 }
 
 /**
  * Resolves the runtime download resolver for stream or signed URL downloads.
  */
 function getFileDownloadResolver(c: Context<AppEnv>) {
-  return getFactory("moduleFileDownloadResolverFactory")(
-    createRuntimeResourceContextFromHono(c),
-  );
-}
-
-/**
- * Resolves a required runtime capability and fails loudly when it is missing.
- */
-function getFactory<K extends RuntimeCapabilityName>(
-  name: K,
-): RuntimeCapabilityInstances[K] {
-  const factory = getRuntimeCapability(name);
-  if (!factory) {
-    throw internalServerError(`Runtime capability is not registered: ${name}`, {
-      expose: true,
-    });
-  }
-
-  return factory;
+  return runtimeCapabilities(c).file.downloadResolver();
 }

@@ -1,4 +1,9 @@
-import { getShopifyClientProvider, type ShopifyClient } from "@/infra/provider";
+import {
+  getEnvProvider,
+  getLoggerProvider,
+  getShopifyClientProvider,
+  type ShopifyClient,
+} from "@/infra/provider";
 import { getShopifyModeCapabilities } from "../mode";
 import { setShopifySessionContext } from "../session";
 import type { AppEnv } from "@/typings";
@@ -28,14 +33,17 @@ export async function createRetryableShopifyAdminClient(
             throw error;
           }
 
-          c.get("runtimeLogger").warn(
+          const logger = await getLoggerProvider(
+            getEnvProvider(c.get("runtimeEnv") ?? c.env),
+          );
+          logger.warn(
             `Shopify Admin API returned 401 for ${c.var.shopDomain}; refreshing session and retrying once`,
           );
 
           setShopifySessionContext(
             c,
             await getShopifyModeCapabilities(
-              c.get("runtimeEnv").SHOPIFY_APP_MODE,
+              getEnvProvider(c.get("runtimeEnv") ?? c.env).SHOPIFY_APP_MODE,
             ).refreshAdminSession(c),
           );
           client = await getShopifyClientProvider(c);

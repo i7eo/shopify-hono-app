@@ -11,6 +11,7 @@ export {
   getR2BucketConfig,
   type Bucket,
   type BucketDownloadSigner,
+  type BucketProvider,
   type BucketReadableObject,
   type BucketStoredObject,
 } from "./shared";

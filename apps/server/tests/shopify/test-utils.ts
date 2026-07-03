@@ -1,6 +1,12 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { expect, vi } from "vitest";
+import {
+  runtimeCapabilityLazy,
+  type RuntimeCapabilities,
+} from "@/app/runtime/runtime-capabilities";
 import { getRuntimeConfig } from "@/infra/env";
+import { internalServerError } from "@/shared/exceptions";
+import type { Logger } from "@/infra/logger";
 
 export const runtimeConfig = getRuntimeConfig({
   APP_NAME: "Test App",
@@ -34,7 +40,7 @@ export const runtimeConfig = getRuntimeConfig({
   SHOPIFY_APP_KEY: "test_app_key",
   SHOPIFY_APP_SECRET: "test_app_secret",
   SHOPIFY_APP_URL: "https://app.example.com",
-  SHOPIFY_API_VERSION: "2026-04",
+  SHOPIFY_API_VERSION: "2026-07",
   SCOPES: "read_products, write_products",
 });
 
@@ -45,11 +51,23 @@ type TestLogger = {
   error: (message: string) => void;
 };
 
-export const logger: TestLogger = {
+export const logger = {
   debug: vi.fn(),
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
+} as unknown as TestLogger & Logger;
+
+type MockRuntimeCapabilitiesOverrides = Partial<
+  Omit<
+    RuntimeCapabilities,
+    "databaseRepositories" | "file" | "health" | "queue"
+  >
+> & {
+  databaseRepositories?: Partial<RuntimeCapabilities["databaseRepositories"]>;
+  file?: Partial<RuntimeCapabilities["file"]>;
+  health?: Partial<RuntimeCapabilities["health"]>;
+  queue?: Partial<RuntimeCapabilities["queue"]>;
 };
 
 type MockContextOptions = {
@@ -61,11 +79,65 @@ type MockContextOptions = {
   env?: Record<string, unknown>;
 };
 
+export function createMockRuntimeCapabilities(
+  overrides: MockRuntimeCapabilitiesOverrides = {},
+): RuntimeCapabilities {
+  const base: RuntimeCapabilities = {
+    database: missingCapability("database"),
+    databaseRepositories: {
+      files: missingSyncCapability("databaseRepositories.files"),
+      productExports: missingSyncCapability(
+        "databaseRepositories.productExports",
+      ),
+      references: missingSyncCapability("databaseRepositories.references"),
+    },
+    bucket: missingCapability("bucket"),
+    shopifySessionStorage: missingCapability("shopifySessionStorage"),
+    health: {
+      disk: missingCapability("health.disk"),
+      memory: missingCapability("health.memory"),
+    },
+    file: {
+      downloadResolver: missingCapability("file.downloadResolver"),
+    },
+    queue: {
+      producer: missingCapability("queue.producer"),
+    },
+  };
+
+  const capabilities: RuntimeCapabilities = {
+    ...base,
+    ...overrides,
+    databaseRepositories: {
+      ...base.databaseRepositories,
+      ...overrides.databaseRepositories,
+    },
+    health: {
+      ...base.health,
+      ...overrides.health,
+    },
+    file: {
+      ...base.file,
+      ...overrides.file,
+    },
+    queue: {
+      ...base.queue,
+      ...overrides.queue,
+    },
+  };
+
+  return capabilities;
+}
+
 export function createMockContext(options: MockContextOptions = {}) {
   const headers = new Headers(options.headers);
+  const runtimeCapabilities =
+    options.vars?.runtimeCapabilities ?? createMockRuntimeCapabilities();
+  const runtimeEnv = options.vars?.runtimeEnv ?? runtimeConfig;
   const store: Record<string, unknown> = {
-    runtimeEnv: runtimeConfig,
+    runtimeEnv,
     runtimeLogger: logger,
+    runtimeCapabilities,
     requestId: "req_test",
     ...options.vars,
   };
@@ -76,7 +148,7 @@ export function createMockContext(options: MockContextOptions = {}) {
   });
 
   return {
-    env: options.env ?? {},
+    env: options.env ?? runtimeEnv,
     req: {
       raw,
       header: (name: string) => headers.get(name) ?? undefined,
@@ -88,6 +160,22 @@ export function createMockContext(options: MockContextOptions = {}) {
       store[key] = value;
     },
     var: store,
+  };
+}
+
+function missingCapability<T>(name: string) {
+  return runtimeCapabilityLazy<T>(() => {
+    throw internalServerError(`Runtime capability is not available: ${name}`, {
+      expose: true,
+    });
+  });
+}
+
+function missingSyncCapability(name: string) {
+  return () => {
+    throw internalServerError(`Runtime capability is not available: ${name}`, {
+      expose: true,
+    });
   };
 }
 

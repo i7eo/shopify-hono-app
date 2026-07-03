@@ -31,7 +31,7 @@ describe("reserved runtimes", () => {
     });
 
     await expect(getShopifySessionStorage(context as never)).rejects.toThrow(
-      "Runtime capability is not registered: databaseFactory",
+      "Runtime capability is not available: shopifySessionStorage",
     );
   });
 });

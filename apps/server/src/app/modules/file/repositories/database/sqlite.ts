@@ -1,6 +1,12 @@
 import { sqliteFiles } from "@shamt/database/models/sqlite";
 import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
-import { getListCursor, getPageOffset, toFilesPage } from "./shared";
+import {
+  getListCursor,
+  getPageOffset,
+  resolvePageTotalFromRows,
+  toFilesPage,
+} from "./shared";
+import type { FilesRepository } from ".";
 import type {
   FileListInput,
   FileLookup,
@@ -10,6 +16,36 @@ import type {
 } from "../../types";
 import type { D1DatabaseClient } from "@/infra/database";
 import type { SeekCursor } from "@/shared/models";
+
+type SqliteFilesDatabase = D1DatabaseClient | Promise<D1DatabaseClient>;
+
+/**
+ * Creates a SQLite/D1-backed files repository from a runtime database
+ * capability.
+ */
+export function createSqliteFilesRepository(
+  database: SqliteFilesDatabase,
+): FilesRepository {
+  const dbPromise = Promise.resolve(database);
+
+  return {
+    async create(file): Promise<void> {
+      return createSqliteFile(await dbPromise, file);
+    },
+    async delete(input): Promise<void> {
+      return deleteSqliteFile(await dbPromise, input);
+    },
+    async findById(input): Promise<FileRecord | null> {
+      return findSqliteFileById(await dbPromise, input);
+    },
+    async list(input): Promise<FilesPage> {
+      return listSqliteFiles(await dbPromise, input);
+    },
+    async updateStatus(input): Promise<void> {
+      return updateSqliteFileStatus(await dbPromise, input);
+    },
+  };
+}
 
 /**
  * Upserts one file metadata row through the SQLite/D1 files table.
@@ -67,7 +103,9 @@ export async function listSqliteFiles(
       : await query;
   const total =
     input.pagination.mode === "page"
-      ? await countSqliteFiles(database, where)
+      ? await resolvePageTotalFromRows(rows, input.pagination, () =>
+          countSqliteFiles(database, where),
+        )
       : undefined;
 
   return toFilesPage(rows, input, total);

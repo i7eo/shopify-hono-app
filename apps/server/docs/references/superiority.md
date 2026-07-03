@@ -10,7 +10,7 @@
 - Cloudflare Workers isolate
 - 预留 Vercel Edge 类型和 schema 分支
 
-常见 Shopify app 示例往往绑定单一 runtime，例如只面向 Node server 或只面向特定平台部署。本项目把 runtime 差异放进 capability registry，使业务 controller、Shopify app-flow 和 resource API 可以复用。
+常见 Shopify app 示例往往绑定单一 runtime，例如只面向 Node server 或只面向特定平台部署。本项目把 runtime 差异放进显式 `RuntimeCapabilities`，使业务 controller、Shopify app-flow 和 resource API 可以复用。
 
 优势：
 
@@ -67,10 +67,10 @@ runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [
 
 ## 小型 DI 而不是框架锁定
 
-项目通过 registry 注入基础设施能力：
+项目用小型 provider API 加显式 runtime capabilities 注入基础设施能力：
 
-- provider registry 管理 env/logger/client/shopify config。
-- runtime capability registry 管理平台能力，包括 database、bucket、queue、scheduler 和 file resolver。
+- provider API 管理 env/logger/client/shopify config。
+- runtime entry 创建显式 `RuntimeCapabilities`，管理 database、database-backed repositories、bucket、queue、scheduler 和 file resolver。
 - Shopify mode capability registry 管理 app-flow 差异。
 
 这种方式比引入大型 IoC container 更轻，适合 Hono + edge/runtime mixed 项目。
@@ -83,7 +83,7 @@ runtime、Shopify mode 和 frontend target 是独立轴，具体 env 语义见 [
 
 ## Provider Signature 统一失效
 
-provider registry 不只按 provider 名称缓存实例，还把调用方传入的配置 DTO 归一化成 signature。`env` provider 使用 schema 字段生成 signature；`logger`、`client`、`shopifyConfig` provider 使用各自关心的配置子集生成 signature。
+provider API 不只缓存实例，还把调用方传入的配置 DTO 归一化成 signature。`env` provider 使用 schema 字段生成 signature；`logger`、`client`、`shopifyConfig` provider 使用各自关心的配置子集生成 signature。
 
 对应实现：
 
@@ -116,14 +116,14 @@ Bucket 矩阵：
 | `node`       | `r2`     | R2 S3-compatible API + signed download |
 | `cloudflare` | `r2`     | Worker R2 binding + stream download    |
 
-这让 file module 和 Shopify session storage 都只消费 capability：
+这让 file module、Shopify session storage、product-export 和 health/database 都只消费 capability：
 
-- `databaseFactory`
-- `bucketFactory`
-- `moduleFileDownloadResolverFactory`
-- `queueProducerFactory`
-- `queueConsumerFactory`
-- `schedulerFactory`
+- `runtimeCapabilities.database()`
+- `runtimeCapabilities.databaseRepositories.*()`
+- `runtimeCapabilities.bucket()`
+- `runtimeCapabilities.shopifySessionStorage()`
+- `runtimeCapabilities.file.downloadResolver()`
+- `runtimeCapabilities.queue.producer()`
 
 优势：
 

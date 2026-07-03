@@ -8,8 +8,10 @@ describe("Shopify app shell", () => {
     const { getShopifyModeCapabilities } =
       await import("@/app/modules/shopify/mode");
 
-    const html =
-      getShopifyModeCapabilities("embedded").renderAppShell("test_key");
+    const html = getShopifyModeCapabilities("embedded").renderAppShell({
+      ...runtimeConfig,
+      SHOPIFY_APP_KEY: "test_key",
+    });
 
     expect(html).toContain(
       '<meta name="shopify-api-key" content="test_key" />',
@@ -27,8 +29,11 @@ describe("Shopify app shell", () => {
     const { getShopifyModeCapabilities } =
       await import("@/app/modules/shopify/mode");
 
-    const html =
-      getShopifyModeCapabilities("standalone").renderAppShell("test_key");
+    const html = getShopifyModeCapabilities("standalone").renderAppShell({
+      ...runtimeConfig,
+      SHOPIFY_APP_KEY: "test_key",
+      SHOPIFY_APP_MODE: "standalone",
+    });
 
     expect(html).toContain(
       '<meta name="shopify-api-key" content="test_key" />',
@@ -163,6 +168,7 @@ describe("Shopify auth routes", () => {
   it("starts OAuth for valid myshopify domains and rejects invalid shops", async () => {
     const begin = vi.fn(() => new Response("begin"));
     vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
       getShopifyConfigProvider: vi.fn(() => ({
         auth: { begin },
       })),
@@ -210,6 +216,7 @@ describe("Shopify auth routes", () => {
     );
     const storeSession = vi.fn();
     vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
       getShopifyConfigProvider: vi.fn(() => ({
         auth: { callback, buildEmbeddedAppUrl },
       })),
@@ -247,6 +254,7 @@ describe("Shopify auth routes", () => {
     });
     const storeSession = vi.fn();
     vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
       getShopifyConfigProvider: vi.fn(() => ({
         auth: { callback },
       })),
@@ -301,7 +309,7 @@ describe("Shopify route metadata and aggregate registration", () => {
     const productMeta = await import("@/app/modules/product/meta");
     const shopMeta = await import("@/app/modules/shop/meta");
 
-    expect(productMeta.getProductsRoute.path).toBe("/api/product");
+    expect(productMeta.getProductsRoute.path).toBe("/api/products");
     expect(productMeta.getProductsRoute.method).toBe("get");
     expect(productMeta.getProductsRoute.middleware).toHaveLength(2);
     expect(
@@ -320,7 +328,7 @@ describe("Shopify route metadata and aggregate registration", () => {
       }).success,
     ).toBe(true);
 
-    expect(shopMeta.getShopRoute.path).toBe("/api/shop");
+    expect(shopMeta.getShopRoute.path).toBe("/api/shops");
     expect(shopMeta.getShopRoute.method).toBe("get");
     expect(shopMeta.getShopRoute.middleware).toHaveLength(2);
     expect(
@@ -361,7 +369,7 @@ describe("Shopify route metadata and aggregate registration", () => {
     registerRoutes(app as never);
 
     const paths = app.openapi.mock.calls.map(([route]) => route.path);
-    expect(paths).toContain("/api/shop");
-    expect(paths).toContain("/api/product");
+    expect(paths).toContain("/api/shops");
+    expect(paths).toContain("/api/products");
   });
 });

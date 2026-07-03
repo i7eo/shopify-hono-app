@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { getEnvProvider } from "@/infra/provider";
 import { unauthorizedError } from "@/shared/exceptions";
 import {
   commitShopifyAccountSession,
@@ -20,17 +21,16 @@ export const standaloneShopifyModeCapabilities: ShopifyModeCapabilities = {
   // Standalone shells bootstrap account-cookie auth before rendering the app.
   buildAppShellResponse: (c) => {
     const shop = c.req.query("shop");
+    const config = getEnvProvider(c.get("runtimeEnv") ?? c.env);
 
     if (!hasShopifyAccountSession(c) && shop) {
-      const authUrl = new URL("/auth", c.get("runtimeEnv").SHOPIFY_APP_URL);
+      const authUrl = new URL("/auth", config.SHOPIFY_APP_URL);
       authUrl.searchParams.set("shop", shop);
 
       return c.redirect(authUrl.toString());
     }
 
-    return c.html(
-      renderStandaloneAppShell(c.get("runtimeEnv").SHOPIFY_APP_KEY),
-    );
+    return c.html(renderStandaloneAppShell(config));
   },
   renderAppShell: renderStandaloneAppShell,
   // Standalone Admin API requests rely on the account session cookie.
@@ -55,7 +55,10 @@ export const standaloneShopifyModeCapabilities: ShopifyModeCapabilities = {
     );
     // Standalone returns to the app shell owner after the account cookie is set.
     // The helper keeps /app for backend-owned shells and / for web-owned shells.
-    responseHeaders.set("Location", getShopifyAppShellUrl(c.get("runtimeEnv")));
+    responseHeaders.set(
+      "Location",
+      getShopifyAppShellUrl(getEnvProvider(c.get("runtimeEnv") ?? c.env)),
+    );
 
     return new Response(null, {
       status: 302,

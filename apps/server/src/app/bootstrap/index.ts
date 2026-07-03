@@ -1,20 +1,22 @@
 import { onAppStartup } from "../lifecycle/startup";
 import { createApp } from "./create-app";
 import { registerOpenAPI } from "./register-openapi";
+import type { RuntimeCapabilitiesCreator } from "@/shared/middlewares";
 
-export async function bootstrapApp(
-  options: {
-    runStartup?: boolean;
-    registerOpenApi?: boolean;
-  } = {},
-) {
-  const { runStartup, registerOpenApi } = options;
+type BootstrapAppOptions = {
+  createRuntimeCapabilities?: RuntimeCapabilitiesCreator;
+  runStartup?: boolean;
+  registerOpenApi?: boolean;
+};
+
+export async function bootstrapApp(options: BootstrapAppOptions = {}) {
+  const { createRuntimeCapabilities, runStartup, registerOpenApi } = options;
 
   if (runStartup) {
     await onAppStartup();
   }
 
-  const app = createApp();
+  const app = createApp({ createRuntimeCapabilities });
   registerOpenAPI(app, { enabled: registerOpenApi });
 
   return app;

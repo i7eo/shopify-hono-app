@@ -2,17 +2,8 @@ import {
   DEFAULT_APP_BUCKET_PROVIDERS,
   type DEFAULT_APP_BUCKET_PROVIDERS_VALUES,
 } from "@shamt/app-env";
-import {
-  getRuntimeCapability,
-  type RuntimeCapabilityInstances,
-  type RuntimeCapabilityName,
-} from "@/app/runtime/capabilities";
-import { createRuntimeResourceContextFromHono } from "@/app/runtime/resource-context";
-import {
-  badGatewayError,
-  internalServerError,
-  notFoundError,
-} from "@/shared/exceptions";
+import { runtimeCapabilities } from "@/app/runtime/runtime-capabilities";
+import { badGatewayError, notFoundError } from "@/shared/exceptions";
 import { toPaginationInput } from "@/shared/models";
 import { parseNullableDate, readNullableNumber } from "@/utils";
 import { enqueueProductExportJob } from "./queue";
@@ -20,15 +11,14 @@ import {
   PRODUCT_EXPORT_CSV_CONTENT_TYPE,
   PRODUCT_EXPORT_QUEUE_JOBS,
 } from "./queue/constants";
-import { createDatabaseProductExportsRepositoryFromPromise } from "./repositories/database";
 import { listProductExportTemplates as listTemplates } from "./templates";
 import { mapBulkOperationStatus, PRODUCT_EXPORT_STATUSES } from "./utils";
+import type { ProductExportRepository } from "./repositories/database";
 import type {
   ListProductExportsInput,
   ProductExportCreateInput,
   ProductExportLookup,
   ProductExportRecord,
-  ProductExportRepository,
   ProductExportsPage,
 } from "./types";
 import type { FileDownload } from "@/app/modules/file/types";
@@ -210,9 +200,7 @@ export async function downloadProductExport(
     });
   }
 
-  const resolver = await getFactory("moduleFileDownloadResolverFactory")(
-    createRuntimeResourceContextFromHono(c),
-  );
+  const resolver = await runtimeCapabilities(c).file.downloadResolver();
 
   return resolver.resolve({
     file: {
@@ -381,36 +369,7 @@ export async function fetchProductExportBulkOperation(
 export function getProductExportsRepository(
   c: Context<AppEnv>,
 ): ProductExportRepository {
-  const databaseFactory = getRuntimeCapability("databaseFactory");
-
-  if (!databaseFactory) {
-    throw badGatewayError(
-      "Runtime capability is not registered: databaseFactory",
-      {
-        expose: true,
-      },
-    );
-  }
-
-  return createDatabaseProductExportsRepositoryFromPromise(
-    Promise.resolve(databaseFactory(createRuntimeResourceContextFromHono(c))),
-  );
-}
-
-/**
- * Resolves a required runtime capability and fails loudly when it is missing.
- */
-function getFactory<K extends RuntimeCapabilityName>(
-  name: K,
-): RuntimeCapabilityInstances[K] {
-  const factory = getRuntimeCapability(name);
-  if (!factory) {
-    throw internalServerError(`Runtime capability is not registered: ${name}`, {
-      expose: true,
-    });
-  }
-
-  return factory;
+  return runtimeCapabilities(c).databaseRepositories.productExports();
 }
 
 /**

@@ -1,6 +1,7 @@
 import { executeCommand } from "@unimolecule/utils/node";
 import {
   dynamicRoutePatterns,
+  serverDir,
   webDir,
   webDistDir,
   wranglerPath,
@@ -12,6 +13,7 @@ import { readJsonFile, writeJsonFile } from "./utils";
  */
 async function main() {
   await executeCommand("pnpm", ["--dir", webDir, "run", "build"]);
+  await executeCommand("pnpm", ["--dir", serverDir, "run", "build"]);
   await writeWranglerAssets();
 }
 

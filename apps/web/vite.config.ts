@@ -25,6 +25,17 @@ export default defineConfig(({ command }) => {
       },
     },
     server: createViteServer({ env }),
+    build: {
+      rolldownOptions: {
+        output: {
+          minify: {
+            compress: {
+              dropConsole: true,
+            },
+          },
+        },
+      },
+    },
     plugins: [
       publicEnvPlugin({
         env,

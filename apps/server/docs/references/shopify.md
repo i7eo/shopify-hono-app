@@ -218,7 +218,7 @@ Standalone Shopify session expired or was revoked
 
 ## Session Storage
 
-Shopify session storage 由 `src/app/modules/shopify/session-storage` 通过统一 `databaseFactory` 创建 Drizzle-backed adapter；runtime 不再单独注册 Shopify session storage capability：
+Shopify session storage 由 `RuntimeCapabilities` 提供，并在 runtime boundary 内基于统一 database capability 创建 Drizzle-backed adapter：
 
 | Runtime / Provider  | Storage 策略                                  |
 | ------------------- | --------------------------------------------- |
@@ -229,17 +229,18 @@ Shopify session storage 由 `src/app/modules/shopify/session-storage` 通过统�
 入口：
 
 - `src/app/modules/shopify/session-storage/index.ts`
-- `src/app/modules/shopify/session-storage/database.ts`
-- `src/app/runtime/isolate/cloudflare/capabilities.ts`
+- `src/app/modules/shopify/session-storage/postgres.ts`
+- `src/app/modules/shopify/session-storage/sqlite.ts`
+- `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/bindings.ts`
-- `src/app/runtime/process/capabilities.ts`
+- `src/app/runtime/process/runtime-capabilities.ts`
 - `src/infra/database`
 - `packages/database/src/models/postgres/shopify-sessions.ts`
 - `packages/database/src/models/sqlite/shopify-sessions.ts`
 
 Cloudflare 下的 D1 binding 在 config schema 中允许 bootstrap 阶段缺失。真正创建 database 时，Cloudflare runtime capability 会强校验 `APP_DATABASE_D1_BINDING` 指向的 request-bound binding。这样 route metadata 等模块 import 阶段不会因为 request-bound binding 尚未进入而失败，但 session storage 使用点仍然会快速失败。
 
-数据库 schema 来自 `@shamt/database` 的 PostgreSQL / SQLite models，与 file module 共享同一个 `databaseFactory`。本地验证可使用：
+数据库 schema 来自 `@shamt/database` 的 PostgreSQL / SQLite models，与 file module 共享同一个 `runtimeCapabilities.database()`。本地验证可使用：
 
 ```bash
 pnpm --dir apps/server run db:seed:dev:pg

@@ -1,37 +1,34 @@
 import { configSchema } from "@shamt/app-env";
 import { getSafeProcessEnv } from "@/app/runtime/process/utils/process";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
-import { providerDisposers, providers } from "./constants";
 import { createSchemaSignature } from "./signature";
 
-type EnvProviderOptions = {
-  override?: boolean;
+type EnvProviderSlot = {
+  signature: string;
+  value: RuntimeConfig;
 };
 
-let envProviderSignature: string | undefined;
+let envProviderSlot: EnvProviderSlot | undefined;
 
 /**
  * Get the validated runtime env provider.
  * If rawEnv is omitted, process.env is used. Runtime middleware passes request
  * bindings explicitly so isolate environments can refresh per request.
- * Pass { override: true } to use rawEnv verbatim.
  */
-export function getEnvProvider(
-  rawEnv?: unknown,
-  options: EnvProviderOptions = {},
-): RuntimeConfig {
+export function getEnvProvider(rawEnv?: unknown): RuntimeConfig {
   const nextRawEnv = (rawEnv ?? {}) as Record<string, unknown>;
-  const effectiveRawEnv = options.override
-    ? nextRawEnv
-    : { ...getSafeProcessEnv(), ...nextRawEnv };
+  const effectiveRawEnv = { ...getSafeProcessEnv(), ...nextRawEnv };
 
   const signature = getEnvProviderSignature(effectiveRawEnv);
 
-  if (!providers.has("env") || envProviderSignature !== signature) {
-    setEnvProvider(getRuntimeConfig(effectiveRawEnv), signature);
+  if (envProviderSlot?.signature === signature) {
+    return envProviderSlot.value;
   }
 
-  return providers.get("env") as RuntimeConfig;
+  const config = getRuntimeConfig(effectiveRawEnv);
+  setEnvProvider(config, signature);
+
+  return config;
 }
 
 /**
@@ -39,9 +36,7 @@ export function getEnvProvider(
  * Use this when disposing providers or resetting tests.
  */
 export function resetEnvProvider() {
-  providers.delete("env");
-  providerDisposers.delete("env");
-  envProviderSignature = undefined;
+  envProviderSlot = undefined;
 }
 
 /**
@@ -49,11 +44,7 @@ export function resetEnvProvider() {
  * The disposer removes both the provider map entry and the disposer entry.
  */
 function setEnvProvider(config: RuntimeConfig, signature: string) {
-  providers.set("env", config);
-  envProviderSignature = signature;
-  providerDisposers.set("env", () => {
-    resetEnvProvider();
-  });
+  envProviderSlot = { signature, value: config };
 }
 
 /**

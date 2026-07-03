@@ -1,3 +1,4 @@
+import { getEnvProvider } from "@/infra/provider";
 import { createResponse } from "@/shared/models";
 import {
   getDatabaseHealthRoute,
@@ -51,7 +52,9 @@ export function registerHealthController(app: AppOpenAPI) {
   app.openapi(getNetworkHealthRoute, async (c) =>
     c.json(
       createResponse({
-        data: await checkNetworkHealth(c.get("runtimeEnv")),
+        data: await checkNetworkHealth(
+          getEnvProvider(c.get("runtimeEnv") ?? c.env),
+        ),
         requestId: c.get("requestId"),
       }),
       200,

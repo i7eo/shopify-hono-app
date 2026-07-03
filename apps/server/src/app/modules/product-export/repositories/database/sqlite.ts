@@ -23,9 +23,11 @@ import {
 import {
   getListCursor,
   getPageOffset,
+  resolvePageTotalFromRows,
   toPartStats,
   toProductExportsPage,
 } from "./shared";
+import type { ProductExportRepository } from ".";
 import type {
   ProductExportListInput,
   ProductExportLookup,
@@ -34,11 +36,76 @@ import type {
   ProductExportPartStats,
   ProductExportPartStatus,
   ProductExportRecord,
-  ProductExportRepository,
   ProductExportsPage,
 } from "../../types";
 import type { D1DatabaseClient } from "@/infra/database";
 import type { SeekCursor } from "@/shared/models";
+
+type SqliteProductExportsDatabase =
+  D1DatabaseClient | Promise<D1DatabaseClient>;
+
+/**
+ * Creates a SQLite/D1-backed product-export repository from a runtime
+ * database capability.
+ */
+export function createSqliteProductExportsRepository(
+  database: SqliteProductExportsDatabase,
+): ProductExportRepository {
+  const dbPromise = Promise.resolve(database);
+
+  return {
+    async claimPart(input): Promise<ProductExportPartRecord | null> {
+      return claimSqliteProductExportPart(await dbPromise, input);
+    },
+    async create(record): Promise<void> {
+      return createSqliteProductExport(await dbPromise, record);
+    },
+    async createParts(parts): Promise<void> {
+      return createSqliteProductExportParts(await dbPromise, parts);
+    },
+    async delete(input): Promise<void> {
+      return deleteSqliteProductExport(await dbPromise, input);
+    },
+    async findByBulkOperationId(
+      bulkOperationId,
+    ): Promise<ProductExportRecord | null> {
+      return findSqliteProductExportByBulkOperationId(
+        await dbPromise,
+        bulkOperationId,
+      );
+    },
+    async findById(input): Promise<ProductExportRecord | null> {
+      return findSqliteProductExportById(await dbPromise, input);
+    },
+    async getPartStats(exportId): Promise<ProductExportPartStats> {
+      return getSqliteProductExportPartStats(await dbPromise, exportId);
+    },
+    async list(input): Promise<ProductExportsPage> {
+      return listSqliteProductExports(await dbPromise, input);
+    },
+    async listParts(exportId): Promise<ProductExportPartRecord[]> {
+      return listSqliteProductExportParts(await dbPromise, exportId);
+    },
+    async listPartsByStatus(input): Promise<ProductExportPartRecord[]> {
+      return listSqliteProductExportPartsByStatus(await dbPromise, input);
+    },
+    async listPartsPage(input): Promise<ProductExportPartRecord[]> {
+      return listSqliteProductExportPartsPage(await dbPromise, input);
+    },
+    async listRecoverableExports(input): Promise<ProductExportRecord[]> {
+      return listSqliteRecoverableProductExports(await dbPromise, input);
+    },
+    async markPartDone(input): Promise<void> {
+      return markSqliteProductExportPartDone(await dbPromise, input);
+    },
+    async markPartFailed(input): Promise<void> {
+      return markSqliteProductExportPartFailed(await dbPromise, input);
+    },
+    async update(record): Promise<void> {
+      return updateSqliteProductExport(await dbPromise, record);
+    },
+  };
+}
 
 export async function createSqliteProductExportParts(
   database: D1DatabaseClient,
@@ -165,7 +232,9 @@ export async function listSqliteProductExports(
       : await query;
   const total =
     input.pagination.mode === "page"
-      ? await countSqliteProductExports(database, where)
+      ? await resolvePageTotalFromRows(rows, input.pagination, () =>
+          countSqliteProductExports(database, where),
+        )
       : undefined;
 
   return toProductExportsPage(rows, input, total);
