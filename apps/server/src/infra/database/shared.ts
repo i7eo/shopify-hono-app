@@ -2,29 +2,9 @@ import {
   DEFAULT_APP_DATABASE_PROVIDERS,
   DEFAULT_RUNTIMES,
 } from "@shamt/app-env";
-import {
-  postgresFiles,
-  postgresShopifySessions,
-} from "@shamt/database/models/postgres";
-import {
-  sqliteFiles,
-  sqliteShopifySessions,
-} from "@shamt/database/models/sqlite";
 import { internalServerError } from "@/shared/exceptions";
 import type { RuntimeConfig } from "@/infra/env";
 
-export const postgresDatabaseSchema = {
-  files: postgresFiles,
-  shopifySessions: postgresShopifySessions,
-};
-
-export const sqliteDatabaseSchema = {
-  files: sqliteFiles,
-  shopifySessions: sqliteShopifySessions,
-};
-
-export type PostgresDatabaseSchema = typeof postgresDatabaseSchema;
-export type SqliteDatabaseSchema = typeof sqliteDatabaseSchema;
 export type DatabaseRuntimeStrategy = {
   provider: RuntimeConfig["APP_DATABASE_PROVIDER"];
   runtime: RuntimeConfig["APP_RUNTIME"];

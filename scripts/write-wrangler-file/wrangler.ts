@@ -7,9 +7,14 @@ import {
   DEFAULT_RUNTIMES,
 } from "@shamt/app-env";
 import { throwError } from "../utils";
-import type { WranglerFileConfig } from "./constants";
+import {
+  DEVELOPMENT_ENTRY_PATH,
+  PRODUCTION_ENTRY_PATH,
+  type WranglerFileConfig,
+} from "./constants";
 
 interface WranglerConfig {
+  name: string;
   main: string;
   compatibility_date: string;
   compatibility_flags: string[];
@@ -20,7 +25,7 @@ interface WranglerConfig {
 }
 
 interface WranglerEnvironmentConfig {
-  name: string;
+  main?: string;
   r2_buckets?: R2BucketBinding[];
   d1_databases?: D1DatabaseBinding[];
   queues?: QueueConfig;
@@ -72,7 +77,8 @@ export function renderWranglerConfig(
   const environment = renderWranglerEnvironment(config);
 
   return {
-    main: "src/app/runtime/isolate/cloudflare/index.ts",
+    name: config.APP_CLOUDFLARE_WORKER_NAME,
+    main: DEVELOPMENT_ENTRY_PATH,
     compatibility_date: "2026-06-05",
     compatibility_flags: ["nodejs_compat"],
     observability: {
@@ -87,14 +93,15 @@ export function renderWranglerConfig(
 function renderWranglerEnvironment(
   config: WranglerFileConfig,
 ): WranglerEnvironmentConfig {
-  const appName = config.APP_CLOUDFLARE_WORKER_NAME;
   const bucketProvider = getBucketProvider(config);
   const databaseProvider = getDatabaseProvider(config);
   const queueProvider = getQueueProvider(config);
   const schedulerProvider = getSchedulerProvider(config);
-  const environment: WranglerEnvironmentConfig = {
-    name: appName,
-  };
+  const environment: WranglerEnvironmentConfig = {};
+
+  if (config.APP_ENV === DEFAULT_ENVS.PRODUCTION) {
+    environment.main = PRODUCTION_ENTRY_PATH;
+  }
 
   if (bucketProvider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {
     environment.r2_buckets = [getR2BucketBinding(config)];

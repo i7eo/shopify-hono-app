@@ -11,3 +11,6 @@ if (!root) {
 }
 
 export const wranglerPath = path.resolve(root, "apps/server/wrangler.json");
+export const DEVELOPMENT_ENTRY_PATH =
+  "src/app/runtime/isolate/cloudflare/index.ts";
+export const PRODUCTION_ENTRY_PATH = "dist/isolate/cloudflare/index.js";

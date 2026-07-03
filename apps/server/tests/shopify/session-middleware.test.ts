@@ -97,25 +97,46 @@ describe("Shopify database session storage adapter", () => {
     vi.resetModules();
     vi.doUnmock("@/app/modules/shopify/session-storage/database");
     vi.doUnmock("@shopify/shopify-app-session-storage-drizzle");
+    vi.doUnmock(
+      "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-postgres.adapter.mjs",
+    );
+    vi.doUnmock(
+      "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-sqlite.adapter.mjs",
+    );
   });
 
   it("creates the Postgres Drizzle session storage adapter", async () => {
     vi.doUnmock("@/app/modules/shopify/session-storage/database");
+    const loadedSession = { id: "loaded-session" };
     const DrizzleSessionStoragePostgres = vi.fn(function (
-      this: { db: unknown; table: unknown; type: string },
+      this: {
+        db: unknown;
+        loadSession: (id: string) => Promise<unknown>;
+        table: unknown;
+        type: string;
+      },
       db: unknown,
       table: unknown,
     ) {
       this.db = db;
       this.table = table;
       this.type = "postgres";
+      this.loadSession = vi.fn(() => Promise.resolve(loadedSession));
     });
     const DrizzleSessionStorageSQLite = vi.fn();
 
-    vi.doMock("@shopify/shopify-app-session-storage-drizzle", () => ({
-      DrizzleSessionStoragePostgres,
-      DrizzleSessionStorageSQLite,
-    }));
+    vi.doMock(
+      "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-postgres.adapter.mjs",
+      () => ({
+        DrizzleSessionStoragePostgres,
+      }),
+    );
+    vi.doMock(
+      "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-sqlite.adapter.mjs",
+      () => ({
+        DrizzleSessionStorageSQLite,
+      }),
+    );
 
     const { postgresShopifySessions } =
       await import("@shamt/database/models/postgres");
@@ -130,31 +151,49 @@ describe("Shopify database session storage adapter", () => {
       runtime: "node",
     } as never);
 
+    expect(DrizzleSessionStoragePostgres).not.toHaveBeenCalled();
+    await expect(storage.loadSession("session-id")).resolves.toBe(
+      loadedSession,
+    );
     expect(DrizzleSessionStoragePostgres).toHaveBeenCalledWith(
       db,
       postgresShopifySessions,
     );
     expect(DrizzleSessionStorageSQLite).not.toHaveBeenCalled();
-    expect(storage).toMatchObject({ db, table: postgresShopifySessions });
   });
 
   it("creates the SQLite Drizzle session storage adapter for D1", async () => {
     vi.doUnmock("@/app/modules/shopify/session-storage/database");
     const DrizzleSessionStoragePostgres = vi.fn();
+    const loadedSession = { id: "loaded-session" };
     const DrizzleSessionStorageSQLite = vi.fn(function (
-      this: { db: unknown; table: unknown; type: string },
+      this: {
+        db: unknown;
+        loadSession: (id: string) => Promise<unknown>;
+        table: unknown;
+        type: string;
+      },
       db: unknown,
       table: unknown,
     ) {
       this.db = db;
       this.table = table;
       this.type = "sqlite";
+      this.loadSession = vi.fn(() => Promise.resolve(loadedSession));
     });
 
-    vi.doMock("@shopify/shopify-app-session-storage-drizzle", () => ({
-      DrizzleSessionStoragePostgres,
-      DrizzleSessionStorageSQLite,
-    }));
+    vi.doMock(
+      "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-postgres.adapter.mjs",
+      () => ({
+        DrizzleSessionStoragePostgres,
+      }),
+    );
+    vi.doMock(
+      "@shopify/shopify-app-session-storage-drizzle/dist/esm/adapters/drizzle-sqlite.adapter.mjs",
+      () => ({
+        DrizzleSessionStorageSQLite,
+      }),
+    );
 
     const { sqliteShopifySessions } =
       await import("@shamt/database/models/sqlite");
@@ -168,20 +207,19 @@ describe("Shopify database session storage adapter", () => {
       runtime: "cloudflare",
     } as never);
 
+    expect(DrizzleSessionStorageSQLite).not.toHaveBeenCalled();
+    await expect(storage.loadSession("session-id")).resolves.toBe(
+      loadedSession,
+    );
     expect(DrizzleSessionStorageSQLite).toHaveBeenCalledWith(
       db,
       sqliteShopifySessions,
     );
     expect(DrizzleSessionStoragePostgres).not.toHaveBeenCalled();
-    expect(storage).toMatchObject({ db, table: sqliteShopifySessions });
   });
 
   it("rejects unsupported database providers", async () => {
     vi.doUnmock("@/app/modules/shopify/session-storage/database");
-    vi.doMock("@shopify/shopify-app-session-storage-drizzle", () => ({
-      DrizzleSessionStoragePostgres: vi.fn(),
-      DrizzleSessionStorageSQLite: vi.fn(),
-    }));
 
     const { createDatabaseShopifySessionStorage } =
       await import("@/app/modules/shopify/session-storage/database");

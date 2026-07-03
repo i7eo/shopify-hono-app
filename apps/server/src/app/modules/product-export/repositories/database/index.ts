@@ -1,38 +1,4 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
-import {
-  claimPostgresProductExportPart,
-  createPostgresProductExport,
-  createPostgresProductExportParts,
-  deletePostgresProductExport,
-  findPostgresProductExportByBulkOperationId,
-  findPostgresProductExportById,
-  getPostgresProductExportPartStats,
-  listPostgresProductExportParts,
-  listPostgresProductExportPartsByStatus,
-  listPostgresProductExportPartsPage,
-  listPostgresProductExports,
-  listPostgresRecoverableProductExports,
-  markPostgresProductExportPartDone,
-  markPostgresProductExportPartFailed,
-  updatePostgresProductExport,
-} from "./postgres";
-import {
-  claimSqliteProductExportPart,
-  createSqliteProductExport,
-  createSqliteProductExportParts,
-  deleteSqliteProductExport,
-  findSqliteProductExportByBulkOperationId,
-  findSqliteProductExportById,
-  getSqliteProductExportPartStats,
-  listSqliteProductExportParts,
-  listSqliteProductExportPartsByStatus,
-  listSqliteProductExportPartsPage,
-  listSqliteProductExports,
-  listSqliteRecoverableProductExports,
-  markSqliteProductExportPartDone,
-  markSqliteProductExportPartFailed,
-  updateSqliteProductExport,
-} from "./sqlite";
 import type {
   ProductExportPartRecord,
   ProductExportPartStats,
@@ -58,9 +24,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { createSqliteProductExport } = await import("./sqlite");
         return createSqliteProductExport(database, record);
       }
 
+      const { createPostgresProductExport } = await import("./postgres");
       return createPostgresProductExport(database, record);
     },
 
@@ -68,9 +36,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { createSqliteProductExportParts } = await import("./sqlite");
         return createSqliteProductExportParts(database, parts);
       }
 
+      const { createPostgresProductExportParts } = await import("./postgres");
       return createPostgresProductExportParts(database, parts);
     },
 
@@ -78,9 +48,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { claimSqliteProductExportPart } = await import("./sqlite");
         return claimSqliteProductExportPart(database, input);
       }
 
+      const { claimPostgresProductExportPart } = await import("./postgres");
       return claimPostgresProductExportPart(database, input);
     },
 
@@ -88,9 +60,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { deleteSqliteProductExport } = await import("./sqlite");
         return deleteSqliteProductExport(database, input);
       }
 
+      const { deletePostgresProductExport } = await import("./postgres");
       return deletePostgresProductExport(database, input);
     },
 
@@ -100,12 +74,16 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { findSqliteProductExportByBulkOperationId } =
+          await import("./sqlite");
         return findSqliteProductExportByBulkOperationId(
           database,
           bulkOperationId,
         );
       }
 
+      const { findPostgresProductExportByBulkOperationId } =
+        await import("./postgres");
       return findPostgresProductExportByBulkOperationId(
         database,
         bulkOperationId,
@@ -116,9 +94,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { findSqliteProductExportById } = await import("./sqlite");
         return findSqliteProductExportById(database, input);
       }
 
+      const { findPostgresProductExportById } = await import("./postgres");
       return findPostgresProductExportById(database, input);
     },
 
@@ -126,9 +106,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { listSqliteProductExports } = await import("./sqlite");
         return listSqliteProductExports(database, input);
       }
 
+      const { listPostgresProductExports } = await import("./postgres");
       return listPostgresProductExports(database, input);
     },
 
@@ -136,9 +118,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { getSqliteProductExportPartStats } = await import("./sqlite");
         return getSqliteProductExportPartStats(database, exportId);
       }
 
+      const { getPostgresProductExportPartStats } = await import("./postgres");
       return getPostgresProductExportPartStats(database, exportId);
     },
 
@@ -146,9 +130,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { listSqliteProductExportParts } = await import("./sqlite");
         return listSqliteProductExportParts(database, exportId);
       }
 
+      const { listPostgresProductExportParts } = await import("./postgres");
       return listPostgresProductExportParts(database, exportId);
     },
 
@@ -156,9 +142,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { listSqliteProductExportPartsPage } = await import("./sqlite");
         return listSqliteProductExportPartsPage(database, input);
       }
 
+      const { listPostgresProductExportPartsPage } = await import("./postgres");
       return listPostgresProductExportPartsPage(database, input);
     },
 
@@ -166,9 +154,13 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { listSqliteProductExportPartsByStatus } =
+          await import("./sqlite");
         return listSqliteProductExportPartsByStatus(database, input);
       }
 
+      const { listPostgresProductExportPartsByStatus } =
+        await import("./postgres");
       return listPostgresProductExportPartsByStatus(database, input);
     },
 
@@ -176,9 +168,13 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { listSqliteRecoverableProductExports } =
+          await import("./sqlite");
         return listSqliteRecoverableProductExports(database, input);
       }
 
+      const { listPostgresRecoverableProductExports } =
+        await import("./postgres");
       return listPostgresRecoverableProductExports(database, input);
     },
 
@@ -186,9 +182,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { markSqliteProductExportPartDone } = await import("./sqlite");
         return markSqliteProductExportPartDone(database, input);
       }
 
+      const { markPostgresProductExportPartDone } = await import("./postgres");
       return markPostgresProductExportPartDone(database, input);
     },
 
@@ -196,9 +194,12 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { markSqliteProductExportPartFailed } = await import("./sqlite");
         return markSqliteProductExportPartFailed(database, input);
       }
 
+      const { markPostgresProductExportPartFailed } =
+        await import("./postgres");
       return markPostgresProductExportPartFailed(database, input);
     },
 
@@ -206,9 +207,11 @@ export function createDatabaseProductExportsRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { updateSqliteProductExport } = await import("./sqlite");
         return updateSqliteProductExport(database, record);
       }
 
+      const { updatePostgresProductExport } = await import("./postgres");
       return updatePostgresProductExport(database, record);
     },
   };

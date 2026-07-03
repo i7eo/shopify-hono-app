@@ -1,12 +1,11 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
+import * as postgresDatabaseSchema from "@shamt/database/models/postgres";
 import {
   getDatabaseCheckErrorMessage,
   getDatabaseCheckLatencyMs,
   getDatabaseEnvConfig,
   getDatabaseUrl,
-  postgresDatabaseSchema,
   type DatabaseHealthCheckResult,
-  type PostgresDatabaseSchema,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -14,7 +13,7 @@ import type { Pool } from "pg";
 
 export type ProcessPostgresDatabase = {
   check: () => Promise<DatabaseHealthCheckResult>;
-  db: NodePgDatabase<PostgresDatabaseSchema>;
+  db: NodePgDatabase<typeof postgresDatabaseSchema>;
   dialect: "postgres";
   dispose: () => Promise<void>;
   provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES;

@@ -20,6 +20,5 @@ export default defineConfig([
     tsconfig: "./tsconfig.json",
     outDir: "dist/isolate/cloudflare",
     watch: process.env.APP_ENV === "development",
-    clean: false,
   },
 ]);

@@ -1,18 +1,4 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
-import {
-  createPostgresFile,
-  deletePostgresFile,
-  findPostgresFileById,
-  listPostgresFiles,
-  updatePostgresFileStatus,
-} from "./postgres";
-import {
-  createSqliteFile,
-  deleteSqliteFile,
-  findSqliteFileById,
-  listSqliteFiles,
-  updateSqliteFileStatus,
-} from "./sqlite";
 import type { FileRecord, FilesPage, FilesRepository } from "../../types";
 import type { Database } from "@/infra/database";
 
@@ -39,9 +25,11 @@ export function createDatabaseFilesRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { createSqliteFile } = await import("./sqlite");
         return createSqliteFile(database, file);
       }
 
+      const { createPostgresFile } = await import("./postgres");
       return createPostgresFile(database, file);
     },
 
@@ -49,9 +37,11 @@ export function createDatabaseFilesRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { findSqliteFileById } = await import("./sqlite");
         return findSqliteFileById(database, input);
       }
 
+      const { findPostgresFileById } = await import("./postgres");
       return findPostgresFileById(database, input);
     },
 
@@ -59,9 +49,11 @@ export function createDatabaseFilesRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { listSqliteFiles } = await import("./sqlite");
         return listSqliteFiles(database, input);
       }
 
+      const { listPostgresFiles } = await import("./postgres");
       return listPostgresFiles(database, input);
     },
 
@@ -69,9 +61,11 @@ export function createDatabaseFilesRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { updateSqliteFileStatus } = await import("./sqlite");
         return updateSqliteFileStatus(database, input);
       }
 
+      const { updatePostgresFileStatus } = await import("./postgres");
       return updatePostgresFileStatus(database, input);
     },
 
@@ -79,9 +73,11 @@ export function createDatabaseFilesRepositoryFromPromise(
       const database = await dbPromise;
 
       if (database.provider === DEFAULT_APP_DATABASE_PROVIDERS.D1) {
+        const { deleteSqliteFile } = await import("./sqlite");
         return deleteSqliteFile(database, input);
       }
 
+      const { deletePostgresFile } = await import("./postgres");
       return deletePostgresFile(database, input);
     },
   };

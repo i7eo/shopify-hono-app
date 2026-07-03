@@ -1,19 +1,18 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
+import * as sqliteDatabaseSchema from "@shamt/database/models/sqlite";
 import { internalServerError } from "@/shared/exceptions";
 import {
   getDatabaseCheckErrorMessage,
   getDatabaseCheckLatencyMs,
   getDatabaseEnvConfig,
-  sqliteDatabaseSchema,
   type DatabaseHealthCheckResult,
-  type SqliteDatabaseSchema,
 } from "./shared";
 import type { RuntimeConfig } from "@/infra/env";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 
 export type IsolateD1Database = {
   check: () => Promise<DatabaseHealthCheckResult>;
-  db: DrizzleD1Database<SqliteDatabaseSchema>;
+  db: DrizzleD1Database<typeof sqliteDatabaseSchema>;
   dialect: "sqlite";
   provider: typeof DEFAULT_APP_DATABASE_PROVIDERS.D1;
   runtime: RuntimeConfig["APP_RUNTIME"];
