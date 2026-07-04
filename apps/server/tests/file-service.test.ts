@@ -38,7 +38,7 @@ describe("file service", () => {
   });
 
   it("creates, downloads, and deletes a file through runtime capabilities", async () => {
-    const store = createMemoryMetadataStore();
+    const repository = createMemoryMetadataRepository();
     const bucket = createMemoryBucket();
     const resolver: FileDownloadResolver = {
       resolve: vi.fn(async ({ file }) => ({
@@ -49,7 +49,7 @@ describe("file service", () => {
         },
       })),
     };
-    const c = createServiceContext({ bucket, resolver, store });
+    const c = createServiceContext({ bucket, resolver, repository });
 
     const created = await createFile(c, {
       body: streamFromText("hello"),
@@ -88,11 +88,13 @@ describe("file service", () => {
   });
 
   it("supports Cloudflare D1 database-backed file metadata", async () => {
-    const store = createMemoryMetadataStore(DEFAULT_APP_DATABASE_PROVIDERS.D1);
+    const repository = createMemoryMetadataRepository(
+      DEFAULT_APP_DATABASE_PROVIDERS.D1,
+    );
     const bucket = createMemoryBucket();
     const c = createServiceContext({
       bucket,
-      store,
+      repository,
       runtimeEnv: {
         ...runtimeConfig,
         APP_BUCKET_PROVIDER: "r2",
@@ -137,7 +139,7 @@ describe("file service", () => {
   });
 
   it("returns a signed redirect for R2 downloads", async () => {
-    const store = createMemoryMetadataStore();
+    const repository = createMemoryMetadataRepository();
     const signer: BucketDownloadSigner = {
       signDownloadUrl: vi.fn(
         async () =>
@@ -146,7 +148,7 @@ describe("file service", () => {
     };
     const c = createServiceContext({
       resolver: new BucketFileDownloadResolver(createMemoryBucket(), signer),
-      store,
+      repository,
     });
     const file: FileRecord = {
       id: "file_r2",
@@ -164,7 +166,7 @@ describe("file service", () => {
       deletedAt: null,
     };
 
-    await store.create(file);
+    await repository.create(file);
 
     const download = await downloadFile(c, "test-shop.myshopify.com", file.id);
 
@@ -184,8 +186,8 @@ describe("file service", () => {
   });
 
   it("marks expired files unavailable during read", async () => {
-    const store = createMemoryMetadataStore();
-    const c = createServiceContext({ store });
+    const repository = createMemoryMetadataRepository();
+    const c = createServiceContext({ repository });
     const expired: FileRecord = {
       id: "file_expired",
       shopDomain: "test-shop.myshopify.com",
@@ -201,7 +203,7 @@ describe("file service", () => {
       updatedAt: new Date(),
       deletedAt: null,
     };
-    await store.create(expired);
+    await repository.create(expired);
 
     await expect(
       getFile(c, "test-shop.myshopify.com", expired.id),
@@ -218,13 +220,13 @@ describe("file service", () => {
   });
 
   it("marks upload failures as failed", async () => {
-    const store = createMemoryMetadataStore();
+    const repository = createMemoryMetadataRepository();
     const bucket = createMemoryBucket({
       put: () => {
         throwError("write failed");
       },
     });
-    const c = createServiceContext({ bucket, store });
+    const c = createServiceContext({ bucket, repository });
 
     await expect(
       createFile(c, {
@@ -236,7 +238,7 @@ describe("file service", () => {
       }),
     ).rejects.toThrow("write failed");
 
-    const page = await store.list({
+    const page = await repository.list({
       pagination: { limit: 10, mode: "cursor" },
       shopDomain: "test-shop.myshopify.com",
     });
@@ -244,8 +246,8 @@ describe("file service", () => {
   });
 
   it("creates multiple files sequentially", async () => {
-    const store = createMemoryMetadataStore();
-    const c = createServiceContext({ store });
+    const repository = createMemoryMetadataRepository();
+    const c = createServiceContext({ repository });
     //@ts-ignore
     c.req = createRequestContext([
       ["files", new File(["hello"], "hello.txt", { type: "text/plain" })],
@@ -266,7 +268,7 @@ describe("file service", () => {
       true,
     );
 
-    const page = await store.list({
+    const page = await repository.list({
       pagination: { limit: 10, mode: "cursor" },
       shopDomain: "test-shop.myshopify.com",
     });
@@ -279,11 +281,11 @@ describe("file service", () => {
   });
 
   it("lists files with page pagination metadata", async () => {
-    const store = createMemoryMetadataStore();
-    const c = createServiceContext({ store });
+    const repository = createMemoryMetadataRepository();
+    const c = createServiceContext({ repository });
 
     for (let index = 0; index < 25; index += 1) {
-      await store.create(
+      await repository.create(
         createFileRecord({
           id: `file_${index.toString().padStart(2, "0")}`,
           createdAt: new Date(Date.UTC(2026, 5, 20, 0, index)),
@@ -310,11 +312,11 @@ describe("file service", () => {
   });
 
   it("continues file lists after the cursor resource", async () => {
-    const store = createMemoryMetadataStore();
-    const c = createServiceContext({ store });
+    const repository = createMemoryMetadataRepository();
+    const c = createServiceContext({ repository });
 
     for (let index = 0; index < 5; index += 1) {
-      await store.create(
+      await repository.create(
         createFileRecord({
           id: `file_${index}`,
           createdAt: new Date(Date.UTC(2026, 5, 20, 0, index)),
@@ -375,14 +377,14 @@ function createServiceContext(options: {
   resolver?: FileDownloadResolver;
   bucket?: Bucket;
   database?: Database;
-  store?: TestFilesRepository;
+  repository?: TestFilesRepository;
   runtimeEnv?: RuntimeConfig;
 }) {
   const runtimeEnv = options.runtimeEnv ?? runtimeConfig;
-  const store =
-    options.store ??
-    createMemoryMetadataStore(runtimeEnv.APP_DATABASE_PROVIDER);
-  const database = options.database ?? store.database;
+  const repository =
+    options.repository ??
+    createMemoryMetadataRepository(runtimeEnv.APP_DATABASE_PROVIDER);
+  const database = options.database ?? repository.database;
   const bucket = options.bucket ?? createMemoryBucket();
   const resolver =
     options.resolver ??
@@ -398,7 +400,7 @@ function createServiceContext(options: {
   const runtimeCapabilities = createMockRuntimeCapabilities({
     database: () => database,
     databaseRepositories: {
-      files: () => store,
+      files: () => repository,
     },
     bucket: () => bucket,
     file: {
@@ -422,16 +424,16 @@ type TestFilesRepository = FilesRepository & {
   database: Database;
 };
 
-function createMemoryMetadataStore(
+function createMemoryMetadataRepository(
   provider: Database["provider"] = DEFAULT_APP_DATABASE_PROVIDERS.POSTGRES,
 ): TestFilesRepository {
   const database = createMemoryFilesDatabase(provider);
-  const store =
+  const repository =
     provider === DEFAULT_APP_DATABASE_PROVIDERS.D1
       ? createSqliteFilesRepository(database as never)
       : createPostgresFilesRepository(database as never);
 
-  return Object.assign(store, { database });
+  return Object.assign(repository, { database });
 }
 
 function createMemoryFilesDatabase(

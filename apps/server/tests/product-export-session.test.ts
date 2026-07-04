@@ -1,15 +1,57 @@
 import { describe, expect, it, vi } from "vitest";
-import { startProductExportBulkOperationForRecord } from "@/app/modules/product-export/service";
+import {
+  completeProductExportBulkOperation,
+  startProductExportBulkOperationForRecord,
+} from "@/app/modules/product-export/service";
 import type { ProductExportRepository } from "@/app/modules/product-export/repositories/database";
 import type { ProductExportRecord } from "@/app/modules/product-export/types";
 import type { ShopifyClient } from "@/infra/provider";
 
 describe("product export Shopify session ownership", () => {
+  it("completes bulk operations with an explicit repository dependency", async () => {
+    const record = createProductExportRecord({
+      shopifyBulkOperationId: "gid://shopify/BulkOperation/1",
+      status: "bulk_operation_running",
+    });
+    const update = vi.fn();
+    const repository = createProductExportRepository({
+      findByBulkOperationId: vi.fn(() => Promise.resolve(record)),
+      update,
+    });
+
+    const updated = await completeProductExportBulkOperation({
+      input: {
+        bulkOperationId: "gid://shopify/BulkOperation/1",
+        completedAt: new Date("2026-07-04T02:36:03.000Z"),
+        fileSize: 1024,
+        objectCount: 10,
+        resultUrl: "https://shopify.example.com/products.jsonl",
+        shopDomain: "test-shop.myshopify.com",
+        status: "COMPLETED",
+      },
+      repository,
+    });
+
+    expect(updated).toMatchObject({
+      completedAt: new Date("2026-07-04T02:36:03.000Z"),
+      fileSize: 1024,
+      objectCount: 10,
+      resultUrl: "https://shopify.example.com/products.jsonl",
+      shopifyBulkOperationStatus: "COMPLETED",
+      status: "bulk_operation_completed",
+    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "bulk_operation_completed",
+      }),
+    );
+  });
+
   it("persists the offline session id used to start the bulk operation", async () => {
     const now = new Date("2026-06-18T12:00:00.000Z");
     const record = createProductExportRecord({ updatedAt: now });
     const update = vi.fn();
-    const store = createProductExportRepository({ update });
+    const repository = createProductExportRepository({ update });
     const client = {
       request: vi.fn().mockResolvedValue({
         data: {
@@ -32,7 +74,7 @@ describe("product export Shopify session ownership", () => {
         client,
         record,
         shopifySessionId: "offline_test-shop.myshopify.com",
-        store,
+        repository,
       });
 
       expect(updated).toMatchObject({

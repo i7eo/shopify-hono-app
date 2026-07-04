@@ -33,7 +33,9 @@ export const PRODUCT_EXPORT_RETRYABLE_PART_STATUSES = [
 ] as const;
 
 export const CSV_HEADER =
-  "id,title,handle,status,vendor,productType,createdAt,updatedAt\n";
+  "id,productId,title,handle,status,vendor,productType,createdAt,updatedAt\n";
+
+const PRODUCT_EXPORT_DEFAULT_FILENAME = "products.csv";
 
 /**
  * Checks runtime identity through app-env constants instead of hard-coded
@@ -63,6 +65,16 @@ export function mapBulkOperationStatus(status: string): ProductExportStatus {
 }
 
 /**
+ * Builds the merchant-facing CSV filename from the saved export name.
+ */
+export function getProductExportFilename(name: string): string {
+  const safeName = sanitizeProductExportFilename(name);
+  if (!safeName) return PRODUCT_EXPORT_DEFAULT_FILENAME;
+  if (safeName.toLowerCase().endsWith(".csv")) return safeName;
+  return `${safeName}.csv`;
+}
+
+/**
  * Validates the minimal queue payload shared by all product-export jobs.
  *
  * Example: `{ exportId: "exp_1", shopDomain: "shop.myshopify.com", seq: 3 }`.
@@ -87,6 +99,29 @@ export function parseProductExportJobPayload(
     seq: typeof payload.seq === "number" ? payload.seq : undefined,
     shopDomain: payload.shopDomain,
   };
+}
+
+function sanitizeProductExportFilename(value: string): string {
+  const LAST_C0_CONTROL_CODE_POINT = 31;
+  const DELETE_CONTROL_CODE_POINT = 127;
+
+  return value
+    .normalize("NFKC")
+    .replaceAll(/[\\/]/g, "-")
+    .split("")
+    .filter((character) => {
+      const codePoint = character.codePointAt(0);
+      return (
+        codePoint !== undefined &&
+        codePoint > LAST_C0_CONTROL_CODE_POINT &&
+        codePoint !== DELETE_CONTROL_CODE_POINT
+      );
+    })
+    .join("")
+    .replaceAll(/\s+/g, " ")
+    .trim()
+    .replace(/^\.+$/, "")
+    .slice(0, 251);
 }
 
 export type ProductExportCsvPartStreamResult = {
@@ -202,11 +237,21 @@ function productToCsvLine(value: unknown): string {
     vendor?: unknown;
   };
 
-  return `${csvCell(product.id)},${csvCell(product.title)},${csvCell(
-    product.handle,
-  )},${csvCell(product.status)},${csvCell(product.vendor)},${csvCell(
-    product.productType,
-  )},${csvCell(product.createdAt)},${csvCell(product.updatedAt)}\n`;
+  return `${csvCell(product.id)},${csvCell(
+    readShopifyProductId(product.id),
+  )},${csvCell(product.title)},${csvCell(product.handle)},${csvCell(
+    product.status,
+  )},${csvCell(product.vendor)},${csvCell(product.productType)},${csvCell(
+    product.createdAt,
+  )},${csvCell(product.updatedAt)}\n`;
+}
+
+function readShopifyProductId(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  const match = /^gid:\/\/shopify\/Product\/([^/]+)$/.exec(value);
+
+  return match?.[1] ?? "";
 }
 
 /**

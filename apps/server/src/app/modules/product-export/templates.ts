@@ -17,6 +17,7 @@ export const PRODUCT_EXPORT_TEMPLATES = [
     code: "basic",
     fields: [
       "id",
+      "productId",
       "title",
       "handle",
       "status",

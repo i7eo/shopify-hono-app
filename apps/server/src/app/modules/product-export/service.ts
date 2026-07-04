@@ -12,7 +12,11 @@ import {
   PRODUCT_EXPORT_QUEUE_JOBS,
 } from "./queue/constants";
 import { listProductExportTemplates as listTemplates } from "./templates";
-import { mapBulkOperationStatus, PRODUCT_EXPORT_STATUSES } from "./utils";
+import {
+  getProductExportFilename,
+  mapBulkOperationStatus,
+  PRODUCT_EXPORT_STATUSES,
+} from "./utils";
 import type { ProductExportRepository } from "./repositories/database";
 import type {
   ListProductExportsInput,
@@ -51,6 +55,11 @@ export type ProductExportBulkOperationFinishInput = {
   status: string;
 };
 
+export type CompleteProductExportBulkOperationInput = {
+  input: ProductExportBulkOperationFinishInput;
+  repository: ProductExportRepository;
+};
+
 const PRODUCT_EXPORT_BULK_QUERY = `{
   products {
     edges {
@@ -77,7 +86,7 @@ export async function createProductExport(
 ): Promise<ProductExportRecord> {
   const now = new Date();
   const id = crypto.randomUUID();
-  const store = getProductExportsRepository(c);
+  const repository = getProductExportsRepository(c);
   const record: ProductExportRecord = {
     bucketKey: null,
     bucketProvider: null,
@@ -101,7 +110,7 @@ export async function createProductExport(
     updatedAt: now,
   };
 
-  await store.create(record);
+  await repository.create(record);
   await enqueueProductExportJob(c, PRODUCT_EXPORT_QUEUE_JOBS.START_BULK, {
     exportId: id,
     shopDomain: input.shopDomain,
@@ -201,6 +210,7 @@ export async function downloadProductExport(
   }
 
   const resolver = await runtimeCapabilities(c).file.downloadResolver();
+  const filename = getProductExportFilename(record.name);
 
   return resolver.resolve({
     file: {
@@ -212,8 +222,8 @@ export async function downloadProductExport(
       deletedAt: null,
       expiresAt: record.completedAt ?? record.updatedAt,
       id: record.id,
-      originalName: "products.csv",
-      safeName: "products.csv",
+      originalName: filename,
+      safeName: filename,
       shopDomain: record.shopDomain,
       status: "available",
       updatedAt: record.updatedAt,
@@ -234,12 +244,11 @@ function isBucketProvider(
  *
  * This handler is idempotent: repeated webhooks update the same record.
  */
-export async function completeProductExportBulkOperation(
-  c: Context<AppEnv>,
-  input: ProductExportBulkOperationFinishInput,
-): Promise<ProductExportRecord | null> {
-  const store = getProductExportsRepository(c);
-  const record = await store.findByBulkOperationId(input.bulkOperationId);
+export async function completeProductExportBulkOperation({
+  input,
+  repository,
+}: CompleteProductExportBulkOperationInput): Promise<ProductExportRecord | null> {
+  const record = await repository.findByBulkOperationId(input.bulkOperationId);
 
   if (!record || record.shopDomain !== input.shopDomain) {
     return null;
@@ -258,7 +267,7 @@ export async function completeProductExportBulkOperation(
     updatedAt: new Date(),
   };
 
-  await store.update(updated);
+  await repository.update(updated);
   return updated;
 }
 
@@ -269,7 +278,7 @@ export async function startProductExportBulkOperationForRecord(input: {
   client: ShopifyClient;
   record: ProductExportRecord;
   shopifySessionId: string;
-  store: ProductExportRepository;
+  repository: ProductExportRepository;
 }): Promise<ProductExportRecord> {
   if (input.record.shopifyBulkOperationId) return input.record;
 
@@ -284,7 +293,7 @@ export async function startProductExportBulkOperationForRecord(input: {
       updatedAt: new Date(),
     };
 
-    await input.store.update(updated);
+    await input.repository.update(updated);
     return updated;
   } catch (error) {
     const updated: ProductExportRecord = {
@@ -294,7 +303,7 @@ export async function startProductExportBulkOperationForRecord(input: {
       updatedAt: new Date(),
     };
 
-    await input.store.update(updated);
+    await input.repository.update(updated);
     throw error;
   }
 }
@@ -364,7 +373,7 @@ export async function fetchProductExportBulkOperation(
 }
 
 /**
- * Resolves the product-export store from the active runtime capability.
+ * Resolves the product-export repository from the active runtime capability.
  */
 export function getProductExportsRepository(
   c: Context<AppEnv>,

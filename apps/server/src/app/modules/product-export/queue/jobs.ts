@@ -16,6 +16,7 @@ import {
 import {
   createProductExportCsvPartStream,
   CSV_HEADER,
+  getProductExportFilename,
   isCloudflareRuntime,
   parseProductExportJobPayload,
   PRODUCT_EXPORT_PART_STATUSES,
@@ -42,8 +43,6 @@ import {
 import type { ProductExportRepository } from "../repositories/database";
 import type { ProductExportPartRecord, ProductExportRecord } from "../types";
 import type { Bucket } from "@/infra/bucket";
-import type { AppEnv } from "@/typings";
-import type { Context } from "hono";
 
 let registered = false;
 const PRODUCT_EXPORT_PART_DELETE_CONCURRENCY = 10;
@@ -100,8 +99,8 @@ async function startBulkJob(
   context: QueueJobContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
-  const store = await createStore(context);
-  const record = await store.findById({
+  const repository = await createRepository(context);
+  const record = await repository.findById({
     id: job.exportId,
     shopDomain: job.shopDomain,
   });
@@ -118,7 +117,7 @@ async function startBulkJob(
     client,
     record,
     shopifySessionId: session.id,
-    store,
+    repository,
   });
 }
 
@@ -131,8 +130,8 @@ async function bulkFinishedJob(
   context: QueueJobContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
-  const store = await createStore(context);
-  const record = await store.findById({
+  const repository = await createRepository(context);
+  const record = await repository.findById({
     id: job.exportId,
     shopDomain: job.shopDomain,
   });
@@ -174,24 +173,24 @@ async function planPartsJob(
   context: QueueJobContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
-  const store = await createStore(context);
-  const record = await store.findById({
+  const repository = await createRepository(context);
+  const record = await repository.findById({
     id: job.exportId,
     shopDomain: job.shopDomain,
   });
 
   if (!record?.resultUrl || !record.fileSize) return;
 
-  const existingStats = await store.getPartStats(record.id);
+  const existingStats = await repository.getPartStats(record.id);
   if (existingStats.total > 0) {
-    await enqueuePendingParts(context, store, record);
+    await enqueuePendingParts(context, repository, record);
     return;
   }
 
   const now = new Date();
   const parts = createPartRecords(record, now);
-  await store.createParts(parts);
-  await store.update({
+  await repository.createParts(parts);
+  await repository.update({
     ...record,
     status: PRODUCT_EXPORT_STATUSES.GENERATING_CSV,
     updatedAt: new Date(),
@@ -220,12 +219,12 @@ async function processPartJob(
   const job = parseProductExportJobPayload(payload);
   if (job.seq === undefined) return;
 
-  const store = await createStore(context);
-  const record = await store.findById({
+  const repository = await createRepository(context);
+  const record = await repository.findById({
     id: job.exportId,
     shopDomain: job.shopDomain,
   });
-  const part = await store.claimPart({
+  const part = await repository.claimPart({
     exportId: job.exportId,
     seq: job.seq,
   });
@@ -235,7 +234,7 @@ async function processPartJob(
   try {
     const bucket = await createProductExportBucket(context);
     const processed = await processPart(record, part, bucket);
-    await store.markPartDone({
+    await repository.markPartDone({
       bucketKey: processed.bucketKey,
       bucketProvider: processed.bucketProvider,
       byteSize: processed.byteSize,
@@ -244,7 +243,7 @@ async function processPartJob(
       seq: part.seq,
     });
   } catch (error) {
-    await store.markPartFailed({
+    await repository.markPartFailed({
       errorCode: "PROCESS_PART_FAILED",
       errorMessage: error instanceof Error ? error.message : String(error),
       exportId: part.exportId,
@@ -253,7 +252,7 @@ async function processPartJob(
     throw error;
   }
 
-  const stats = await store.getPartStats(record.id);
+  const stats = await repository.getPartStats(record.id);
   if (stats.total > 0 && stats.done === stats.total) {
     await enqueueProductExportJobFromContext(
       context,
@@ -274,8 +273,8 @@ async function finalizeJob(
   context: QueueJobContext,
 ): Promise<void> {
   const job = parseProductExportJobPayload(payload);
-  const store = await createStore(context);
-  const record = await store.findById({
+  const repository = await createRepository(context);
+  const record = await repository.findById({
     id: job.exportId,
     shopDomain: job.shopDomain,
   });
@@ -284,11 +283,11 @@ async function finalizeJob(
 
   if (record.status === PRODUCT_EXPORT_STATUSES.READY) {
     const bucket = await createProductExportBucket(context);
-    await deleteProductExportPartObjectsByPage(store, record.id, bucket);
+    await deleteProductExportPartObjectsByPage(repository, record.id, bucket);
     return;
   }
 
-  const stats = await store.getPartStats(record.id);
+  const stats = await repository.getPartStats(record.id);
   if (stats.total === 0 || stats.done !== stats.total) return;
 
   if (
@@ -297,7 +296,7 @@ async function finalizeJob(
   ) {
     const errorMessage =
       "Product export cannot be finalized in Cloudflare runtime because it exceeds the Cloudflare finalize part threshold and this environment cannot switch to Node.";
-    await store.update({
+    await repository.update({
       ...record,
       errorCode: "CLOUDFLARE_FINALIZE_UNSUPPORTED",
       errorMessage,
@@ -315,8 +314,8 @@ async function finalizeJob(
   }
 
   const bucket = await createProductExportBucket(context);
-  const finalObject = await finalizeParts(record, store, bucket);
-  await store.update({
+  const finalObject = await finalizeParts(record, repository, bucket);
+  await repository.update({
     ...record,
     bucketKey: finalObject.bucketKey,
     bucketProvider: finalObject.bucketProvider,
@@ -325,24 +324,24 @@ async function finalizeJob(
     status: PRODUCT_EXPORT_STATUSES.READY,
     updatedAt: new Date(),
   });
-  await deleteProductExportPartObjectsByPage(store, record.id, bucket);
+  await deleteProductExportPartObjectsByPage(repository, record.id, bucket);
 }
 
 /**
  * Daily safety net for missed webhooks, failed parts and duplicate events.
- * Ready/canceled records are excluded by the store query, so successful exports
+ * Ready/canceled records are excluded by the repository query, so successful exports
  * disappear from reconciliation naturally.
  */
 async function reconcileJob(
   _payload: Record<string, unknown>,
   context: QueueJobContext,
 ): Promise<void> {
-  const store = await createStore(context);
+  const repository = await createRepository(context);
   const olderThan = new Date(Date.now() - 15 * 60 * 1000);
   let cursor: { id: string; updatedAt: Date } | undefined;
 
   while (true) {
-    const records = await store.listRecoverableExports({
+    const records = await repository.listRecoverableExports({
       cursor,
       limit: PRODUCT_EXPORT_RECONCILE_BATCH_SIZE,
       olderThan,
@@ -350,7 +349,7 @@ async function reconcileJob(
 
     if (records.length === 0) return;
 
-    await reconcileRecords(context, store, records);
+    await reconcileRecords(context, repository, records);
 
     const lastRecord = records.at(-1)!;
     cursor = {
@@ -364,14 +363,14 @@ async function reconcileJob(
 
 async function reconcileRecords(
   context: QueueJobContext,
-  store: ProductExportRepository,
+  repository: ProductExportRepository,
   records: ProductExportRecord[],
 ): Promise<void> {
   const failures: Array<{ error: unknown; exportId: string }> = [];
 
   for (const batch of chunk(records, PRODUCT_EXPORT_RECONCILE_CONCURRENCY)) {
     const results = await Promise.allSettled(
-      batch.map((record) => reconcileRecord(context, store, record)),
+      batch.map((record) => reconcileRecord(context, repository, record)),
     );
 
     results.forEach((result, index) => {
@@ -398,7 +397,7 @@ async function reconcileRecords(
 
 async function reconcileRecord(
   context: QueueJobContext,
-  store: ProductExportRepository,
+  repository: ProductExportRepository,
   record: ProductExportRecord,
 ): Promise<void> {
   if (record.status === PRODUCT_EXPORT_STATUSES.QUEUED) {
@@ -420,15 +419,18 @@ async function reconcileRecord(
   }
 
   if (record.status === PRODUCT_EXPORT_STATUSES.BULK_OPERATION_COMPLETED) {
-    await enqueueProductExportJobFromContext(
-      context,
-      PRODUCT_EXPORT_QUEUE_JOBS.PLAN_PARTS,
-      { exportId: record.id, shopDomain: record.shopDomain },
-    );
+    const nextJob =
+      record.resultUrl && record.fileSize
+        ? PRODUCT_EXPORT_QUEUE_JOBS.PLAN_PARTS
+        : PRODUCT_EXPORT_QUEUE_JOBS.BULK_FINISHED;
+    await enqueueProductExportJobFromContext(context, nextJob, {
+      exportId: record.id,
+      shopDomain: record.shopDomain,
+    });
     return;
   }
 
-  const retryParts = await store.listPartsByStatus({
+  const retryParts = await repository.listPartsByStatus({
     exportId: record.id,
     statuses: [...PRODUCT_EXPORT_RETRYABLE_PART_STATUSES],
   });
@@ -442,7 +444,7 @@ async function reconcileRecord(
     })),
   );
 
-  const stats = await store.getPartStats(record.id);
+  const stats = await repository.getPartStats(record.id);
   if (stats.total > 0 && stats.done === stats.total) {
     await enqueueProductExportJobFromContext(
       context,
@@ -453,10 +455,8 @@ async function reconcileRecord(
 }
 
 /**
- * Persists fresh BulkOperation metadata fetched by a queue worker.
- *
- * This intentionally reuses the service path used by the webhook so status
- * transitions stay consistent across webhook and cron compensation flows.
+ * Persists fresh BulkOperation metadata fetched by a queue worker using the
+ * same use-case helper as the webhook, but with queue-native dependencies.
  */
 async function updateBulkOperationResult(
   context: QueueJobContext,
@@ -465,16 +465,19 @@ async function updateBulkOperationResult(
     Awaited<ReturnType<typeof fetchProductExportBulkOperation>>
   >,
 ): Promise<void> {
-  await completeProductExportBulkOperation(createServiceContext(context), {
-    bulkOperationId: record.shopifyBulkOperationId!,
-    completedAt: operation.completedAt,
-    errorCode: operation.errorCode,
-    fileSize: operation.fileSize,
-    objectCount: operation.objectCount,
-    partialDataUrl: operation.partialDataUrl,
-    resultUrl: operation.resultUrl,
-    shopDomain: record.shopDomain,
-    status: operation.status,
+  await completeProductExportBulkOperation({
+    input: {
+      bulkOperationId: record.shopifyBulkOperationId!,
+      completedAt: operation.completedAt,
+      errorCode: operation.errorCode,
+      fileSize: operation.fileSize,
+      objectCount: operation.objectCount,
+      partialDataUrl: operation.partialDataUrl,
+      resultUrl: operation.resultUrl,
+      shopDomain: record.shopDomain,
+      status: operation.status,
+    },
+    repository: createRepository(context),
   });
 }
 
@@ -486,10 +489,10 @@ async function updateBulkOperationResult(
  */
 async function enqueuePendingParts(
   context: QueueJobContext,
-  store: ProductExportRepository,
+  repository: ProductExportRepository,
   record: ProductExportRecord,
 ): Promise<void> {
-  const retryParts = await store.listPartsByStatus({
+  const retryParts = await repository.listPartsByStatus({
     exportId: record.id,
     statuses: [...PRODUCT_EXPORT_RETRYABLE_PART_STATUSES],
   });
@@ -506,9 +509,9 @@ async function enqueuePendingParts(
 }
 
 /**
- * Creates a product-export store from the queue runtime context.
+ * Creates a product-export repository from the queue runtime context.
  */
-function createStore(context: QueueJobContext): ProductExportRepository {
+function createRepository(context: QueueJobContext): ProductExportRepository {
   return context.runtimeCapabilities.databaseRepositories.productExports();
 }
 
@@ -640,29 +643,30 @@ async function processPart(
  */
 async function finalizeParts(
   record: ProductExportRecord,
-  store: ProductExportRepository,
+  repository: ProductExportRepository,
   bucket: Bucket,
 ): Promise<{
   bucketKey: string;
   bucketProvider: string;
   byteSize: number;
 }> {
+  const filename = getProductExportFilename(record.name);
   const key = createBucketObjectKey({
     date: record.createdAt,
-    filename: "products.csv",
+    filename,
     id: record.id,
     namespace: "product-exports",
     shopDomain: record.shopDomain,
   });
   const stored = await bucket.put({
-    body: createFinalCsvStream(bucket, store, record.id),
+    body: createFinalCsvStream(bucket, repository, record.id),
     contentType: PRODUCT_EXPORT_CSV_CONTENT_TYPE,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     key,
     maxBytes: Math.max(record.fileSize ?? 0, PRODUCT_EXPORT_MAX_PART_BYTES),
     maxParts: PRODUCT_EXPORT_MAX_MULTIPART_UPLOAD_PARTS,
-    originalName: "products.csv",
-    safeName: "products.csv",
+    originalName: filename,
+    safeName: filename,
     shopDomain: record.shopDomain,
   });
 
@@ -675,7 +679,7 @@ async function finalizeParts(
 
 function createFinalCsvStream(
   bucket: Bucket,
-  store: ProductExportRepository,
+  repository: ProductExportRepository,
   exportId: string,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
@@ -725,7 +729,7 @@ function createFinalCsvStream(
 
   async function nextPart(): Promise<ProductExportPartRecord | undefined> {
     while (pageIndex >= page.length) {
-      page = await store.listPartsPage({
+      page = await repository.listPartsPage({
         afterSeq,
         exportId,
         limit: PRODUCT_EXPORT_PART_PAGE_SIZE,
@@ -786,14 +790,14 @@ export async function deleteProductExportPartObjects(
 }
 
 async function deleteProductExportPartObjectsByPage(
-  store: ProductExportRepository,
+  repository: ProductExportRepository,
   exportId: string,
   bucket: Bucket,
 ): Promise<void> {
   let afterSeq: number | undefined;
 
   while (true) {
-    const parts = await store.listPartsPage({
+    const parts = await repository.listPartsPage({
       afterSeq,
       exportId,
       limit: PRODUCT_EXPORT_PART_PAGE_SIZE,
@@ -804,19 +808,4 @@ async function deleteProductExportPartObjectsByPage(
     await deleteProductExportPartObjects(parts, bucket);
     afterSeq = parts.at(-1)!.seq;
   }
-}
-
-/**
- * Adapts queue context to the minimal Hono Context shape required by service
- * helpers that still resolve runtime capabilities through context accessors.
- */
-function createServiceContext(context: QueueJobContext): Context<AppEnv> {
-  return {
-    env: context.bindings ?? {},
-    get(key: string) {
-      if (key === "runtimeEnv") return context.runtimeEnv;
-      if (key === "runtimeLogger") return context.logger;
-      return;
-    },
-  } as unknown as Context<AppEnv>;
 }

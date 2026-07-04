@@ -7,12 +7,12 @@ import type { PostgresDatabase } from "@/infra/database";
 
 describe("product export pagination", () => {
   it("lists product exports with page pagination metadata", async () => {
-    const store = createPostgresProductExportsRepository(
+    const repository = createPostgresProductExportsRepository(
       createMemoryExportsDatabase(),
     );
 
     for (let index = 0; index < 25; index += 1) {
-      await store.create(
+      await repository.create(
         createProductExportRecord({
           createdAt: new Date(Date.UTC(2026, 5, 20, 0, index)),
           id: `export_${index.toString().padStart(2, "0")}`,
@@ -21,7 +21,7 @@ describe("product export pagination", () => {
       );
     }
 
-    const result = await store.list({
+    const result = await repository.list({
       pagination: {
         limit: 20,
         mode: "page",
@@ -42,12 +42,12 @@ describe("product export pagination", () => {
   });
 
   it("continues product export lists after the cursor resource", async () => {
-    const store = createPostgresProductExportsRepository(
+    const repository = createPostgresProductExportsRepository(
       createMemoryExportsDatabase(),
     );
 
     for (let index = 0; index < 5; index += 1) {
-      await store.create(
+      await repository.create(
         createProductExportRecord({
           createdAt: new Date(Date.UTC(2026, 5, 20, 0, index)),
           id: `export_${index}`,
@@ -55,11 +55,11 @@ describe("product export pagination", () => {
       );
     }
 
-    const firstPage = await store.list({
+    const firstPage = await repository.list({
       pagination: { limit: 2, mode: "cursor" },
       shopDomain: "test-shop.myshopify.com",
     });
-    const secondPage = await store.list({
+    const secondPage = await repository.list({
       pagination: {
         cursor:
           firstPage.pagination.mode === "cursor"
@@ -91,13 +91,13 @@ describe("product export pagination", () => {
   });
 
   it("lists recoverable exports in updated-at batches", async () => {
-    const store = createPostgresProductExportsRepository(
+    const repository = createPostgresProductExportsRepository(
       createMemoryExportsDatabase(),
     );
     const olderThan = new Date("2026-06-20T01:00:00.000Z");
 
     for (let index = 0; index < 5; index += 1) {
-      await store.create(
+      await repository.create(
         createProductExportRecord({
           id: `export_${index}`,
           status: "queued",
@@ -106,12 +106,12 @@ describe("product export pagination", () => {
       );
     }
 
-    const firstBatch = await store.listRecoverableExports({
+    const firstBatch = await repository.listRecoverableExports({
       limit: 2,
       olderThan,
     });
     const last = firstBatch.at(-1)!;
-    const secondBatch = await store.listRecoverableExports({
+    const secondBatch = await repository.listRecoverableExports({
       cursor: {
         id: last.id,
         updatedAt: last.updatedAt,

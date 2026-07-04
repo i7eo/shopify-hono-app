@@ -96,16 +96,14 @@ function renderWranglerEnvironment(
   const schedulerProvider = getSchedulerProvider(config);
   const environment: WranglerEnvironmentConfig = {};
 
-  if (config.APP_RUNTIME === DEFAULT_RUNTIMES.CLOUDFLARE) {
-    environment.name = config.APP_CLOUDFLARE_WORKER_NAME;
+  environment.name = config.APP_CLOUDFLARE_WORKER_NAME;
 
-    if (config.APP_ENV === DEFAULT_ENVS.DEVELOPMENT) {
-      environment.main = DEVELOPMENT_ENTRY_PATH;
-    }
+  if (config.APP_ENV === DEFAULT_ENVS.DEVELOPMENT) {
+    environment.main = DEVELOPMENT_ENTRY_PATH;
+  }
 
-    if (config.APP_ENV === DEFAULT_ENVS.PRODUCTION) {
-      environment.main = PRODUCTION_ENTRY_PATH;
-    }
+  if (config.APP_ENV === DEFAULT_ENVS.PRODUCTION) {
+    environment.main = PRODUCTION_ENTRY_PATH;
   }
 
   if (bucketProvider === DEFAULT_APP_BUCKET_PROVIDERS.R2) {

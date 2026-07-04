@@ -160,8 +160,9 @@ export async function registerConfiguredShopifyWebhooks(
   const result = await shopify.webhooks.register({ session });
 
   const logger = await getRequestLogger(c);
+  const message = `Registered Shopify webhooks for ${session.shop}`;
   logger.info(
-    `Registered Shopify webhooks for ${session.shop}: ${JSON.stringify(result)}`,
+    result === undefined ? message : `${message}: ${JSON.stringify(result)}`,
   );
 
   return result;

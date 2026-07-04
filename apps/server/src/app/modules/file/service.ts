@@ -47,7 +47,7 @@ export async function createFile(
     now,
   });
   const bucketProvider = getBucketEnvConfig(input.runtimeEnv).provider;
-  const store = getFilesRepository(c);
+  const repository = getFilesRepository(c);
   const bucket = await getFileBucket(c);
 
   const initialFile: FileRecord = {
@@ -66,7 +66,7 @@ export async function createFile(
     deletedAt: null,
   };
 
-  await store.create(initialFile);
+  await repository.create(initialFile);
 
   try {
     const stored = await bucket.put({
@@ -88,10 +88,10 @@ export async function createFile(
       updatedAt: new Date(),
     };
 
-    await store.create(file);
+    await repository.create(file);
     return toPublicFile(file);
   } catch (error) {
-    await store.updateStatus({
+    await repository.updateStatus({
       id,
       shopDomain: input.shopDomain,
       status: "failed",
@@ -201,14 +201,14 @@ export async function deleteFile(
   shopDomain: string,
   id: string,
 ): Promise<void> {
-  const store = getFilesRepository(c);
-  const file = await store.findById({ id, shopDomain });
+  const repository = getFilesRepository(c);
+  const file = await repository.findById({ id, shopDomain });
   if (!file || file.deletedAt || file.status === "deleted") {
     throw notFoundError("File not found");
   }
 
   await (await getFileBucket(c)).delete({ key: file.bucketKey });
-  await store.delete({ id, shopDomain });
+  await repository.delete({ id, shopDomain });
 }
 
 /**
@@ -219,8 +219,8 @@ async function getAvailableFile(
   shopDomain: string,
   id: string,
 ): Promise<FileRecord> {
-  const store = getFilesRepository(c);
-  const file = await store.findById({ id, shopDomain });
+  const repository = getFilesRepository(c);
+  const file = await repository.findById({ id, shopDomain });
 
   if (!file || file.deletedAt || file.status === "deleted") {
     throw notFoundError("File not found");
@@ -231,7 +231,7 @@ async function getAvailableFile(
   }
 
   if (file.expiresAt.getTime() <= Date.now()) {
-    await store.updateStatus({ id, shopDomain, status: "expired" });
+    await repository.updateStatus({ id, shopDomain, status: "expired" });
     throw goneError("File expired");
   }
 

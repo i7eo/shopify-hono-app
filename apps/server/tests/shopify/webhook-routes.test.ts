@@ -296,6 +296,42 @@ describe("Shopify webhook routes", () => {
     expect(register).toHaveBeenCalledTimes(2);
   });
 
+  it("omits Shopify webhook register result when the SDK returns undefined", async () => {
+    vi.doUnmock("@/app/modules/shopify/webhook");
+    const addHandlers = vi.fn();
+    const register = vi.fn(() => undefined);
+    const shopify = {
+      webhooks: {
+        addHandlers,
+        register,
+      },
+    };
+    vi.doMock("@/infra/provider", () => ({
+      getEnvProvider: vi.fn((rawEnv) => rawEnv ?? runtimeConfig),
+      getLoggerProvider: vi.fn(() => logger),
+      getShopifyConfigProvider: vi.fn(() => shopify),
+    }));
+
+    const { registerConfiguredShopifyWebhooks } =
+      await import("@/app/modules/shopify/webhook");
+    const context = {
+      get: vi.fn((key) => {
+        if (key === "runtimeEnv") return runtimeConfig;
+        if (key === "runtimeLogger") return logger;
+      }),
+    };
+    const session = {
+      id: "offline_shop.myshopify.com",
+      shop: "shop.myshopify.com",
+    };
+
+    await registerConfiguredShopifyWebhooks(context as never, session as never);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      "Registered Shopify webhooks for shop.myshopify.com",
+    );
+  });
+
   it("normalizes Shopify SDK webhook errors through the app error model", async () => {
     vi.doUnmock("@/app/modules/shopify/webhook");
     vi.doMock("@/shared/middlewares", () => ({

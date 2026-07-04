@@ -47,8 +47,8 @@ export async function createReference(
   c: Context<AppEnv>,
   input: ReferenceCreateInput,
 ): Promise<ReferenceRecord> {
-  const store = getReferenceRepository(c);
-  const existing = await store.findByCodeIncludingDeleted(input);
+  const repository = getReferenceRepository(c);
+  const existing = await repository.findByCodeIncludingDeleted(input);
 
   if (existing && !existing.deletedAt) {
     throw conflictError("Reference already exists", {
@@ -77,11 +77,11 @@ export async function createReference(
   };
 
   if (existing) {
-    await store.update(record);
+    await repository.update(record);
     return record;
   }
 
-  await store.create(record);
+  await repository.create(record);
   return record;
 }
 
@@ -113,12 +113,12 @@ export async function updateReference(
   c: Context<AppEnv>,
   input: ReferenceUpdateInput,
 ): Promise<ReferenceRecord> {
-  const store = getReferenceRepository(c);
+  const repository = getReferenceRepository(c);
   const current = await getReference(c, input);
   const nextCode = input.code ?? current.code;
 
   if (nextCode !== current.code) {
-    const duplicate = await store.findByCode({
+    const duplicate = await repository.findByCode({
       code: nextCode,
       namespace: input.namespace,
       shopDomain: input.shopDomain,
@@ -145,7 +145,7 @@ export async function updateReference(
     updatedAt: new Date(),
   };
 
-  await store.update(updated);
+  await repository.update(updated);
   return updated;
 }
 
@@ -175,12 +175,12 @@ async function ensureReferenceNamespaceDefaults(
 ): Promise<void> {
   if (input.namespace !== REFERENCE_NAMESPACES.GENDER) return;
 
-  const store = getReferenceRepository(c);
+  const repository = getReferenceRepository(c);
   const now = new Date();
 
   await Promise.all(
     REFERENCE_GENDER_DEFAULTS.map(async (reference) => {
-      const existing = await store.findByCodeIncludingDeleted({
+      const existing = await repository.findByCodeIncludingDeleted({
         code: reference.code,
         namespace: input.namespace,
         shopDomain: input.shopDomain,
@@ -189,7 +189,7 @@ async function ensureReferenceNamespaceDefaults(
       if (existing && !existing.deletedAt) return;
 
       if (existing) {
-        await store.update({
+        await repository.update({
           ...existing,
           deletedAt: null,
           enabled: true,
@@ -201,7 +201,7 @@ async function ensureReferenceNamespaceDefaults(
         return;
       }
 
-      await store.create({
+      await repository.create({
         code: reference.code,
         createdAt: now,
         deletedAt: null,

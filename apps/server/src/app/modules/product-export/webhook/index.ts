@@ -7,7 +7,10 @@ import {
 } from "@/utils";
 import { enqueueProductExportJob } from "../queue";
 import { PRODUCT_EXPORT_QUEUE_JOBS } from "../queue/constants";
-import { completeProductExportBulkOperation } from "../service";
+import {
+  completeProductExportBulkOperation,
+  getProductExportsRepository,
+} from "../service";
 import type { AppEnv } from "@/typings";
 import type { Context } from "hono";
 
@@ -50,16 +53,19 @@ export async function handleProductExportBulkOperationFinishWebhook(
     );
   }
 
-  const record = await completeProductExportBulkOperation(c, {
-    bulkOperationId: payload.admin_graphql_api_id,
-    completedAt: parseNullableDate(payload.completed_at),
-    errorCode: readNullableString(payload.error_code),
-    fileSize: readNullableNumber(payload.file_size),
-    objectCount: readNullableNumber(payload.object_count),
-    partialDataUrl: readNullableString(payload.partial_data_url),
-    resultUrl: readNullableString(payload.url),
-    shopDomain: webhook.shop,
-    status: payload.status,
+  const record = await completeProductExportBulkOperation({
+    input: {
+      bulkOperationId: payload.admin_graphql_api_id,
+      completedAt: parseNullableDate(payload.completed_at),
+      errorCode: readNullableString(payload.error_code),
+      fileSize: readNullableNumber(payload.file_size),
+      objectCount: readNullableNumber(payload.object_count),
+      partialDataUrl: readNullableString(payload.partial_data_url),
+      resultUrl: readNullableString(payload.url),
+      shopDomain: webhook.shop,
+      status: payload.status,
+    },
+    repository: getProductExportsRepository(c),
   });
 
   if (record) {

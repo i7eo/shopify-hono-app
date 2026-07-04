@@ -25,13 +25,13 @@ publicHoistPattern:
   - "*changeset*"
 
 catalog:
-  "@types/node": "^26.0.1"
+  "@types/node": "^26.1.0"
   "npm-run-all2": "^9.0.2"
   "rimraf": "^6.1.3"
   "typescript": "^6.0.3"
   "zod": "^4.4.3"
   "dayjs": "^1.11.21"
-  "vite": "^8.1.2"
+  "vite": "^8.1.3"
   "@unimolecule/canon": "^0.1.3"
   "@unimolecule/oh-my-fetch": "^0.1.6"
   "@unimolecule/utils": "^0.1.4"
@@ -52,7 +52,7 @@ catalogs:
     "@unconfig/ts-config": "^0.1.11"
     "@unconfig/changeset-workflow": "^0.0.2"
     "tsdown": "^0.22.3"
-    "tsx": "^4.22.4"
+    "tsx": "^4.22.5"
     "turbo": "^2.9.14"
     "@manypkg/get-packages": "^3.1.0"
   "react":
@@ -60,7 +60,7 @@ catalogs:
     "react-dom": "^19.2.7"
     "@types/react": "^19.2.17"
     "@types/react-dom": "^19.2.3"
-    "immer": "^11.1.8"
+    "immer": "^11.1.9"
     "zustand": "^5.0.14"
     "@vitejs/plugin-react": "^6.0.3"
   "vue":
@@ -80,9 +80,9 @@ catalogs:
     "pg": "^8.22.0"
     "@types/pg": "^8.20.0"
   "queue":
-    "pg-boss": "^12.24.1"
+    "pg-boss": "^12.25.0"
   "redis":
-    "redis": "^6.0.1"
+    "redis": "^6.1.0"
   "shopify":
     "@shopify/cli": "^4.3.0"
   "test":
@@ -92,8 +92,8 @@ catalogs:
     "@testing-library/react": "^16.3.2"
     "jsdom": "^29.1.1"
   "cloudflare":
-    "@cloudflare/workers-types": "^4.20260701.1"
-    "wrangler": "^4.106.0"
+    "@cloudflare/workers-types": "^5.20260703.1"
+    "wrangler": "^4.107.0"
 
 minimumReleaseAgeExclude:
   - hono@4.12.23

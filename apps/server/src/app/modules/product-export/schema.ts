@@ -93,6 +93,7 @@ export const ProductExportTemplateSchema = z.object({
     description: "Shopify Product fields exported by this template.",
     example: [
       "id",
+      "productId",
       "title",
       "handle",
       "status",

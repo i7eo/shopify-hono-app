@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { PRODUCT_EXPORT_JSONL_CHUNK_BYTES } from "@/app/modules/product-export/queue/constants";
 import {
   createProductExportCsvPartStream,
+  CSV_HEADER,
+  getProductExportFilename,
   readProductExportCsvPartResult,
 } from "@/app/modules/product-export/utils";
 import { createBucketObjectKey } from "@/utils";
@@ -43,12 +45,34 @@ describe("product export streaming CSV utilities", () => {
 
     const result = await readProductExportCsvPartResult(stream);
 
+    expect(CSV_HEADER).toBe(
+      "id,productId,title,handle,status,vendor,productType,createdAt,updatedAt\n",
+    );
     expect(result.rowCount).toBe(2);
     await expect(new Response(result.body).text()).resolves.toBe(
       [
-        '"gid://shopify/Product/1","First ""Product""","first","ACTIVE","Shop","Tee","2026-06-20T00:00:00Z","2026-06-20T00:00:00Z"\n',
-        '"gid://shopify/Product/2","Second Product","second","DRAFT","Shop","Hat","2026-06-20T00:00:00Z","2026-06-20T00:00:00Z"\n',
+        '"gid://shopify/Product/1","1","First ""Product""","first","ACTIVE","Shop","Tee","2026-06-20T00:00:00Z","2026-06-20T00:00:00Z"\n',
+        '"gid://shopify/Product/2","2","Second Product","second","DRAFT","Shop","Hat","2026-06-20T00:00:00Z","2026-06-20T00:00:00Z"\n',
       ].join(""),
+    );
+  });
+
+  it("leaves productId empty for non-product gids", async () => {
+    const stream = createProductExportCsvPartStream(
+      streamFromText(
+        `${JSON.stringify({
+          id: "gid://shopify/ProductVariant/1",
+          title: "Variant row",
+        })}\n`,
+      ),
+      createPartRecord(),
+    );
+
+    const result = await readProductExportCsvPartResult(stream);
+
+    expect(result.rowCount).toBe(1);
+    await expect(new Response(result.body).text()).resolves.toBe(
+      '"gid://shopify/ProductVariant/1","","Variant row","","","","","",""\n',
     );
   });
 
@@ -82,7 +106,7 @@ describe("product export streaming CSV utilities", () => {
     );
     expect(result.rowCount).toBe(1);
     await expect(new Response(result.body).text()).resolves.toContain(
-      '"gid://shopify/Product/2","Second Product"',
+      '"gid://shopify/Product/2","2","Second Product"',
     );
   });
 
@@ -100,6 +124,13 @@ describe("product export streaming CSV utilities", () => {
     expect(createBucketObjectKey({ ...input, filename: "products.csv" })).toBe(
       "test-shop.myshopify.com/product-exports/2026/06/export-1/products.csv",
     );
+  });
+
+  it("builds merchant-facing CSV filenames from export names", () => {
+    expect(getProductExportFilename("test2")).toBe("test2.csv");
+    expect(getProductExportFilename("test2.csv")).toBe("test2.csv");
+    expect(getProductExportFilename(" 导出/report ")).toBe("导出-report.csv");
+    expect(getProductExportFilename("...")).toBe("products.csv");
   });
 });
 

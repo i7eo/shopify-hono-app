@@ -57,8 +57,8 @@ describe("product export download", () => {
         byteSize: 128,
         contentType: "text/csv",
         id: "export-1",
-        originalName: "products.csv",
-        safeName: "products.csv",
+        originalName: "All products.csv",
+        safeName: "All products.csv",
         shopDomain: "test-shop.myshopify.com",
         status: "available",
       }),
@@ -330,6 +330,7 @@ describe("product export controller errors", () => {
           code: "basic",
           fields: [
             "id",
+            "productId",
             "title",
             "handle",
             "status",
