@@ -4,8 +4,11 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { Empty } from "@/components/empty";
 import { Offline } from "@/components/errors";
 import { Loading } from "@/components/loading";
+import { useProductExportReadyToast } from "./-components/ready-toast";
 import {
+  PRODUCT_EXPORT_POLL_MS,
   productExportListQueryOptions,
+  TERMINAL_PRODUCT_EXPORT_STATUSES,
   useDeleteProductExportMutation,
   useDownloadProductExportMutation,
   useIsOnline,
@@ -19,14 +22,7 @@ export const Route = createFileRoute("/product-export/")({
   component: ProductExportIndex,
 });
 
-const TERMINAL_STATUSES = new Set<ProductExportStatus>([
-  "canceled",
-  "failed",
-  "ready",
-]);
-
 const PRODUCT_EXPORT_LIST_INPUT = { limit: 20 };
-const PRODUCT_EXPORT_POLL_MS = 1000 * 60 * 5;
 
 function ProductExportIndex() {
   const deleteMutation = useDeleteProductExportMutation();
@@ -39,12 +35,13 @@ function ProductExportIndex() {
     ...productExportListQueryOptions(PRODUCT_EXPORT_LIST_INPUT),
     refetchInterval: (query) =>
       query.state.data?.data?.result.some(
-        (row) => !TERMINAL_STATUSES.has(row.status),
+        (row) => !TERMINAL_PRODUCT_EXPORT_STATUSES.has(row.status),
       )
         ? PRODUCT_EXPORT_POLL_MS
         : false,
   });
   const productExports = productExportsQuery.data?.data?.result ?? [];
+  useProductExportReadyToast(productExports, showToast);
   const productExportById = useMemo(
     () =>
       new Map(

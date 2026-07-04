@@ -20,6 +20,14 @@ import {
   type ProductExportStatus,
 } from "@/apis/product-exports";
 
+export const PRODUCT_EXPORT_POLL_MS = 1000 * 30;
+
+export const TERMINAL_PRODUCT_EXPORT_STATUSES = new Set<ProductExportStatus>([
+  "canceled",
+  "failed",
+  "ready",
+]);
+
 export const productExportKeys = {
   all: ["product-exports"] as const,
   detail: (id: string) => [...productExportKeys.details(), id] as const,

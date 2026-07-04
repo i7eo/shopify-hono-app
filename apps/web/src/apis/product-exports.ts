@@ -210,7 +210,7 @@ function triggerBrowserDownload(url: string, filename: string) {
   link.remove();
 }
 
-function getProductExportFilename(productExport: ProductExport) {
+export function getProductExportFilename(productExport: ProductExport) {
   const name = productExport.name.trim();
   if (!name) return "products.csv";
   if (name.toLowerCase().endsWith(".csv")) return sanitizeFilename(name);

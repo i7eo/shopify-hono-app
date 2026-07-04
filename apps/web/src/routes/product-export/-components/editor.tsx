@@ -3,11 +3,15 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type SubmitEvent } from "react";
 import { Offline } from "@/components/errors";
 import {
+  PRODUCT_EXPORT_POLL_MS,
+  productExportDetailQueryOptions,
   productExportTemplatesQueryOptions,
+  TERMINAL_PRODUCT_EXPORT_STATUSES,
   useCreateProductExportMutation,
   useDeleteProductExportMutation,
   useIsOnline,
 } from "../-queries";
+import { useProductExportReadyToast } from "./ready-toast";
 import type {
   ProductExport,
   ProductExportTemplate,
@@ -54,19 +58,37 @@ export function ProductExportEditor({
     ProductExportTemplateCode | undefined
   >(productExport?.template);
   const [savedProductExport, setSavedProductExport] = useState(productExport);
+  const detailQuery = useQuery({
+    ...productExportDetailQueryOptions(productExport?.id ?? ""),
+    enabled: mode === "detail",
+    initialData: mode === "detail" ? { data: productExport } : undefined,
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.status;
+      return status && !TERMINAL_PRODUCT_EXPORT_STATUSES.has(status)
+        ? PRODUCT_EXPORT_POLL_MS
+        : false;
+    },
+  });
+  const activeProductExport =
+    mode === "detail" ? (detailQuery.data?.data ?? productExport) : undefined;
+  const activeProductExports = useMemo(
+    () => (activeProductExport ? [activeProductExport] : []),
+    [activeProductExport],
+  );
   const templatesQuery = useQuery(productExportTemplatesQueryOptions());
   const templates = templatesQuery.data?.data ?? [];
   const isSaving = createMutation.isPending;
   const isDeleting = deleteMutation.isPending;
+  useProductExportReadyToast(activeProductExports, showToast);
 
   useEffect(() => {
-    if (!productExport) return;
+    if (!activeProductExport) return;
 
-    setSavedProductExport(productExport);
-    setExportFileName(productExport.name);
-    setSubmittedFileName(productExport.name);
-    setSelectedTemplate(productExport.template);
-  }, [productExport]);
+    setSavedProductExport(activeProductExport);
+    setExportFileName(activeProductExport.name);
+    setSubmittedFileName(activeProductExport.name);
+    setSelectedTemplate(activeProductExport.template);
+  }, [activeProductExport]);
 
   useEffect(() => {
     setSelectedTemplate((current) => current ?? templates[0]?.code);

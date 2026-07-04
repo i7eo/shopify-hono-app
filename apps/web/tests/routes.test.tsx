@@ -56,6 +56,10 @@ vi.mock("@/apis/product-exports", () => ({
   createProductExport: createProductExportMock,
   deleteProductExport: deleteProductExportMock,
   downloadProductExportFile: downloadProductExportFileMock,
+  getProductExportFilename: (productExport: ProductExport) =>
+    productExport.name.trim().endsWith(".csv")
+      ? productExport.name.trim()
+      : `${productExport.name.trim()}.csv`,
   getProductExport: getProductExportMock,
   listProductExportTemplates: listProductExportTemplatesMock,
   listProductExports: listProductExportsMock,
@@ -499,7 +503,7 @@ describe("route components", () => {
     let pollHandler: TimerHandler | undefined;
     vi.spyOn(globalThis, "setInterval").mockImplementation(
       (handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-        if (timeout === 1000 * 60 * 5) {
+        if (timeout === 1000 * 30) {
           pollHandler = handler;
           return 1 as unknown as ReturnType<typeof setInterval>;
         }
@@ -520,6 +524,12 @@ describe("route components", () => {
     if (typeof pollHandler === "function") pollHandler();
     await waitFor(() => {
       expect(listProductExportsMock).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
+        "Price review.csv is ready to download.",
+        undefined,
+      );
     });
   });
 
@@ -674,6 +684,63 @@ describe("route components", () => {
     );
 
     expect(bannerHeading("All products export created")).toBeTruthy();
+  });
+
+  it("polls product export details and shows a ready toast with the file name", async () => {
+    getProductExportMock
+      .mockResolvedValueOnce({
+        data: createProductExportRecord({
+          id: "export-created",
+          name: "All products",
+          status: "queued",
+        }),
+      })
+      .mockResolvedValueOnce({
+        data: createProductExportRecord({
+          id: "export-created",
+          name: "All products",
+          status: "ready",
+        }),
+      });
+    const nativeSetInterval = globalThis.setInterval;
+    let pollHandler: TimerHandler | undefined;
+    vi.spyOn(globalThis, "setInterval").mockImplementation(
+      (handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+        if (timeout === 1000 * 30) {
+          pollHandler = handler;
+          return 1 as unknown as ReturnType<typeof setInterval>;
+        }
+
+        return nativeSetInterval(
+          handler,
+          timeout,
+          ...args,
+        ) as unknown as ReturnType<typeof setInterval>;
+      },
+    );
+    const { ProductExportEditor } =
+      await import("../src/routes/product-export/-components/editor");
+    const productExport = createProductExportRecord({
+      id: "export-created",
+      name: "All products",
+      status: "queued",
+    });
+
+    renderWithQueryClient(
+      <ProductExportEditor mode="detail" productExport={productExport} />,
+    );
+
+    await waitFor(() => {
+      expect(getProductExportMock).toHaveBeenCalledTimes(1);
+    });
+    if (typeof pollHandler === "function") pollHandler();
+
+    await waitFor(() => {
+      expect(globalThis.shopify.toast.show).toHaveBeenCalledWith(
+        "All products.csv is ready to download.",
+        undefined,
+      );
+    });
   });
 
   it("renders and submits the settings form", async () => {
