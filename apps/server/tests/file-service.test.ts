@@ -398,9 +398,11 @@ function createServiceContext(options: {
     } satisfies FileDownloadResolver);
 
   const runtimeCapabilities = createMockRuntimeCapabilities({
-    database: () => database,
-    databaseRepositories: {
-      files: () => repository,
+    database: {
+      create: () => database,
+      repositories: {
+        files: () => repository,
+      },
     },
     bucket: () => bucket,
     file: {

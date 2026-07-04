@@ -167,7 +167,9 @@ describe("health runtime capabilities", () => {
     context.set(
       "runtimeCapabilities",
       createMockRuntimeCapabilities({
-        database: () => createHealthTestDatabase(runtimeConfig.APP_RUNTIME),
+        database: {
+          create: () => createHealthTestDatabase(runtimeConfig.APP_RUNTIME),
+        },
       }),
     );
 
@@ -186,7 +188,9 @@ describe("health runtime capabilities", () => {
     context.set(
       "runtimeCapabilities",
       createMockRuntimeCapabilities({
-        database: () => createHealthTestDatabase(runtimeConfig.APP_RUNTIME),
+        database: {
+          create: () => createHealthTestDatabase(runtimeConfig.APP_RUNTIME),
+        },
         health: {
           disk: (c) => ({
             availableBytes: 800,

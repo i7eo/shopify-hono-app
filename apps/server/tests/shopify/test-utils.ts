@@ -1,11 +1,13 @@
 import { DEFAULT_APP_DATABASE_PROVIDERS } from "@shamt/app-env";
 import { expect, vi } from "vitest";
 import {
+  runtimeCapabilityDatabase,
   runtimeCapabilityLazy,
   type RuntimeCapabilities,
 } from "@/app/runtime/runtime-capabilities";
 import { getRuntimeConfig } from "@/infra/env";
 import { internalServerError } from "@/shared/exceptions";
+import type { Database } from "@/infra/database";
 import type { Logger } from "@/infra/logger";
 
 export const runtimeConfig = getRuntimeConfig({
@@ -59,12 +61,12 @@ export const logger = {
 } as unknown as TestLogger & Logger;
 
 type MockRuntimeCapabilitiesOverrides = Partial<
-  Omit<
-    RuntimeCapabilities,
-    "databaseRepositories" | "file" | "health" | "queue"
-  >
+  Omit<RuntimeCapabilities, "database" | "file" | "health" | "queue">
 > & {
-  databaseRepositories?: Partial<RuntimeCapabilities["databaseRepositories"]>;
+  database?: {
+    create?: () => Database | Promise<Database>;
+    repositories?: Partial<RuntimeCapabilities["database"]["repositories"]>;
+  };
   file?: Partial<RuntimeCapabilities["file"]>;
   health?: Partial<RuntimeCapabilities["health"]>;
   queue?: Partial<RuntimeCapabilities["queue"]>;
@@ -83,14 +85,13 @@ export function createMockRuntimeCapabilities(
   overrides: MockRuntimeCapabilitiesOverrides = {},
 ): RuntimeCapabilities {
   const base: RuntimeCapabilities = {
-    database: missingCapability("database"),
-    databaseRepositories: {
-      files: missingSyncCapability("databaseRepositories.files"),
+    database: runtimeCapabilityDatabase(missingCapability("database"), {
+      files: missingSyncCapability("database.repositories.files"),
       productExports: missingSyncCapability(
-        "databaseRepositories.productExports",
+        "database.repositories.productExports",
       ),
-      references: missingSyncCapability("databaseRepositories.references"),
-    },
+      references: missingSyncCapability("database.repositories.references"),
+    }),
     bucket: missingCapability("bucket"),
     shopifySessionStorage: missingCapability("shopifySessionStorage"),
     health: {
@@ -108,10 +109,13 @@ export function createMockRuntimeCapabilities(
   const capabilities: RuntimeCapabilities = {
     ...base,
     ...overrides,
-    databaseRepositories: {
-      ...base.databaseRepositories,
-      ...overrides.databaseRepositories,
-    },
+    database: runtimeCapabilityDatabase(
+      overrides.database?.create ?? base.database,
+      {
+        ...base.database.repositories,
+        ...overrides.database?.repositories,
+      },
+    ),
     health: {
       ...base.health,
       ...overrides.health,

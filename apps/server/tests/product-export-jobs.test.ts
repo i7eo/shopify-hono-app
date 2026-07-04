@@ -181,7 +181,7 @@ describe("product export queue jobs", () => {
         Promise.resolve({
           byteSize: 128,
           key: "test-shop.myshopify.com/product-exports/2026/06/export-1/Summer report.csv",
-          provider: "memory",
+          provider: "memory" as const,
         }),
       ),
     });
@@ -509,10 +509,12 @@ function createCloudflareQueueContext(options: {
   return {
     logger,
     runtimeCapabilities: createMockRuntimeCapabilities({
-      database: () => options.database,
-      databaseRepositories: {
-        productExports: () =>
-          createSqliteProductExportsRepository(options.database as never),
+      database: {
+        create: () => options.database,
+        repositories: {
+          productExports: () =>
+            createSqliteProductExportsRepository(options.database as never),
+        },
       },
       bucket: () => options.bucket,
     }),
@@ -538,8 +540,10 @@ function createReconcileQueueContext(options: {
   return {
     logger,
     runtimeCapabilities: createMockRuntimeCapabilities({
-      databaseRepositories: {
-        productExports: () => options.repository,
+      database: {
+        repositories: {
+          productExports: () => options.repository,
+        },
       },
       queue: {
         producer: () => Promise.resolve(options.producer),
@@ -558,11 +562,13 @@ function createReconcileQueueContext(options: {
 }
 
 function createBulkFinishedQueueContext(options: {
-  enqueue: ReturnType<typeof vi.fn>;
+  enqueue: QueueProducer["enqueue"];
   repository: ProductExportRepository;
 }): QueueJobContext {
   const producer: QueueProducer = {
-    enqueue: options.enqueue,
+    enqueue: async (message, enqueueOptions) => {
+      await options.enqueue(message, enqueueOptions);
+    },
     enqueueBatch: vi.fn(),
   };
 
@@ -590,8 +596,10 @@ function createFinalizeQueueContext(options: {
   return {
     logger,
     runtimeCapabilities: createMockRuntimeCapabilities({
-      databaseRepositories: {
-        productExports: () => options.repository,
+      database: {
+        repositories: {
+          productExports: () => options.repository,
+        },
       },
       bucket: () => options.bucket,
     }),

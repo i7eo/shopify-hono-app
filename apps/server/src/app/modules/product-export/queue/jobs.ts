@@ -512,7 +512,7 @@ async function enqueuePendingParts(
  * Creates a product-export repository from the queue runtime context.
  */
 function createRepository(context: QueueJobContext): ProductExportRepository {
-  return context.runtimeCapabilities.databaseRepositories.productExports();
+  return context.runtimeCapabilities.database.repositories.productExports();
 }
 
 /**

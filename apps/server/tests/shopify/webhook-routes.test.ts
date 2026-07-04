@@ -134,15 +134,17 @@ describe("Shopify webhook routes", () => {
         url: "https://shopify.example.com/bulk-result.jsonl",
       },
       {
-        databaseRepositories: {
-          productExports: vi.fn(() => ({
-            create: vi.fn(),
-            delete: vi.fn(),
-            findByBulkOperationId: vi.fn(() => record),
-            findById: vi.fn(),
-            list: vi.fn(),
-            update,
-          })) as never,
+        database: {
+          repositories: {
+            productExports: vi.fn(() => ({
+              create: vi.fn(),
+              delete: vi.fn(),
+              findByBulkOperationId: vi.fn(() => record),
+              findById: vi.fn(),
+              list: vi.fn(),
+              update,
+            })) as never,
+          },
         },
         queue: {
           producer: vi.fn(() => ({

@@ -378,7 +378,7 @@ export async function fetchProductExportBulkOperation(
 export function getProductExportsRepository(
   c: Context<AppEnv>,
 ): ProductExportRepository {
-  return runtimeCapabilities(c).databaseRepositories.productExports();
+  return runtimeCapabilities(c).database.repositories.productExports();
 }
 
 /**

@@ -42,9 +42,9 @@ Wrangler 配置提供。
 runtime capability 负责注入平台相关能力：
 
 - `runtimeCapabilities.database()`
-- `runtimeCapabilities.databaseRepositories.files()`
-- `runtimeCapabilities.databaseRepositories.productExports()`
-- `runtimeCapabilities.databaseRepositories.references()`
+- `runtimeCapabilities.database.repositories.files()`
+- `runtimeCapabilities.database.repositories.productExports()`
+- `runtimeCapabilities.database.repositories.references()`
 - `runtimeCapabilities.bucket()`
 - `runtimeCapabilities.shopifySessionStorage()`
 - `runtimeCapabilities.health.disk(c)`
@@ -52,7 +52,7 @@ runtime capability 负责注入平台相关能力：
 - `runtimeCapabilities.file.downloadResolver()`
 - `runtimeCapabilities.queue.producer()`
 
-共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。health/disk 与 health/memory 通过 capability 暴露运行时指标：Node 使用 `@unimolecule/utils/node` 的 disk/memory helper，Cloudflare isolate 返回 unsupported。`/healths` 聚合 endpoint 复用 disk、memory、network、database 和 reserved redis 的单项检查结果；unsupported/reserved 不会单独让整体状态失败，单项 `error` 才会让整体返回 `error`。Shopify session storage 与 health/database 通过统一的 `runtimeCapabilities.database()` 获取 database adapter；file、product-export、reference 通过 `runtimeCapabilities.databaseRepositories.*()` 获取 runtime 已绑定的 repository，避免公共 repository index 同时 import PostgreSQL 与 SQLite 实现。
+共享业务代码只调用 capability，不静态 import Node-only 或 Cloudflare-only 实现。health/disk 与 health/memory 通过 capability 暴露运行时指标：Node 使用 `@unimolecule/utils/node` 的 disk/memory helper，Cloudflare isolate 返回 unsupported。`/healths` 聚合 endpoint 复用 disk、memory、network、database 和 reserved redis 的单项检查结果；unsupported/reserved 不会单独让整体状态失败，单项 `error` 才会让整体返回 `error`。Shopify session storage 与 health/database 通过统一的 `runtimeCapabilities.database()` 获取 database adapter；file、product-export、reference 通过 `runtimeCapabilities.database.repositories.*()` 获取 runtime 已绑定的 repository，避免公共 repository index 同时 import PostgreSQL 与 SQLite 实现。
 file module 通过 `runtimeCapabilities.bucket()` 获取 object bucket，并通过 `runtimeCapabilities.file.downloadResolver()` 把下载解析为 memory stream 或 R2 signed redirect；Node 与 Cloudflare runtime 共用 R2 SigV4 signer。product-export 等异步模块通过 `runtimeCapabilities.queue.producer()` 投递小 payload，通过 queue/scheduler registry 注册 handler。
 
 对应文件：

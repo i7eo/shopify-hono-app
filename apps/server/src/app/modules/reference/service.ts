@@ -166,7 +166,7 @@ export async function deleteReference(
 export function getReferenceRepository(
   c: Context<AppEnv>,
 ): ReferenceRepository {
-  return runtimeCapabilities(c).databaseRepositories.references();
+  return runtimeCapabilities(c).database.repositories.references();
 }
 
 async function ensureReferenceNamespaceDefaults(

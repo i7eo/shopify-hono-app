@@ -30,9 +30,9 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 核心能力包括：
 
 - `runtimeCapabilities.database()`
-- `runtimeCapabilities.databaseRepositories.files()`
-- `runtimeCapabilities.databaseRepositories.productExports()`
-- `runtimeCapabilities.databaseRepositories.references()`
+- `runtimeCapabilities.database.repositories.files()`
+- `runtimeCapabilities.database.repositories.productExports()`
+- `runtimeCapabilities.database.repositories.references()`
 - `runtimeCapabilities.bucket()`
 - `runtimeCapabilities.shopifySessionStorage()`
 - `runtimeCapabilities.health.disk(c)`
@@ -65,7 +65,7 @@ binding 为边界，不保留跨 request 的 D1、R2 或 Queue binding 引用。
 
 ### Database Capability
 
-`runtimeCapabilities.database()` 是 Shopify session storage 与 health/database 的统一数据库入口；`runtimeCapabilities.databaseRepositories.*()` 是同一个 database capability 下的 repository 绑定出口。Node runtime 只 import `postgres.ts` repository builder，Cloudflare runtime 只 import `sqlite.ts` repository builder；公共 `repositories/database/index.ts` 只保留类型出口，不再按 provider 动态分发。health/database 调用 database adapter 的 `check()`，由具体 runtime 通过 `select 1` 验证最小 SQL 查询链路。
+`runtimeCapabilities.database()` 是 Shopify session storage 与 health/database 的统一数据库入口；`runtimeCapabilities.database.repositories.*()` 是同一个 database capability 下的 repository 绑定出口。Node runtime 只 import `postgres.ts` repository builder，Cloudflare runtime 只 import `sqlite.ts` repository builder；公共 `repositories/database/index.ts` 只保留类型出口，不再按 provider 动态分发。health/database 调用 database adapter 的 `check()`，由具体 runtime 通过 `select 1` 验证最小 SQL 查询链路。
 
 当前策略：
 

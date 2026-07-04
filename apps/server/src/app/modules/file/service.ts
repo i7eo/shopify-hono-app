@@ -242,7 +242,7 @@ async function getAvailableFile(
  * Builds the module-owned files repository from the shared database capability.
  */
 function getFilesRepository(c: Context<AppEnv>): FilesRepository {
-  return runtimeCapabilities(c).databaseRepositories.files();
+  return runtimeCapabilities(c).database.repositories.files();
 }
 
 /**

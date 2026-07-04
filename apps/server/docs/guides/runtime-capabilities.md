@@ -36,11 +36,12 @@ app modules
 
 ```ts
 type RuntimeCapabilities = {
-  database: Lazy<Database>;
-  databaseRepositories: {
-    files: () => FilesRepository;
-    productExports: () => ProductExportRepository;
-    references: () => ReferenceRepository;
+  database: Lazy<Database> & {
+    repositories: {
+      files: () => FilesRepository;
+      productExports: () => ProductExportRepository;
+      references: () => ReferenceRepository;
+    };
   };
   bucket: Lazy<Bucket>;
   shopifySessionStorage: Lazy<SessionStorage>;

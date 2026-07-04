@@ -16,6 +16,14 @@ import type {
 import type { Context } from "hono";
 
 export type RuntimeCapabilityLazy<T> = () => T | Promise<T>;
+export type RuntimeCapabilityDatabaseRepositories = {
+  files: () => FilesRepository;
+  productExports: () => ProductExportRepository;
+  references: () => ReferenceRepository;
+};
+export type RuntimeCapabilityDatabase = RuntimeCapabilityLazy<Database> & {
+  repositories: RuntimeCapabilityDatabaseRepositories;
+};
 export type RuntimeCapabilityHealthRuntimeResult = {
   runtime: string;
 };
@@ -36,12 +44,7 @@ export type RuntimeCapabilityMemoryChecker = (
   | RuntimeCapabilityMemoryCheckResult;
 
 export type RuntimeCapabilities = {
-  database: RuntimeCapabilityLazy<Database>;
-  databaseRepositories: {
-    files: () => FilesRepository;
-    productExports: () => ProductExportRepository;
-    references: () => ReferenceRepository;
-  };
+  database: RuntimeCapabilityDatabase;
   bucket: RuntimeCapabilityLazy<Bucket>;
   queue: {
     producer: RuntimeCapabilityLazy<QueueProducer>;
@@ -65,6 +68,13 @@ export function runtimeCapabilityLazy<T>(
     value ??= create();
     return value;
   };
+}
+
+export function runtimeCapabilityDatabase(
+  create: RuntimeCapabilityLazy<Database>,
+  repositories: RuntimeCapabilityDatabaseRepositories,
+): RuntimeCapabilityDatabase {
+  return Object.assign(create, { repositories });
 }
 
 export function runtimeCapabilities(c: Context<AppEnv>): RuntimeCapabilities {

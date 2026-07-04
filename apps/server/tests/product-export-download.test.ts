@@ -369,8 +369,10 @@ function createServiceContext(options: { resolver: FileDownloadResolver }) {
   };
   const productExports = productExportsMock as ProductExportRepository;
   const runtimeCapabilities = createMockRuntimeCapabilities({
-    databaseRepositories: {
-      productExports: () => productExports,
+    database: {
+      repositories: {
+        productExports: () => productExports,
+      },
     },
     file: {
       downloadResolver: () => options.resolver,

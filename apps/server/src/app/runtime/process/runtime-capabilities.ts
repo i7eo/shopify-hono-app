@@ -24,6 +24,7 @@ import {
   disposeProcessScheduler,
 } from "@/infra/scheduler/process";
 import {
+  runtimeCapabilityDatabase,
   runtimeCapabilityLazy,
   type RuntimeCapabilities,
 } from "../runtime-capabilities";
@@ -42,16 +43,19 @@ export function runtimeCapabilityNode(options: {
   runtimeEnv: RuntimeConfig;
 }): NodeRuntimeCapabilities {
   const { runtimeEnv } = options;
-  const database = runtimeCapabilityLazy(() => getProcessDatabase(runtimeEnv));
+  const databaseLazy = runtimeCapabilityLazy(() =>
+    getProcessDatabase(runtimeEnv),
+  );
+  const database = runtimeCapabilityDatabase(databaseLazy, {
+    files: () => createPostgresFilesRepository(databaseLazy()),
+    productExports: () =>
+      createPostgresProductExportsRepository(databaseLazy()),
+    references: () => createPostgresReferenceRepository(databaseLazy()),
+  });
   const bucket = runtimeCapabilityLazy(() => getProcessBucket(runtimeEnv));
 
   return {
     database,
-    databaseRepositories: {
-      files: () => createPostgresFilesRepository(database()),
-      productExports: () => createPostgresProductExportsRepository(database()),
-      references: () => createPostgresReferenceRepository(database()),
-    },
     bucket,
     queue: {
       producer: runtimeCapabilityLazy(() =>
@@ -63,7 +67,7 @@ export function runtimeCapabilityNode(options: {
     },
     scheduler: runtimeCapabilityLazy(() => createProcessScheduler(runtimeEnv)),
     shopifySessionStorage: runtimeCapabilityLazy(async () =>
-      createPostgresShopifySessionStorage(await database()),
+      createPostgresShopifySessionStorage(await databaseLazy()),
     ),
     health: {
       disk: async () => ({

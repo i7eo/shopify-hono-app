@@ -119,7 +119,7 @@ Bucket 矩阵：
 这让 file module、Shopify session storage、product-export 和 health/database 都只消费 capability：
 
 - `runtimeCapabilities.database()`
-- `runtimeCapabilities.databaseRepositories.*()`
+- `runtimeCapabilities.database.repositories.*()`
 - `runtimeCapabilities.bucket()`
 - `runtimeCapabilities.shopifySessionStorage()`
 - `runtimeCapabilities.file.downloadResolver()`

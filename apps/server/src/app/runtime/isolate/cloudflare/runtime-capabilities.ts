@@ -13,6 +13,7 @@ import {
 import { createIsolateScheduler } from "@/infra/scheduler/isolate";
 import { runtimeNotSupported } from "@/utils/runtime";
 import {
+  runtimeCapabilityDatabase,
   runtimeCapabilityLazy,
   type RuntimeCapabilities,
 } from "../../runtime-capabilities";
@@ -35,7 +36,7 @@ export function runtimeCapabilityCloudflare(
   options: CloudflareRuntimeCapabilityOptions,
 ): CloudflareRuntimeCapabilities {
   const { env, runtimeEnv } = options;
-  const database = runtimeCapabilityLazy(() =>
+  const databaseLazy = runtimeCapabilityLazy(() =>
     createIsolateDatabase(runtimeEnv, {
       d1: requireConfiguredCloudflareBinding(
         env,
@@ -45,6 +46,11 @@ export function runtimeCapabilityCloudflare(
       ),
     }),
   );
+  const database = runtimeCapabilityDatabase(databaseLazy, {
+    files: () => createSqliteFilesRepository(databaseLazy()),
+    productExports: () => createSqliteProductExportsRepository(databaseLazy()),
+    references: () => createSqliteReferenceRepository(databaseLazy()),
+  });
   const bucket = runtimeCapabilityLazy(() =>
     createIsolateBucket(runtimeEnv, {
       r2: requireConfiguredCloudflareBinding(
@@ -58,11 +64,6 @@ export function runtimeCapabilityCloudflare(
 
   return {
     database,
-    databaseRepositories: {
-      files: () => createSqliteFilesRepository(database()),
-      productExports: () => createSqliteProductExportsRepository(database()),
-      references: () => createSqliteReferenceRepository(database()),
-    },
     bucket,
     queue: {
       producer: runtimeCapabilityLazy(() =>
@@ -77,7 +78,7 @@ export function runtimeCapabilityCloudflare(
       ),
     },
     shopifySessionStorage: runtimeCapabilityLazy(async () =>
-      createSqliteShopifySessionStorage(await database()),
+      createSqliteShopifySessionStorage(await databaseLazy()),
     ),
     health: {
       disk: () => runtimeNotSupported({ runtime: runtimeEnv.APP_RUNTIME }),

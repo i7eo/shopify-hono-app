@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import {
+  runtimeCapabilityDatabase,
   runtimeCapabilityLazy,
   type RuntimeCapabilities,
 } from "@/app/runtime/runtime-capabilities";
@@ -23,14 +24,13 @@ export function runtimeCapabilitiesMiddleware(
 
 function createMissingRuntimeCapabilitiesError(): RuntimeCapabilities {
   return {
-    database: missingCapability("database"),
-    databaseRepositories: {
-      files: missingSyncCapability("databaseRepositories.files"),
+    database: runtimeCapabilityDatabase(missingCapability("database"), {
+      files: missingSyncCapability("database.repositories.files"),
       productExports: missingSyncCapability(
-        "databaseRepositories.productExports",
+        "database.repositories.productExports",
       ),
-      references: missingSyncCapability("databaseRepositories.references"),
-    },
+      references: missingSyncCapability("database.repositories.references"),
+    }),
     bucket: missingCapability("bucket"),
     shopifySessionStorage: missingCapability("shopifySessionStorage"),
     health: {

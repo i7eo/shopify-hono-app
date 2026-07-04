@@ -86,7 +86,7 @@ Reference 的核心字段保持通用：
 | `enabled`   | 是否可被选择                           |
 | `system`    | 是否为系统默认项                       |
 
-通用 `reference` module 通过 `runtimeCapabilities.databaseRepositories.references()` 获取数据库-backed repository，并提供 PostgreSQL 与 D1/SQLite 两套实现。`repositories/database/index.ts` 只保留类型出口；Node runtime 绑定 `postgres.ts`，Cloudflare runtime 绑定 `sqlite.ts`。业务 controller/service 不直接判断 Node、Cloudflare、PostgreSQL 或 D1。
+通用 `reference` module 通过 `runtimeCapabilities.database.repositories.references()` 获取数据库-backed repository，并提供 PostgreSQL 与 D1/SQLite 两套实现。`repositories/database/index.ts` 只保留类型出口；Node runtime 绑定 `postgres.ts`，Cloudflare runtime 绑定 `sqlite.ts`。业务 controller/service 不直接判断 Node、Cloudflare、PostgreSQL 或 D1。
 
 ## 放入哪个边界
 
