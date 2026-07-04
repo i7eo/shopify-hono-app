@@ -58,7 +58,7 @@ file module 通过 `runtimeCapabilities.bucket()` 获取 object bucket，并通�
 对应文件：
 
 - `src/app/runtime/runtime-capabilities.ts`
-- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/process/node/runtime-capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 
 这个技巧的价值是把平台差异限制在 runtime entry 附近。新增 runtime 时，优先补 runtime capability creator，而不是改业务 controller。
@@ -129,7 +129,7 @@ const effectiveRawEnv = { ...getSafeProcessEnv(), ...nextRawEnv };
 
 runtime-specific 行为只放在两个地方：
 
-- runtime entry，例如 `src/app/runtime/process/index.ts`。
+- runtime entry，例如 `src/app/runtime/process/node/index.ts`。
 - runtime capability creator，例如 `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`。
 
 业务模块只使用通用 `AppEnv`。平台 binding 在 schema 中可以 optional，但必须在 capability 使用点通过 `requireCloudflareBinding(...)` 之类的 helper 强校验。
@@ -197,14 +197,14 @@ Cloudflare entry 不能静态引入 Node-only 依赖。项目通过几个规则�
 
 - Node-only 实现放在 process entry、process capability 或 process logger 中。
 - runtime-aware infra 的 `index.ts` 只导出共享契约、类型、registry 或 runtime-neutral helper。
-- process/isolate adapter 由 `src/app/runtime/process/runtime-capabilities.ts` 与 `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` 显式引入。
+- process/isolate adapter 由 `src/app/runtime/process/node/runtime-capabilities.ts` 与 `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` 显式引入。
 - 文件日志依赖用动态 import。
 - Cloudflare 共享代码不从 process util barrel 导入 Node-only 模块。
 - runtime capability 只暴露抽象函数。
 
 典型文件：
 
-- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/process/node/runtime-capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - `src/infra/logger/process.ts`
 - `src/infra/database/index.ts`
@@ -244,7 +244,7 @@ controller 不需要关心 token 过期，只消费 `c.var.shopifyAdminClient`�
 - `src/shared/exceptions/normalize.ts`
 - `src/shared/exceptions/errors.ts`
 - `src/app/lifecycle/error.ts`
-- `src/app/runtime/process/register-process-exceptions.ts`
+- `src/app/runtime/process/node/register-process-exceptions.ts`
 
 这样 controller 不手写错误 JSON，错误暴露策略集中维护。process-level
 `unhandledRejection` 和 `uncaughtException` 也会先 `normalizeError(...)` 再结构化记录日志；它们不会生成 HTTP response。

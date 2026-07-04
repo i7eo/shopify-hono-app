@@ -10,7 +10,7 @@ runtime-specific 实现由对应 runtime capability creator 显式引入：
 
 | Runtime            | Capability 创建位置                                                      |
 | ------------------ | ------------------------------------------------------------------------ |
-| Node process       | `apps/server/src/app/runtime/process/runtime-capabilities.ts`            |
+| Node process       | `apps/server/src/app/runtime/process/node/runtime-capabilities.ts`       |
 | Cloudflare isolate | `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` |
 
 公共 `infra/*/index.ts` 可以导出：
@@ -60,7 +60,7 @@ apps/server/src/infra/bucket/isolate.ts
 `infra/database/index.ts`、`infra/queue/index.ts`、`infra/scheduler/index.ts` 同理只保留共享导出和类型。具体创建与销毁逻辑放在：
 
 ```text
-apps/server/src/app/runtime/process/runtime-capabilities.ts
+apps/server/src/app/runtime/process/node/runtime-capabilities.ts
 apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts
 ```
 
@@ -137,4 +137,4 @@ rg "backgroundBucketFactory|createDatabase\\(|createQueueProducer\\(|createSched
 pnpm --dir apps/server run build
 ```
 
-`build` 会同时输出 `dist/process` 与 `dist/isolate/cloudflare`。Cloudflare isolate 构建不应出现来自 `infra/*/process.ts` 的 Node 内置模块 unresolved warning。
+`build` 会同时输出 `dist/process/node` 与 `dist/isolate/cloudflare`。Cloudflare isolate 构建不应出现来自 `infra/*/process.ts` 的 Node 内置模块 unresolved warning。

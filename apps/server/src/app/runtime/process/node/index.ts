@@ -2,13 +2,13 @@ import { serve } from "@hono/node-server";
 import { DEFAULT_ENVS } from "@shamt/app-env";
 import { bootstrapApp } from "@/app/bootstrap";
 import { registerJobs } from "@/app/bootstrap/register-jobs";
-import { registerProcessExceptions } from "@/app/runtime/process/register-process-exceptions";
-import { registerProcessExits } from "@/app/runtime/process/register-process-exits";
-import { runtimeCapabilityNode } from "@/app/runtime/process/runtime-capabilities";
+import { registerProcessExceptions } from "@/app/runtime/process/node/register-process-exceptions";
+import { registerProcessExits } from "@/app/runtime/process/node/register-process-exits";
+import { runtimeCapabilityNode } from "@/app/runtime/process/node/runtime-capabilities";
 import { setupProcessLogger } from "@/infra/logger/process";
 import { getEnvProvider, getLoggerProvider } from "@/infra/provider";
 import { registerProcessLoggerSetup } from "@/infra/provider/logger";
-import { name } from "../../../../package.json";
+import { name } from "../../../../../package.json";
 
 export async function bootstrap() {
   registerJobs();

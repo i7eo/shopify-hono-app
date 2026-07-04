@@ -1,5 +1,5 @@
 import { DEFAULT_ENVS } from "@shamt/app-env";
-import { env } from "@/app/runtime/process/env";
+import { env } from "@/app/runtime/process/node/env";
 import { throwAppServerError as throwError } from "../../internal";
 
 export function requirePostgresUrl() {

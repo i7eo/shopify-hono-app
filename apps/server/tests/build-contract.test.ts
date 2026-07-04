@@ -45,7 +45,7 @@ describe("build output contracts", () => {
   test("node Docker runtime starts the tsdown process bundle entry", async () => {
     const dockerfile = await readWorkspaceFile("apps/server/Dockerfile");
 
-    expect(dockerfile).toContain("./dist/process/index.mjs");
+    expect(dockerfile).toContain("./dist/process/node/index.mjs");
     expect(dockerfile).not.toContain("dist/process/esm/app/runtime/process");
   });
 

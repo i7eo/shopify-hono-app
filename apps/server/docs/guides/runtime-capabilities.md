@@ -196,16 +196,16 @@ const capabilities = runtimeCapabilityNode({
 
 新增或迁移 runtime 能力时按下面的规则放置代码：
 
-| 内容                          | 放置位置                                                           |
-| ----------------------------- | ------------------------------------------------------------------ |
-| runtime 入口                  | `src/app/runtime/process` 或 `src/app/runtime/isolate/cloudflare`  |
-| runtime capabilities creator  | 对应 runtime 入口附近，例如 `runtime-capabilities.ts`              |
-| 业务 port 类型                | 使用该能力的 app/module 边界，或共享 `RuntimeCapabilities` 类型    |
-| Node-only adapter             | `src/infra/*/process.ts` 或明确的 process runtime 文件             |
-| Cloudflare-only adapter       | `src/infra/*/isolate.ts` 或明确的 isolate runtime 文件             |
-| app module service/repository | 只接收 port，不直接读取 runtime/provider                           |
-| database repository index     | 只导出 repository 类型；dialect 实现在 `postgres.ts` / `sqlite.ts` |
-| package 级 schema/model       | `packages/*`，保持不依赖 `apps/*`                                  |
+| 内容                          | 放置位置                                                               |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| runtime 入口                  | `src/app/runtime/process/node` 或 `src/app/runtime/isolate/cloudflare` |
+| runtime capabilities creator  | 对应 runtime 入口附近，例如 `runtime-capabilities.ts`                  |
+| 业务 port 类型                | 使用该能力的 app/module 边界，或共享 `RuntimeCapabilities` 类型        |
+| Node-only adapter             | `src/infra/*/process.ts` 或明确的 process runtime 文件                 |
+| Cloudflare-only adapter       | `src/infra/*/isolate.ts` 或明确的 isolate runtime 文件                 |
+| app module service/repository | 只接收 port，不直接读取 runtime/provider                               |
+| database repository index     | 只导出 repository 类型；dialect 实现在 `postgres.ts` / `sqlite.ts`     |
+| package 级 schema/model       | `packages/*`，保持不依赖 `apps/*`                                      |
 
 不要把 runtime/provider switch 写进业务模块：
 

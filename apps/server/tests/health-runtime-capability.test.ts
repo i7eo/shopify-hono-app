@@ -6,7 +6,7 @@ import {
   getHealths,
 } from "@/app/modules/health/service";
 import { runtimeCapabilityCloudflare } from "@/app/runtime/isolate/cloudflare/runtime-capabilities";
-import { runtimeCapabilityNode } from "@/app/runtime/process/runtime-capabilities";
+import { runtimeCapabilityNode } from "@/app/runtime/process/node/runtime-capabilities";
 import {
   createMockContext,
   createMockRuntimeCapabilities,

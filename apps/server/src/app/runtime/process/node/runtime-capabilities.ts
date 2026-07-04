@@ -27,7 +27,7 @@ import {
   runtimeCapabilityDatabase,
   runtimeCapabilityLazy,
   type RuntimeCapabilities,
-} from "../runtime-capabilities";
+} from "../../runtime-capabilities";
 import type { RuntimeConfig } from "@/infra/env";
 import type { QueueConsumer } from "@/infra/queue";
 import type { Scheduler } from "@/infra/scheduler";

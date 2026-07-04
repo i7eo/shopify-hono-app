@@ -3,12 +3,12 @@ import { defineConfig } from "tsdown";
 
 export default defineConfig([
   {
-    entry: ["./src/app/runtime/process/index.ts"],
+    entry: ["./src/app/runtime/process/node/index.ts"],
     format: ["esm", "cjs"],
     platform: "node",
     dts: true,
     tsconfig: "./tsconfig.json",
-    outDir: "dist/process",
+    outDir: "dist/process/node",
     watch: process.env.APP_ENV === "development",
     shims: true,
   },

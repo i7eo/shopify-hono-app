@@ -50,7 +50,7 @@ Cloudflare 下 `envConfig` 来自 `c.env`，其中包含 request-bound 平台 bi
 
 - `src/shared/middlewares/runtime-env.ts`
 - `src/infra/provider/env.ts`
-- `src/app/runtime/process/index.ts`
+- `src/app/runtime/process/node/index.ts`
 - `src/app/runtime/isolate/cloudflare/index.ts`
 
 ## Provider 缓存

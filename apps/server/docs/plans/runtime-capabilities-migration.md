@@ -14,7 +14,7 @@
 
 - Public capability creator names must start with `runtimeCapability*`.
 - Capability collection object names must end with `*Capabilities`, for example `RuntimeCapabilities`, `NodeRuntimeCapabilities`, `CloudflareRequestRuntimeCapabilities`.
-- File and folder organization can keep `process` and `isolate`, for example `src/app/runtime/process/runtime-capabilities.ts` and `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`.
+- File and folder organization can keep `process` and `isolate`, for example `src/app/runtime/process/node/runtime-capabilities.ts` and `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`.
 - Internal runtime names in types/functions must use `Node` and `Cloudflare`, not `Process` and `Isolate`, unless referring to an existing package/runtime constant.
 - Before writing utility code, inspect `@unimolecule/utils` exports and reuse existing helpers such as `checkProcessDiskUsage`, `checkProcessMemoryUsage`, `createProcessGracefulExit`, `notNullish`, `isTruthy`, `serializeValue`, and `createProviderSignature`-style existing local helpers where already present.
 - Do not create schema aggregation files such as `postgres-schema.ts` or `sqlite-schema.ts`. Keep runtime-specific schema imports directly in Node/Cloudflare database entry files.
@@ -113,7 +113,7 @@ This helper must never be used at Cloudflare module scope for resources that hol
 
 - Read: `apps/server/docs/guides/runtime-capabilities.md`
 - Read: `apps/server/src/app/runtime/capabilities.ts`
-- Read: `apps/server/src/app/runtime/process/capabilities.ts`
+- Read: `apps/server/src/app/runtime/process/node/capabilities.ts`
 - Read: `apps/server/src/app/runtime/isolate/cloudflare/capabilities.ts`
 - Read: `apps/server/src/shared/middlewares/runtime-env.ts`
 - Read: `apps/server/src/shared/middlewares/runtime-logger.ts`
@@ -341,7 +341,7 @@ Create `apps/server/src/shared/middlewares/runtime-capabilities.ts`:
 ```ts
 import { createMiddleware } from "hono/factory";
 import { runtimeCapabilityCloudflareRequest } from "@/app/runtime/isolate/cloudflare/runtime-capabilities";
-import { runtimeCapabilityNodeRequest } from "@/app/runtime/process/runtime-capabilities";
+import { runtimeCapabilityNodeRequest } from "@/app/runtime/process/node/runtime-capabilities";
 import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";
 
@@ -433,9 +433,9 @@ Expected: No runtime capabilities missing errors in middleware tests.
 
 **Files:**
 
-- Create: `apps/server/src/app/runtime/process/runtime-capabilities.ts`
-- Modify: `apps/server/src/app/runtime/process/index.ts`
-- Modify: `apps/server/src/app/runtime/process/lifecycle/shutdown.ts`
+- Create: `apps/server/src/app/runtime/process/node/runtime-capabilities.ts`
+- Modify: `apps/server/src/app/runtime/process/node/index.ts`
+- Modify: `apps/server/src/app/runtime/process/node/lifecycle/shutdown.ts`
 - Reuse: `apps/server/src/infra/database/process.ts`
 - Reuse: `apps/server/src/infra/bucket/process.ts`
 - Reuse: `apps/server/src/infra/queue/process.ts`
@@ -445,7 +445,7 @@ Expected: No runtime capabilities missing errors in middleware tests.
 
 - [ ] **Step 1: Create Node capabilities creator**
 
-Create `apps/server/src/app/runtime/process/runtime-capabilities.ts`:
+Create `apps/server/src/app/runtime/process/node/runtime-capabilities.ts`:
 
 ```ts
 import {
@@ -554,7 +554,7 @@ Replace the temporary session storage throw in Task 6 before removing the regist
 
 - [ ] **Step 2: Update Node bootstrap to create capabilities once**
 
-Modify `apps/server/src/app/runtime/process/index.ts` after logger setup:
+Modify `apps/server/src/app/runtime/process/node/index.ts` after logger setup:
 
 ```ts
 const runtimeCapabilities = runtimeCapabilityNode({
@@ -567,10 +567,10 @@ Use `runtimeCapabilities.queue.consumer()` and `runtimeCapabilities.scheduler()`
 
 - [ ] **Step 3: Update Node shutdown**
 
-Modify `apps/server/src/app/runtime/process/lifecycle/shutdown.ts`:
+Modify `apps/server/src/app/runtime/process/node/lifecycle/shutdown.ts`:
 
 ```ts
-import { runtimeCapabilityNodeDispose } from "@/app/runtime/process/runtime-capabilities";
+import { runtimeCapabilityNodeDispose } from "@/app/runtime/process/node/runtime-capabilities";
 import { providersDispose } from "@/infra/provider";
 
 export async function shutdown() {
@@ -788,7 +788,7 @@ Expected: No module-scope cache that holds Cloudflare binding objects.
 
 **Files:**
 
-- Modify: `apps/server/src/app/runtime/process/runtime-capabilities.ts`
+- Modify: `apps/server/src/app/runtime/process/node/runtime-capabilities.ts`
 - Modify: `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - Modify: `apps/server/src/app/modules/shopify/session-storage/index.ts`
 - Add: `apps/server/src/app/modules/shopify/session-storage/postgres.ts`
@@ -813,7 +813,7 @@ export async function getShopifySessionStorage(c: Context<AppEnv>) {
 
 - [ ] **Step 2: Wire Node session storage in Node creator**
 
-In `apps/server/src/app/runtime/process/runtime-capabilities.ts`, delegate the Node-specific adapter to the Shopify module:
+In `apps/server/src/app/runtime/process/node/runtime-capabilities.ts`, delegate the Node-specific adapter to the Shopify module:
 
 ```ts
 const capabilities = {
@@ -978,9 +978,9 @@ Expected: Product export queue producer no longer depends on the global registry
 **Files:**
 
 - Modify: `apps/server/src/shared/middlewares/runtime-env.ts`
-- Modify: `apps/server/src/app/runtime/process/index.ts`
+- Modify: `apps/server/src/app/runtime/process/node/index.ts`
 - Modify: `apps/server/src/app/runtime/isolate/cloudflare/index.ts`
-- Modify: `apps/server/src/app/runtime/process/runtime-capabilities.ts`
+- Modify: `apps/server/src/app/runtime/process/node/runtime-capabilities.ts`
 - Modify: `apps/server/src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 
 - [ ] **Step 1: Make runtimeEnvMiddleware explicit**
@@ -1026,17 +1026,17 @@ Expected: No references remain.
 
 **Files:**
 
-- Create: `apps/server/src/app/runtime/process/logger.ts`
+- Create: `apps/server/src/app/runtime/process/node/logger.ts`
 - Create: `apps/server/src/app/runtime/isolate/cloudflare/logger.ts`
 - Modify: `apps/server/src/infra/logger/index.ts`
 - Modify: `apps/server/src/infra/provider/logger.ts`
 - Modify: `apps/server/src/shared/middlewares/runtime-logger.ts`
-- Modify: `apps/server/src/app/runtime/process/index.ts`
+- Modify: `apps/server/src/app/runtime/process/node/index.ts`
 - Modify: `apps/server/src/app/runtime/isolate/cloudflare/index.ts`
 
 - [ ] **Step 1: Add Node logger ensure function**
 
-Create `apps/server/src/app/runtime/process/logger.ts`:
+Create `apps/server/src/app/runtime/process/node/logger.ts`:
 
 ```ts
 import { getLoggerProvider } from "@/infra/provider";

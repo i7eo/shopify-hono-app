@@ -16,7 +16,7 @@
 
 | Runtime      | 入口                                          | 作用                                       |
 | ------------ | --------------------------------------------- | ------------------------------------------ |
-| Node process | `src/app/runtime/process/index.ts`            | 注册 Node 能力并启动 server                |
+| Node process | `src/app/runtime/process/node/index.ts`       | 注册 Node 能力并启动 server                |
 | Cloudflare   | `src/app/runtime/isolate/cloudflare/index.ts` | 注册 Cloudflare 能力并导出 `fetch` handler |
 
 Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统等能力。Cloudflare entry 只导出 Worker module handler，不能静态引入 Node-only 实现。
@@ -43,7 +43,7 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 对应文件：
 
 - `src/app/runtime/runtime-capabilities.ts`
-- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/process/node/runtime-capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - `src/shared/middlewares/runtime-capabilities.ts`
 - `src/infra/database`
@@ -55,7 +55,7 @@ Node entry 可以使用 `@hono/node-server`、进程信号、Node 文件系统�
 
 database、bucket、queue 和 scheduler 各自还保留自己的 infra index，但 index
 只导出共享契约、类型、registry 或 runtime-neutral helper。process/isolate
-实现由 `src/app/runtime/process/runtime-capabilities.ts` 与
+实现由 `src/app/runtime/process/node/runtime-capabilities.ts` 与
 `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts` 显式引入。这样
 Cloudflare entry 不会因为共享 infra barrel 间接看到 Node-only process adapter。
 
@@ -147,7 +147,7 @@ Shopify frontend target 也不是 runtime capability。它和 `APP_RUNTIME`、`S
 
 | 目标               | 构建配置          | 输出目录                  |
 | ------------------ | ----------------- | ------------------------- |
-| Node process       | `build.config.ts` | `dist/process`            |
+| Node process       | `build.config.ts` | `dist/process/node`       |
 | Cloudflare isolate | `build.config.ts` | `dist/isolate/cloudflare` |
 
 对应脚本：
@@ -156,7 +156,7 @@ Shopify frontend target 也不是 runtime capability。它和 `APP_RUNTIME`、`S
 pnpm --dir apps/server run build
 ```
 
-`build` 使用 production env 运行 `bundle`。`bundle` 调用 tsdown，同一个配置同时构建 Node process 和 Cloudflare isolate 两个入口；process 目标会清理 `dist`，isolate 目标使用 `clean: false`，因此一次构建后会同时保留两套产物。Node Docker runtime 启动 `dist/process/index.mjs`。
+`build` 使用 production env 运行 `bundle`。`bundle` 调用 tsdown，同一个配置同时构建 Node process 和 Cloudflare isolate 两个入口；process 目标会清理 `dist`，isolate 目标使用 `clean: false`，因此一次构建后会同时保留两套产物。Node Docker runtime 启动 `dist/process/node/index.mjs`。
 
 ## 部署入口
 

@@ -101,9 +101,9 @@ Process runtime entry 通过 `registerProcessLoggerSetup(setupProcessLogger)` �
 - `src/infra/logger/isolate.ts`
 - `src/infra/logger/process.ts`
 - `src/infra/provider/logger.ts`
-- `src/app/runtime/process/index.ts`
+- `src/app/runtime/process/node/index.ts`
 - `src/app/runtime/isolate/cloudflare/index.ts`
-- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/process/node/runtime-capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 
 ## Error Lifecycle

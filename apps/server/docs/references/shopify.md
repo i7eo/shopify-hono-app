@@ -233,7 +233,7 @@ Shopify session storage 由 `RuntimeCapabilities` 提供，并在 runtime bounda
 - `src/app/modules/shopify/session-storage/sqlite.ts`
 - `src/app/runtime/isolate/cloudflare/runtime-capabilities.ts`
 - `src/app/runtime/isolate/cloudflare/bindings.ts`
-- `src/app/runtime/process/runtime-capabilities.ts`
+- `src/app/runtime/process/node/runtime-capabilities.ts`
 - `src/infra/database`
 - `packages/database/src/models/postgres/shopify-sessions.ts`
 - `packages/database/src/models/sqlite/shopify-sessions.ts`

@@ -12,7 +12,7 @@
     "cf:type": "wrangler types ./typings/cloudflare-worker-configuration.d.ts",
     "cf:dev": "node --env-file=../../.env.development ./node_modules/wrangler/bin/wrangler.js dev --port \"$BACKEND_PORT\" --env development --env-file ../../.env.development --var \"SHOPIFY_APP_URL:${APP_URL:-$HOST}\"",
     "cf:deploy": "node --env-file=../../.env.production --import tsx ./scripts/deploy/cloudflare.ts && wrangler secret bulk ../../.env.production --env production && wrangler deploy --env production",
-    "node:dev": "APP__SERVER_PORT=\"$BACKEND_PORT\" SHOPIFY_APP_URL=\"${APP_URL:-$HOST}\" tsx watch --env-file=../../.env.development ./src/app/runtime/process/index.ts",
+    "node:dev": "APP__SERVER_PORT=\"$BACKEND_PORT\" SHOPIFY_APP_URL=\"${APP_URL:-$HOST}\" tsx watch --env-file=../../.env.development ./src/app/runtime/process/node/index.ts",
     "node:deploy": "node --env-file=../../.env.production --import tsx ./scripts/deploy/node.ts",
     "bundle": "tsdown --config ./build.config.ts",
     "build": "node --env-file=../../.env.production --run bundle",

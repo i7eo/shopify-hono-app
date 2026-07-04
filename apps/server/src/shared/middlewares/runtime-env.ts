@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { getSafeProcessEnv } from "@/app/runtime/process/utils/process";
+import { getSafeProcessEnv } from "@/app/runtime/process/node/utils/process";
 import { getEnvProvider } from "@/infra/provider";
 import { internalServerError } from "@/shared/exceptions";
 import type { AppEnv } from "@/typings";

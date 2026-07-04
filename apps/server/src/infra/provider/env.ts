@@ -1,5 +1,5 @@
 import { configSchema } from "@shamt/app-env";
-import { getSafeProcessEnv } from "@/app/runtime/process/utils/process";
+import { getSafeProcessEnv } from "@/app/runtime/process/node/utils/process";
 import { getRuntimeConfig, type RuntimeConfig } from "@/infra/env";
 import { createSchemaSignature } from "./signature";
 

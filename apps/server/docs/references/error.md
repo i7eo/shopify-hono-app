@@ -104,7 +104,7 @@ Hono 统一错误入口：
 
 - `src/app/lifecycle/error.ts`
 - `src/app/lifecycle/not-found.ts`
-- `src/app/runtime/process/register-process-exceptions.ts`
+- `src/app/runtime/process/node/register-process-exceptions.ts`
 
 `app.onError` 流程：
 

@@ -16,4 +16,4 @@ COPY apps/server/dist/process ./apps/server/dist/process
 
 WORKDIR /app/apps/server
 
-CMD ["pm2-runtime", "start", "./dist/process/index.mjs", "--interpreter", "node", "--name", "server"]
+CMD ["pm2-runtime", "start", "./dist/process/node/index.mjs", "--interpreter", "node", "--name", "server"]
