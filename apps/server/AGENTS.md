@@ -36,6 +36,12 @@
 - Only page pagination should calculate `total`; cursor pagination should avoid count queries unless a future endpoint explicitly requires it.
 - Cursor-backed stores should use stable ordering and opaque seek cursors instead of offset emulation.
 
+## OpenAPI Schema Rules
+
+- App modules under `src/app/modules/*` should build OpenAPI schemas from pure Zod definitions exported by `@shamt/database/entities/schemas` when describing database-backed entities.
+- Do not import Drizzle-generated schemas, dialect models, PostgreSQL schemas, or SQLite/D1 schemas directly into module OpenAPI schema files.
+- Keep OpenAPI metadata, examples, params, query schemas, and request body schemas in the app module that owns the route.
+
 ## Error Handling
 
 - Route handlers and lifecycle hooks must use the shared error normalization pipeline instead of branching around individual SDK error classes.

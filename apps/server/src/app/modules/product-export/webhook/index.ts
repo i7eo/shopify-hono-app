@@ -34,7 +34,7 @@ type BulkOperationFinishWebhookPayload = {
 export async function handleProductExportBulkOperationFinishWebhook(
   c: Context<AppEnv>,
 ) {
-  const webhook = c.var.webhook;
+  const webhook = c.var.shopifyWebhook;
   const payload = parseBulkOperationFinishWebhookPayload(webhook.payload);
   const logger = await getLoggerProvider(
     getEnvProvider(c.get("runtimeEnv") ?? c.env),

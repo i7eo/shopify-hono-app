@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { shopifyAdminSession } from "@/app/modules/shopify/mode";
 import { ErrorSchema, ResponseSchema } from "@/shared/models";
-import { apiPath, tag } from "./constants";
+import { apiPath, tags } from "./constants";
 import {
   CreateReferenceBodySchema,
   ReferenceIdParamsSchema,
@@ -16,7 +16,7 @@ export const listReferencesRoute = createRoute({
   method: "get",
   path: `${apiPath}/{namespace}`,
   middleware: [shopifyAdminSession()] as const,
-  tags: [tag, `${tag}: Reference`],
+  tags,
   summary: "List references",
   description: "List references for a shop-scoped namespace.",
   request: {
@@ -39,7 +39,7 @@ export const createReferenceRoute = createRoute({
   method: "post",
   path: `${apiPath}/{namespace}`,
   middleware: [shopifyAdminSession()] as const,
-  tags: [tag, `${tag}: Reference`],
+  tags,
   summary: "Create reference",
   description: "Create one reference for a shop-scoped namespace.",
   request: {
@@ -76,7 +76,7 @@ export const getReferenceRoute = createRoute({
   method: "get",
   path: `${apiPath}/{namespace}/{id}`,
   middleware: [shopifyAdminSession()] as const,
-  tags: [tag, `${tag}: Reference`],
+  tags,
   summary: "Get reference",
   description: "Get one reference for a shop-scoped namespace.",
   request: {
@@ -106,7 +106,7 @@ export const updateReferenceRoute = createRoute({
   method: "patch",
   path: `${apiPath}/{namespace}/{id}`,
   middleware: [shopifyAdminSession()] as const,
-  tags: [tag, `${tag}: Reference`],
+  tags,
   summary: "Update reference",
   description: "Update one reference for a shop-scoped namespace.",
   request: {
@@ -151,7 +151,7 @@ export const deleteReferenceRoute = createRoute({
   method: "delete",
   path: `${apiPath}/{namespace}/{id}`,
   middleware: [shopifyAdminSession()] as const,
-  tags: [tag, `${tag}: Reference`],
+  tags,
   summary: "Delete reference",
   description: "Soft-delete one reference for a shop-scoped namespace.",
   request: {

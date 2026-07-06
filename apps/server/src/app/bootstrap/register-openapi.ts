@@ -22,12 +22,12 @@ export function registerOpenAPI(
     },
   });
 
-  app.get("/reference", async (c, next) => {
+  app.get("/openapi", async (c, next) => {
     const { Scalar } = await import("@scalar/hono-api-reference");
     const handler = Scalar<AppEnv>({
       url: "/document",
       theme: "kepler",
-      layout: "classic",
+      layout: "modern",
       defaultHttpClient: {
         targetKey: "js",
         clientKey: "fetch",

@@ -71,7 +71,7 @@ export const createWebhookRoutes = () => {
   webhookRoutes.use("/*", verifyWebhook);
 
   webhookRoutes.post(SHOPIFY_WEBHOOK_ROUTE_PATHS.APP_UNINSTALLED, async (c) => {
-    const { shop } = c.var.webhook;
+    const { shop } = c.var.shopifyWebhook;
     const sessionStorage = await getShopifySessionStorage(c);
     const sessions = await sessionStorage.findSessionsByShop(shop);
     await sessionStorage.deleteSessions(sessions.map((session) => session.id));
@@ -91,7 +91,7 @@ export const createWebhookRoutes = () => {
   webhookRoutes.post(
     SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_CUSTOMERS_DATA_REQUEST,
     async (c) => {
-      const { payload, shop } = c.var.webhook;
+      const { payload, shop } = c.var.shopifyWebhook;
       const logger = await getRequestLogger(c);
       logger.info(
         `Customer data request from ${shop}: ${JSON.stringify(payload)}`,
@@ -105,7 +105,7 @@ export const createWebhookRoutes = () => {
   webhookRoutes.post(
     SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_CUSTOMERS_REDACT,
     async (c) => {
-      const { payload, shop } = c.var.webhook;
+      const { payload, shop } = c.var.shopifyWebhook;
       const logger = await getRequestLogger(c);
       logger.info(
         `Customer redact request from ${shop}: ${JSON.stringify(payload)}`,
@@ -119,7 +119,7 @@ export const createWebhookRoutes = () => {
   webhookRoutes.post(
     SHOPIFY_WEBHOOK_ROUTE_PATHS.PRIVACY_SHOP_REDACT,
     async (c) => {
-      const { payload, shop } = c.var.webhook;
+      const { payload, shop } = c.var.shopifyWebhook;
       const logger = await getRequestLogger(c);
       logger.info(
         `Shop redact request from ${shop}: ${JSON.stringify(payload)}`,

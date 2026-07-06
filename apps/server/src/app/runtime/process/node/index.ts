@@ -39,7 +39,7 @@ export async function bootstrap() {
   await registerProcessExits(nodeApp);
 
   logger.info(
-    `🎉 ${name} is running on port ${env.APP__SERVER_PORT}! OpenAPI Route: 👉 /reference`,
+    `🎉 ${name} is running on port ${env.APP__SERVER_PORT}! OpenAPI Route: 👉 /openapi`,
   );
 
   const queueConsumer = await runtimeCapabilities.queue.consumer();

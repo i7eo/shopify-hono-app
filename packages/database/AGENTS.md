@@ -23,6 +23,8 @@
 
 - Export table models and insert/update/select schemas from stable dialect entrypoints.
 - Export dialect-neutral app-facing aliases from `types` when consumers should not care which database provider backs the app.
+- When updating `models`, update the corresponding `schemas` and `entities` in the same change.
+- Reference schemas under `entities` must be handwritten Zod schemas that stay independent from Drizzle and PostgreSQL runtime code.
 - Avoid app-specific names unless the schema is intentionally app-owned and documented.
 - Add JSDoc and README examples for non-obvious table or schema usage.
 

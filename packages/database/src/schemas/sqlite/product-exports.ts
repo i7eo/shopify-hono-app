@@ -7,7 +7,6 @@ import {
   sqliteProductExportParts,
   sqliteProductExports,
 } from "../../models/sqlite";
-import type { z } from "zod";
 
 export const insertSqliteProductExportSchema =
   createInsertSchema(sqliteProductExports);
@@ -24,22 +23,3 @@ export const updateSqliteProductExportPartSchema = createUpdateSchema(
 export const selectSqliteProductExportPartSchema = createSelectSchema(
   sqliteProductExportParts,
 );
-
-export type InsertSqliteProductExport = z.infer<
-  typeof insertSqliteProductExportSchema
->;
-export type UpdateSqliteProductExport = z.infer<
-  typeof updateSqliteProductExportSchema
->;
-export type SelectSqliteProductExport = z.infer<
-  typeof selectSqliteProductExportSchema
->;
-export type InsertSqliteProductExportPart = z.infer<
-  typeof insertSqliteProductExportPartSchema
->;
-export type UpdateSqliteProductExportPart = z.infer<
-  typeof updateSqliteProductExportPartSchema
->;
-export type SelectSqliteProductExportPart = z.infer<
-  typeof selectSqliteProductExportPartSchema
->;

@@ -2,6 +2,7 @@ import type { BucketProvider } from "@/infra/bucket";
 import type { RuntimeConfig } from "@/infra/env";
 import type { PaginatedPage, PaginationInput } from "@/shared/models";
 import type { SelectPostgresFile } from "@shamt/database/entities";
+import type { File as PlainFile } from "@shamt/database/entities/plain-zod-schema";
 import type { Context } from "hono";
 
 export type FileStatus = SelectPostgresFile["status"];
@@ -10,15 +11,7 @@ export type FileRecord = SelectPostgresFile & {
   bucketProvider: BucketProvider;
 };
 
-export type PublicFile = Omit<
-  SelectPostgresFile,
-  "createdAt" | "deletedAt" | "expiresAt" | "updatedAt"
-> & {
-  createdAt: string;
-  deletedAt: string | null;
-  expiresAt: string;
-  updatedAt: string;
-};
+export type PublicFile = PlainFile;
 
 export type FileLookup = {
   id: string;

@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { shopifyAdminClient } from "@/app/modules/shopify/admin";
 import { shopifyAdminSession } from "@/app/modules/shopify/mode";
 import { ErrorSchema, ResponseSchema } from "@/shared/models";
-import { apiPath, tag } from "./constants";
+import { apiPath, tags } from "./constants";
 
 export const ShopifyProductsDataSchema = z.object({
   products: z.object({
@@ -31,7 +31,7 @@ export const getProductsRoute = createRoute({
   method: "get",
   path: apiPath,
   middleware: [shopifyAdminSession(), shopifyAdminClient()] as const,
-  tags: [tag, `${tag}: Product`],
+  tags,
   summary: "Products",
   description: "Fetch a sample list of Shopify products for the app.",
   responses: {

@@ -1008,7 +1008,7 @@ describe("verifyWebhook middleware", () => {
       rawRequest: context.req.raw,
       rawBody: '{"shop_id":1}',
     });
-    expect(context.var.webhook).toEqual({
+    expect(context.var.shopifyWebhook).toEqual({
       apiVersion: "2026-07",
       payload: { shop_id: 1 },
       shop: "shop.myshopify.com",

@@ -19,6 +19,7 @@ interface WranglerConfig {
   observability: {
     enabled: boolean;
   };
+  upload_source_maps: boolean;
   env: Record<string, WranglerEnvironmentConfig>;
 }
 
@@ -76,11 +77,12 @@ export function renderWranglerConfig(
   const environment = renderWranglerEnvironment(config);
 
   return {
-    compatibility_date: "2026-06-05",
+    compatibility_date: "2026-07-01",
     compatibility_flags: ["nodejs_compat"],
     observability: {
       enabled: true,
     },
+    upload_source_maps: true,
     env: {
       [envName]: environment,
     },

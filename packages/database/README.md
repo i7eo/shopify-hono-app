@@ -212,6 +212,26 @@ Dialect schema entrypoints export dialect-prefixed inferred types such as
 `InsertSqliteFile`, `UpdateSqliteFile`, and `SelectSqliteFile`. These types are
 derived from the exported Zod schemas.
 
+The package also keeps pure Zod response entity schemas under
+`@shamt/database/entities/plain-zod-schema`. These schemas describe serialized
+PostgreSQL select results for API responses and browser/runtime parsing. They
+import only Zod and shared constants, so they do not pull Drizzle table models
+or `drizzle-zod` into web or Cloudflare bundles.
+
+```ts
+import {
+  FileSchema,
+  ProductExportPartSchema,
+  ProductExportSchema,
+  ReferenceSchema,
+  ShopifySessionSchema,
+} from "@shamt/database/entities/plain-zod-schema";
+```
+
+Date and timestamp fields in these response schemas are ISO datetime strings,
+not `Date` instances. Insert and update validation remains owned by the
+Drizzle-Zod dialect schemas or by app-specific request body schemas.
+
 ## Types
 
 `@shamt/database/types` exports dialect-neutral aliases for app and web code

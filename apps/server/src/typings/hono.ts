@@ -27,7 +27,7 @@ export interface Variables {
   // Set by shopify-admin middleware
   shopifyAdminClient: ShopifyClient;
   // Set by verify-webhook middleware
-  webhook: ShopifyWebhookContext;
+  shopifyWebhook: ShopifyWebhookContext;
 }
 
 export type ShopifyWebhookContext = {

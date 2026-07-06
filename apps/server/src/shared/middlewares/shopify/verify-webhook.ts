@@ -31,7 +31,7 @@ export const verifyWebhook = createMiddleware<AppEnv>(async (c, next) => {
     throw unauthorizedError("Invalid Shopify webhook JSON payload");
   }
 
-  c.set("webhook", {
+  c.set("shopifyWebhook", {
     apiVersion: validation.apiVersion,
     eventId: "eventId" in validation ? validation.eventId : undefined,
     payload,
